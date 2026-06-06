@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+.next/
+out/
+dist/
+build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+
+# Local upload/staging scratch
+mnt/
+
+# Large model artifacts
+*.pt
+*.pth
+*.ckpt
+
+# Large geospatial and simulation outputs
+*.tif
+*.tiff
+*.mat
+
+# Runtime data directories: keep provenance docs, ignore payloads.
+data/terrain/*
+!data/terrain/.gitkeep
+!data/terrain/README.md
+
+data/validation_cases/*
+!data/validation_cases/.gitkeep
+!data/validation_cases/README.md
+
+data/scenario_b_runs/*
+!data/scenario_b_runs/.gitkeep
+!data/scenario_b_runs/README.md
+
+models/checkpoints/*
+!models/checkpoints/.gitkeep
+!models/checkpoints/README.md
