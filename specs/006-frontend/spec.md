@@ -1,86 +1,138 @@
-# Feature 006: Frontend (Demo Interface)
+# Feature 006: Frontend (Screening Workbench)
 
 ## Purpose
 
-The presentation centerpiece. A Next.js + TypeScript interface that runs the framework
-end-to-end interactively: input a geology and operational ranges, watch scenarios get
-screened, see the CO₂ plume evolve, see the pipeline route draw itself across the
-terrain, and watch the economics — and the scenario ranking — respond live as the
-carbon price is dragged. Must look clean and not crash on a presentation laptop.
+A working engineering tool first, presentation centerpiece second. A
+single-user, local-first workbench over the Feature 005 screening API: compose
+a screening study, run it with live SSE progress, explore ranked results
+spatially and economically, compare runs, and export reproducible study memos.
+The stage demo is served by the demo preset plus a canned offline fallback —
+not by a separate demo app.
 
-## Demo moments to engineer for
+The approved design is
+[`docs/superpowers/specs/2026-07-16-frontend-workbench-design.md`](../../docs/superpowers/specs/2026-07-16-frontend-workbench-design.md).
+This spec summarizes the requirements; the design doc governs on detail.
 
-These are the reactions the UI must reliably produce on stage:
+## Shape
 
-1. **Speed** — "screening 200 scenarios" → progress bar fills → "done, ~45 s," with
-   the wall-clock time shown against an annotation of what full simulation would cost.
-2. **The plume** — animated CO₂ plume spreading through the geology across
-   inject → soak → produce, rendered in seconds.
-3. **The pipeline** — the optimal route drawing itself across real terrain with booster
-   icons appearing, and a pressure profile showing the dense-phase floor being held.
-4. **The slider** — dragging carbon price from ~$2 to ~$30/tonne reshuffles the
-   scenario ranking and updates NPV in real time.
-5. **The comparison** — naive vs. limited-simulation vs. surrogate-enabled, same
-   Jatibarang case, with the time and NPV deltas.
+A **screening workbench inside a field-twin canvas**, not a case-centric
+simulator UI. Precedents deliberately borrowed: FieldTwin's scene-as-index
+interaction grammar, tNavigator AHM / Petrel U&O ensemble-study character,
+SimCCS's source–sink–transport domain, and the SECARB extruded-cell
+storage-cost visualization for the reservoir encoding.
 
-## Panels
+### Classical WIMP chrome (required)
 
-- **Input (sidebar).** Geology preset selector (Jatibarang case study) or parameter
-  controls (porosity range, permeability range). Operational controls (injection rate,
-  soak duration, production duration, BHP, cycle count) as ranges to sweep. CO₂ source
-  selector with source properties. Supply-scenario toggle. A prominent "Screen" button.
-  Out-of-range inputs are visibly flagged.
-- **Plume viewer (center, primary).** The 64×64 grid as a heatmap with a timeline
-  scrubber across inject → soak → produce over the cycles. Toggle between pressure,
-  gas saturation, z_co2, and oil saturation. A canvas/WebGL renderer is preferred over
-  a geographic map library since the grid is not geographic; a custom colormap per
-  field.
-- **Terrain & pipeline map.** Real SRTM terrain between source and Jatibarang as a
-  topographic heatmap. Source(s) and sink as markers. The optimized route animates in;
-  booster stations appear as icons. A pressure-along-route chart with the dense-phase
-  floor as a red line and booster rescue points marked. Supply-scenario toggle updates
-  route + economics.
-- **Production & storage (right, upper).** Line charts: cumulative oil, cumulative gas,
-  net CO₂ stored over time. In screening mode, multiple scenarios as faint lines with
-  the selected/best one highlighted.
-- **Economics (right, lower).** The carbon-price slider lives here. NPV updates live as
-  it moves. Break-even carbon and oil prices. Cost/revenue breakdown (CO₂ supply,
-  facility, OPEX vs. oil revenue, carbon revenue). A scenario ranking table that
-  reshuffles with the slider. Uncertainty band shown on NPV.
+The interface follows the traditional desktop application idiom shared by
+Photoshop, tNavigator, OpendTect, and ECLIPSE Office — this is a functional
+requirement, not styling:
+
+- **Menu bar** (`File · Edit · View · Study · Tools · Help`) as the complete
+  command inventory: every capability has a menu entry; nothing hides behind
+  hamburgers or hover-reveals. Shortcuts listed right-aligned in the menus.
+- **Toolbar** as the frequency layer: dense icon duplicates of menu commands
+  (select, orbit, probe, measure, 2D/3D, layers, encoding dropdowns,
+  exaggeration, Screen/Cancel). No unique capabilities.
+- **Status bar** as ambient truth: cursor grid + geographic coordinates +
+  elevation, selection, active study fingerprint, run wall-clock, `/health`
+  dot.
+- **Panels hold state, not navigation**: no pages; a persistent workspace with
+  project tree + run ledger (left), 3D viewport (center), inspector (right),
+  and a dashboard tab strip (Ranking, Economics, Production, Run console,
+  Compose) at the bottom. Fixed regions with collapse/tabs; no docking
+  framework.
+- Undo/redo scoped to study-definition (composer) edits.
+- Dark, dense, quiet chrome; desaturated context; color reserved for binned
+  data plus one interaction accent (Formation Red per Intelligent Geologics
+  branding).
+
+### 3D viewport
+
+Read-only spatial index, never an editor. Monochrome low-poly SRTM terrain
+with adjustable vertical exaggeration (default 5x); the 64x64 grid as
+SECARB-style extruded prisms (height = per-cell CO2 inventory, color =
+switchable field in discrete legend bins) animated across inject → soak →
+produce; pipelines as solid terrain-hugging tubes vs trucking as dashed lines;
+boosters, sources, exclusion zones as markers/patches. Portfolio zoom shows
+per-well extruded footprints that flatten/dim as the carbon-price scrubber
+drops them from the shortlist. Behind an error boundary with an automatic 2D
+map fallback; every panel works with the viewport dead.
+
+## Workflow
+
+Preflight (gates Screen on `/health` + `/presets` readiness, shown as-is
+including `NOT READY`/`BLOCKED`) → Compose (constrained composer mirroring
+`InlineScreenRequest`, trained-range amber flags, scenario-count preview,
+literal request-JSON drawer, **re-compose from any ledger entry**) → Run (SSE
+stage timeline via fetch/ReadableStream parser, heartbeat watchdog, inline
+warnings, dedup counter, cancel; sync `/screen` fallback) → Explore (ranking
+table anchors a global shared selection driving viewport, inspector, and
+economics; carbon-price scrubber pivots client-side over
+`cross_price_comparison` with zero API calls) → Compare (fingerprint-keyed
+ledger diff: request deltas, rank trajectories, NPV deltas) → Export (study
+memo JSON: request + fingerprint + result + flags + versions; also the
+persistence and Feature 007 hand-off mechanism).
+
+Warnings tied to a (well x carbon-price) cell must attach to that cell in the
+results, not only appear in the console log.
+
+## Demo moments (served by the workbench, preset-driven)
+
+1. **Speed** — run console fills its stage timeline; wall-clock vs
+   full-simulation annotation.
+2. **The plume** — extruded-cell animation across inject → soak → produce.
+3. **The pipeline** — route on real terrain with boosters; pressure profile
+   holding the dense-phase floor.
+4. **The slider** — carbon-price scrubber reshuffles ranking, updates NPV, and
+   visibly re-shapes the scene in real time.
+5. **The comparison** — A/B/C as a ledger diff with time and NPV deltas.
 
 ## DWSIM in the UI
 
-Do **not** run DWSIM live. Show the facility as a static process-flow-diagram panel
-whose key numbers (compression power, separator capacity, facility CAPEX/OPEX) update
-from Module 3's correlations for the selected scenario. It should read as "facility
-integrated" without the on-stage risk of running DWSIM.
+Do **not** run DWSIM live. A static PFD panel in the inspector binds Feature
+003 numbers (compression power, separator capacity, facility CAPEX/OPEX) for
+the selected plan.
 
 ## Behavior rules
 
-- All data comes from the Module 005 API. No physics or economics in the frontend.
-- No browser storage APIs. Hold session state in React state only.
-- Resilient to slow/failed calls: show loading states, never a blank crash. Have a
-  cached canned result for the Jatibarang preset so the demo works even with flaky
-  conference wifi.
-- Branding consistent with Intelligent Geologics (Swiss industrial / retro-tech;
-  Formation Red accent; Helvetica Neue Black headings). Consider positioning the tool
-  as a Fieldman CCUS-planning module rather than a standalone prototype.
+- All data comes from the Feature 005 API. No physics or economics in the
+  frontend. The only backend change is a `StaticFiles` mount (packaging).
+- No browser storage APIs; session state in React state, durable state in
+  exported study-memo files.
+- HTTP errors map to specific UI (422 → composer fields, 429 → active-run
+  conflict card, 503 → dependency banner). Error boundaries per region; no
+  blank-screen failure modes.
+- Confidence chrome everywhere: extended-horizon, out-of-trained-range,
+  screening-grade cost-basis flags rendered wherever affected numbers appear,
+  worded to be quotable.
+- A canned Jatibarang demo result is bundled into the static build so the core
+  demo runs without a live backend.
 
 ## Dependencies
 
-- Next.js 14+, TypeScript.
-- A charting library (Recharts or D3) for production/economics charts.
-- A canvas/WebGL grid renderer for the plume; a lightweight map renderer for terrain.
-- No backend logic — API client only.
+- Vite + React + TypeScript SPA in `frontend/`, built static, served by the
+  existing FastAPI app (one process, no CORS, no Node in production).
+- Types generated from `specs/005-screening-api/contracts/openapi.yaml`
+  (`openapi-typescript`) as a build gate.
+- react-three-fiber/three (viewport), Recharts (charts), Zustand + TanStack
+  Query (state/data), Radix UI or react-aria (menubar/menus/tabs).
 
 ## Done Criteria
 
-- [ ] Full flow works against the live Module 005 API on the Jatibarang preset.
-- [ ] Plume animation is smooth across the full inject→soak→produce timeline.
-- [ ] Pipeline route renders on real terrain with boosters and a held dense-phase floor.
-- [ ] Carbon-price slider updates NPV and reshuffles the ranking in real time.
-- [ ] Screening progress bar reflects real backend progress and shows wall-clock time.
-- [ ] A/B/C comparison view present with time and NPV deltas.
-- [ ] Out-of-range inputs and low-confidence scenarios are visibly flagged.
-- [ ] A cached Jatibarang result lets the core demo run without a live backend.
-- [ ] No browser-storage usage; no blank-screen failure modes.
+- [ ] Full flow works against the live Feature 005 API on the demo preset.
+- [ ] WIMP chrome complete: menu bar as full command inventory, toolbar,
+      status bar, keyboard layer (undo/redo, open/save, find, timeline keys).
+- [ ] Extruded-grid plume animation smooth across inject → soak → produce.
+- [ ] Pipeline vs trucking rendered distinctly on real terrain with boosters
+      and a held dense-phase floor profile.
+- [ ] Carbon-price scrubber re-pivots ranking, NPV, and scene with no API
+      calls while dragging.
+- [ ] Run console reflects real SSE progress with heartbeat watchdog, inline
+      warnings, dedup counter, and working cancel.
+- [ ] Ledger diff (A/B/C) shows request deltas, rank trajectories, NPV deltas.
+- [ ] Study memo export/import round-trips and re-compose reproduces the
+      fingerprint.
+- [ ] Out-of-range inputs and low-confidence results visibly flagged; preset
+      readiness shown as reported.
+- [ ] Viewport failure degrades automatically to the 2D map with all panels
+      functional; no browser storage; no blank-screen failure modes.
