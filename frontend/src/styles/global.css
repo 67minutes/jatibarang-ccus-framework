@@ -1,0 +1,141 @@
+/*
+ * Jatibarang CCUS Screening Workbench — design tokens.
+ *
+ * Classical WIMP desktop aesthetic: dark, dense, quiet chrome; desaturated
+ * context; one interaction accent (Formation Red). Color is reserved for data
+ * (rendered in discrete bins) and interaction state — never decoration.
+ */
+:root {
+  /* Chrome surfaces, darkest (menu/toolbar/status) -> lightest (panel body). */
+  --bg-chrome: #16181c;
+  --bg-toolbar: #1b1e23;
+  --bg-panel: #202329;
+  --bg-panel-alt: #262a31;
+  --bg-viewport: #0e1013;
+  --bg-input: #14161a;
+  --bg-hover: #2c313a;
+  --bg-selected: #33383f;
+
+  --border: #34383f;
+  --border-strong: #454a52;
+
+  --text: #d7dbe0;
+  --text-dim: #9aa0a8;
+  --text-faint: #6b7178;
+  --text-inverse: #16181c;
+
+  /* Formation Red — the single interaction accent. */
+  --accent: #d1352b;
+  --accent-hover: #e4463b;
+  --accent-dim: #7a2420;
+
+  /* Semantic status. */
+  --ok: #4c9a5a;
+  --warn: #c9922e;
+  --danger: #d1352b;
+  --info: #4a7fb0;
+
+  /* Data bin ramp (screening cost / value style), used discretely. */
+  --bin-1: #2f8f4e;
+  --bin-2: #93b83a;
+  --bin-3: #d98a2b;
+  --bin-4: #c23b2e;
+  --bin-na: #5a6068;
+
+  --font-ui: "Helvetica Neue", "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-head: "Helvetica Neue", "Arial Black", "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", "Consolas", "SF Mono", ui-monospace, monospace;
+
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-lg: 15px;
+
+  --row-h: 26px;
+  --toolbar-h: 40px;
+  --menubar-h: 30px;
+  --statusbar-h: 24px;
+
+  --focus-ring: 0 0 0 1px var(--accent);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: var(--fs-md);
+  color: var(--text);
+  background: var(--bg-chrome);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-head);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button:focus-visible,
+[role="menuitem"]:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+input,
+select {
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 3px 6px;
+}
+
+code,
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

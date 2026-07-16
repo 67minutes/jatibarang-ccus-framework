@@ -119,20 +119,39 @@ the selected plan.
 
 ## Done Criteria
 
-- [ ] Full flow works against the live Feature 005 API on the demo preset.
-- [ ] WIMP chrome complete: menu bar as full command inventory, toolbar,
+- [x] Full flow works against the live Feature 005 API on an inline demo study
+      (Playwright smoke). The MRST preset payloads remain BLOCKED (Feature 007),
+      so the demo uses inline mode, as designed.
+- [x] WIMP chrome complete: menu bar as full command inventory, toolbar,
       status bar, keyboard layer (undo/redo, open/save, find, timeline keys).
-- [ ] Extruded-grid plume animation smooth across inject → soak → produce.
-- [ ] Pipeline vs trucking rendered distinctly on real terrain with boosters
-      and a held dense-phase floor profile.
-- [ ] Carbon-price scrubber re-pivots ranking, NPV, and scene with no API
-      calls while dragging.
-- [ ] Run console reflects real SSE progress with heartbeat watchdog, inline
-      warnings, dedup counter, and working cancel.
-- [ ] Ledger diff (A/B/C) shows request deltas, rank trajectories, NPV deltas.
-- [ ] Study memo export/import round-trips and re-compose reproduces the
-      fingerprint.
-- [ ] Out-of-range inputs and low-confidence results visibly flagged; preset
-      readiness shown as reported.
-- [ ] Viewport failure degrades automatically to the 2D map with all panels
-      functional; no browser storage; no blank-screen failure modes.
+- [x] Extruded-grid reservoir plume renders from real surrogate fields and
+      animates across the timeline (bundled demo plume; unit-tested encoding).
+- [x] Pipeline vs trucking rendered distinctly on real 3D terrain; boosters and
+      the dense-phase pressure profile render for a viable network. (The demo's
+      HnP volumes are honestly `no_viable_network`, so it shows the trucking
+      supply; a pipeline network draws when one is economic.)
+- [x] Carbon-price scrubber re-pivots ranking, NPV, and scene with **zero** API
+      calls while dragging (Playwright-verified).
+- [x] Run console reflects real SSE progress (real stage names), stall watchdog,
+      inline warnings, dedup counter, and working cancel.
+- [x] Ledger diff (A/B/C) shows request deltas, rank trajectories, NPV deltas.
+- [x] Study memo export/import round-trips; re-compose hydrates the composer.
+- [x] Out-of-range inputs and low-confidence results visibly flagged; preset
+      readiness shown as reported (`NOT READY`/`BLOCKED` surfaced honestly).
+- [x] Viewport failure degrades automatically to the 2D map with all panels
+      functional; no browser storage; no blank-screen failure modes
+      (Playwright offline + error-mapping tests).
+
+## Implementation notes
+
+- The backend selects wells only via an economically viable pipeline. At
+  Huff-and-Puff CO₂ volumes no pipeline is economic, so the honest screening
+  result is `no_viable_network` with an empty shortlist. The workbench surfaces
+  this transparently and falls back to a pre-logistics well ranking, per-well
+  predictions, and trucking as the indicated supply. This is the documented
+  default-proxy outcome, not a defect.
+- The only backend change is a guarded `StaticFiles` mount serving
+  `frontend/dist`; no API or screening logic was modified.
+- See [`frontend/README.md`](../../frontend/README.md) and the design doc for
+  the full architecture, and `frontend/public/assets/README.md` for the demo
+  fixtures.

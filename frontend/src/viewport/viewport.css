@@ -1,0 +1,132 @@
+.viewport-2d,
+.viewport-3d {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.viewport-3d canvas {
+  outline: none;
+}
+.viewport-svg {
+  width: 100%;
+  height: 100%;
+}
+.viewport-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: var(--fs-md);
+}
+.viewport-empty-dim {
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  max-width: 320px;
+  margin: 6px auto 0;
+  line-height: 1.5;
+}
+
+.route {
+  fill: none;
+  stroke-width: 2;
+  cursor: pointer;
+}
+.route-pipeline {
+  stroke: var(--accent);
+}
+.route-pipeline.route-selected {
+  stroke: var(--accent-hover);
+  stroke-width: 3.5;
+}
+.route-trucking {
+  stroke: #c9922e;
+  stroke-dasharray: 6 5;
+}
+
+.node {
+  cursor: pointer;
+}
+.node-source rect {
+  fill: #4a7fb0;
+  stroke: #cfe0ef;
+  stroke-width: 1;
+}
+.node-well circle {
+  fill: #cfd4da;
+  stroke: #16181c;
+  stroke-width: 1;
+}
+.node-dim circle {
+  fill: var(--text-faint);
+  opacity: 0.5;
+}
+.node-selected circle,
+.node-selected rect {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+.node-label {
+  fill: var(--text-dim);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  pointer-events: none;
+}
+.booster rect {
+  fill: #c9922e;
+  stroke: #16181c;
+  stroke-width: 1;
+}
+
+.viewport-legend {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 12px;
+  padding: 6px 10px;
+  background: rgba(16, 18, 22, 0.82);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+.viewport-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.lg-source {
+  background: #4a7fb0;
+}
+.lg-well {
+  background: #cfd4da;
+  border-radius: 50%;
+}
+.lg-pipe {
+  background: var(--accent);
+  height: 3px !important;
+}
+.lg-truck {
+  background: repeating-linear-gradient(90deg, #c9922e 0 4px, transparent 4px 7px);
+  height: 3px !important;
+}
+.lg-booster {
+  background: #c9922e;
+}
+.viewport-mode-tag {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  background: rgba(16, 18, 22, 0.7);
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}

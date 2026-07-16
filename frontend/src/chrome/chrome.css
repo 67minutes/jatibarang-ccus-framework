@@ -1,0 +1,213 @@
+/* WIMP chrome: menu bar, toolbar, status bar. Dense and quiet. */
+
+/* ---- Menu bar ---------------------------------------------------------- */
+.menubar {
+  display: flex;
+  align-items: stretch;
+  height: var(--menubar-h);
+  background: var(--bg-chrome);
+  border-bottom: 1px solid var(--border);
+  padding: 0 4px;
+  user-select: none;
+}
+.menubar-trigger {
+  padding: 0 10px;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+}
+.menubar-trigger[data-state="open"],
+.menubar-trigger:hover {
+  background: var(--bg-hover);
+}
+
+.menu-content {
+  min-width: 220px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 50;
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  height: var(--row-h);
+  padding: 0 8px;
+  font-size: var(--fs-sm);
+  border-radius: 2px;
+  cursor: default;
+  outline: none;
+}
+.menu-item[data-highlighted] {
+  background: var(--accent-dim);
+}
+.menu-item[data-disabled] {
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.menu-shortcut {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+.menu-caret {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+.menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 6px;
+}
+
+/* ---- Toolbar ----------------------------------------------------------- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--toolbar-h);
+  background: var(--bg-toolbar);
+  border-bottom: 1px solid var(--border);
+  padding: 0 8px;
+  user-select: none;
+  overflow: hidden;
+}
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.toolbar-group + .toolbar-group::before,
+.toolbar-sep {
+  content: "";
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 8px 4px;
+}
+.tool-button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  border-radius: 3px;
+  color: var(--text-dim);
+}
+.tool-button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.toolbar-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+.toolbar-field select {
+  padding: 2px 4px;
+  font-size: var(--fs-xs);
+}
+.toolbar-stepper {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+.toolbar-stepper button {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--bg-input);
+}
+.toolbar-stepper button:hover {
+  background: var(--bg-hover);
+}
+.toolbar-stepper-value {
+  min-width: 26px;
+  text-align: center;
+  color: var(--text);
+}
+.toolbar-spacer {
+  flex: 1;
+}
+.run-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--bg-input);
+}
+.run-button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.run-button-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.run-button-accent:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+/* ---- Status bar -------------------------------------------------------- */
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: var(--statusbar-h);
+  background: var(--bg-chrome);
+  border-top: 1px solid var(--border);
+  padding: 0 8px;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  user-select: none;
+}
+.status-cell {
+  padding: 0 10px;
+  white-space: nowrap;
+  border-right: 1px solid var(--border);
+}
+.status-spacer {
+  flex: 1;
+}
+.status-health {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-right: none;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+.status-dot-ok {
+  background: var(--ok);
+}
+.status-dot-danger {
+  background: var(--danger);
+}
+.status-dot-unknown {
+  background: var(--warn);
+}
+.status-stalled {
+  color: var(--warn);
+}

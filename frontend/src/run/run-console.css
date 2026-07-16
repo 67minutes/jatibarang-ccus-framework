@@ -1,0 +1,99 @@
+.run-console {
+  font-size: var(--fs-sm);
+}
+.run-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.run-dedup {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+.run-elapsed {
+  color: var(--text);
+}
+.run-stalled {
+  border-left: 2px solid var(--warn);
+  background: #2b2413;
+  color: #e0c98a;
+  padding: 6px 10px;
+  font-size: var(--fs-xs);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+.run-error-line {
+  border-left: 2px solid var(--danger);
+  background: #2c1614;
+  color: #e6a39c;
+  padding: 6px 10px;
+  font-size: var(--fs-xs);
+  margin-bottom: 10px;
+}
+
+.stage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 4px;
+  border-radius: 3px;
+}
+.stage-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  flex-shrink: 0;
+}
+.stage-active .stage-dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.stage-done .stage-dot {
+  background: var(--ok);
+}
+.stage-label {
+  flex: 1;
+}
+.stage-pending .stage-label {
+  color: var(--text-faint);
+}
+.stage-progress {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.run-warnings {
+  margin-top: 14px;
+}
+.run-warnings h4 {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--warn);
+  margin-bottom: 6px;
+}
+.run-warnings ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-xs);
+}
+.run-warn-stage {
+  color: var(--text-faint);
+}
+.run-warn-scope {
+  color: var(--warn);
+}

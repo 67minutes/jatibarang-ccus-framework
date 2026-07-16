@@ -1,0 +1,50 @@
+.pfd {
+  font-size: var(--fs-sm);
+}
+.pfd-flow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  padding: 8px 0;
+}
+.pfd-stage {
+  display: flex;
+  align-items: center;
+}
+.pfd-block {
+  width: 62px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: pre-line;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--bg-panel-alt);
+  color: var(--text-dim);
+}
+.pfd-arrow {
+  color: var(--text-faint);
+  padding: 0 4px;
+}
+.pfd-kv {
+  margin: 8px 0;
+  grid-template-columns: 150px 1fr;
+}
+.pfd-kv dd {
+  font-family: var(--font-mono);
+}
+.pfd-calibration {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+.pfd-cal-flag {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}

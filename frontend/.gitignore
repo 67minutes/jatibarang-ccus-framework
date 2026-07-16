@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.local
+.vite/
+playwright-report/
+test-results/
+# Generated from the OpenAPI contract at build time.
+src/api/types.gen.ts
