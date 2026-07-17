@@ -10,14 +10,19 @@ import { useCursorStore } from "../state/cursor.store";
 import { selectPlan } from "../layout/ProjectTree";
 import { collectSceneObjects, nodeCoordinateMap, type Scene } from "./scene";
 import {
+  fieldWindowBounds,
   makeProjector,
   terrainColor,
   TERRAIN_SIZE,
   xzToCoordinate,
+  type TerrainData,
   type TerrainProjector,
 } from "./terrain";
-import { useFieldStore } from "../state/field.store";
-import { ReservoirGrid } from "./ReservoirGrid";
+import { useFieldStore, type SceneLevel } from "../state/field.store";
+import {
+  ReservoirGrid,
+  reservoirVisualizationFromImport,
+} from "./ReservoirGrid";
 import type { CellField, Coordinate, PredictionResult, ReservoirVisualization } from "../api/types";
 import { finiteRange, type StaticReservoirField } from "./reservoirGeometry";
 import { FieldOutline, pointInField } from "./FieldOutline";
@@ -26,7 +31,11 @@ import {
   type SceneContextTarget,
 } from "./SceneContextMenu";
 import { SourceDialog, type SourceDialogValue } from "./SourceDialog";
+import { getTerrainWindow } from "../api/client";
+import { useUiStore } from "../state/ui.store";
 import "./viewport.css";
+
+const DEG2RAD = Math.PI / 180;
 
 type SceneContextRequest = Omit<SceneContextTarget, "x" | "y">;
 
@@ -46,18 +55,84 @@ export function Viewport3D() {
   const terrainOverview = useFieldStore((state) => state.overviewData);
   const placement = useFieldStore((state) => state.placement);
   const reservoir = useFieldStore((state) => state.reservoir);
+  const level = useFieldStore((state) => state.level);
   const wells = useFieldStore((state) => state.wells);
   const sources = useFieldStore((state) => state.sources);
+  const modal = useUiStore((state) => state.modal);
   const selection = useSelectionStore((state) => state.selection);
   const select = useSelectionStore((state) => state.select);
   const clearSelection = useSelectionStore((state) => state.clear);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [contextTarget, setContextTarget] = useState<SceneContextTarget | null>(null);
   const [sourceEditor, setSourceEditor] = useState<SourceEditorState | null>(null);
+  const [fieldWindow, setFieldWindow] = useState<TerrainData | null>(null);
+  const [fieldWindowLoading, setFieldWindowLoading] = useState(false);
+  const fieldReady = level === "field" && fieldWindow !== null;
+  const sceneLevel: SceneLevel = fieldReady ? "field" : "basin";
+  const terrainData = fieldReady ? fieldWindow : terrainOverview;
   const projector = useMemo(
-    () => (terrainOverview ? makeProjector(terrainOverview) : null),
-    [terrainOverview],
+    () => (terrainData ? makeProjector(terrainData) : null),
+    [terrainData],
   );
+
+  useEffect(() => {
+    if (level !== "field") {
+      setFieldWindow(null);
+      setFieldWindowLoading(false);
+      return;
+    }
+    if (!terrain || !placement || !reservoir) return;
+
+    let cancelled = false;
+    setFieldWindow(null);
+    setFieldWindowLoading(true);
+    const bounds = fieldWindowBounds(
+      { latitude: placement.center_lat, longitude: placement.center_lon },
+      reservoir,
+    );
+    void getTerrainWindow(terrain.terrain_id, bounds, 768)
+      .then((windowData) => {
+        if (cancelled) return;
+        setFieldWindow(windowData);
+        setFieldWindowLoading(false);
+        useUiStore.getState().dismissBanner("terrain-window-failed");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setFieldWindowLoading(false);
+        useUiStore.getState().pushBanner({
+          id: "terrain-window-failed",
+          severity: "warning",
+          message: `Field terrain window could not be loaded: ${
+            error instanceof Error ? error.message : "unknown error"
+          }`,
+        });
+        useFieldStore.getState().exitField();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [level, placement, reservoir, terrain]);
+
+  useEffect(() => {
+    const exitOnEscape = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Escape" ||
+        level !== "field" ||
+        modal ||
+        contextTarget ||
+        sourceEditor ||
+        event.defaultPrevented
+      ) {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      useFieldStore.getState().exitField();
+    };
+    window.addEventListener("keydown", exitOnEscape, true);
+    return () => window.removeEventListener("keydown", exitOnEscape, true);
+  }, [contextTarget, level, modal, sourceEditor]);
 
   const openContext = (
     event: ThreeEvent<MouseEvent>,
@@ -149,9 +224,32 @@ export function Viewport3D() {
           shadow-camera-bottom={-14}
         />
         <directionalLight position={[14, 8, -12]} color="#74aabd" intensity={0.85} />
-        <SceneContent projector={projector} onContext={openContext} />
-        <CameraRig projector={projector} />
+        <SceneContent
+          projector={projector}
+          level={sceneLevel}
+          onContext={openContext}
+        />
+        <CameraRig projector={projector} level={sceneLevel} />
       </Canvas>
+      {level === "field" ? (
+        <button
+          type="button"
+          className="field-breadcrumb"
+          onClick={() => useFieldStore.getState().exitField()}
+        >
+          {"\u25c2 Basin"}
+        </button>
+      ) : null}
+      {level === "field" && !fieldReady ? (
+        <div className="field-window-loading" role="status">
+          <span className="field-window-spinner" aria-hidden="true" />
+          <span>
+            {fieldWindowLoading
+              ? "Loading high-resolution field terrain\u2026"
+              : "Preparing field terrain\u2026"}
+          </span>
+        </div>
+      ) : null}
       {contextTarget ? (
         <SceneContextMenu
           target={contextTarget}
@@ -212,7 +310,7 @@ export function Viewport3D() {
           onClose={() => setSourceEditor(null)}
         />
       ) : null}
-      <ViewportNavigationHud projector={projector} />
+      <ViewportNavigationHud projector={projector} level={sceneLevel} />
       <LayerManager />
       <FieldLegend />
       <ReservoirAvailability />
@@ -224,16 +322,18 @@ export function Viewport3D() {
         <span><i className="lg-pipe" /> pipeline</span>
         <span><i className="lg-truck" /> trucking</span>
       </div>
-      <div className="viewport-mode-tag">3D · basin</div>
+      <div className="viewport-mode-tag">3D {"\u00b7"} {sceneLevel}</div>
     </div>
   );
 }
 
 function SceneContent({
   projector,
+  level,
   onContext,
 }: {
   projector: TerrainProjector;
+  level: SceneLevel;
   onContext: (
     event: ThreeEvent<MouseEvent>,
     request: SceneContextRequest,
@@ -246,6 +346,11 @@ function SceneContent({
   const activeTool = useWorkspaceStore((s) => s.activeTool);
   const placement = useFieldStore((s) => s.placement);
   const reservoir = useFieldStore((s) => s.reservoir);
+  const reservoirRuntime = useFieldStore((s) => s.reservoirRuntime);
+  const importedReservoir = useMemo(
+    () => reservoirVisualizationFromImport(reservoirRuntime),
+    [reservoirRuntime],
+  );
 
   const plan = activeEntry ? selectPlan(activeEntry.result, carbonPriceId) : null;
   const scene = useMemo<Scene | null>(
@@ -263,6 +368,27 @@ function SceneContent({
     return { xz: [x, z] as [number, number], groundY: projector.heightOf(projector.elevationAt(coord), exaggeration) };
   }, [activeEntry, selection, projector, exaggeration]);
 
+  const fieldSpot = useMemo(() => {
+    if (level !== "field" || !placement || !reservoir) return null;
+    const coordinate = {
+      latitude: placement.center_lat,
+      longitude: placement.center_lon,
+    };
+    const [x, z] = projector.toXZ(coordinate);
+    return {
+      xz: [x, z] as [number, number],
+      groundY: projector.heightOf(
+        projector.elevationAt(coordinate),
+        exaggeration,
+      ),
+      rotation: [0, -placement.rotation_deg * DEG2RAD, 0] as [
+        number,
+        number,
+        number,
+      ],
+    };
+  }, [exaggeration, level, placement, projector, reservoir]);
+
   return (
     <group>
       {layers.terrain && (
@@ -278,7 +404,7 @@ function SceneContent({
           }
         />
       )}
-      {placement && reservoir ? (
+      {level === "basin" && placement && reservoir ? (
         <FieldOutline
           projector={projector}
           placement={placement}
@@ -299,7 +425,7 @@ function SceneContent({
         layers={layers}
         onContext={onContext}
       />
-      {scene && (
+      {level === "basin" && scene && (
         <SceneObjects
           projector={projector}
           scene={scene}
@@ -308,11 +434,20 @@ function SceneContent({
           showNodes={!placement}
         />
       )}
-      {wellSpot && (
+      {level === "basin" && wellSpot && (
         <ReservoirGrid
           position={wellSpot.xz}
           groundY={wellSpot.groundY}
           metresPerSceneUnit={projector.metresPerSceneUnit}
+        />
+      )}
+      {fieldSpot && (
+        <ReservoirGrid
+          position={fieldSpot.xz}
+          groundY={fieldSpot.groundY}
+          metresPerSceneUnit={projector.metresPerSceneUnit}
+          rotation={fieldSpot.rotation}
+          fallbackReservoir={importedReservoir}
         />
       )}
       <MeasurementOverlay projector={projector} exaggeration={exaggeration} />
@@ -702,13 +837,22 @@ function MeasurementOverlay({
   );
 }
 
-function ViewportNavigationHud({ projector }: { projector: TerrainProjector }) {
+function ViewportNavigationHud({
+  projector,
+  level,
+}: {
+  projector: TerrainProjector;
+  level: SceneLevel;
+}) {
   const { extent, minElev, maxElev } = projector.data;
   const placement = useFieldStore((state) => state.placement);
   const centerLat = (extent.minLat + extent.maxLat) / 2;
   const centerLon = (extent.minLon + extent.maxLon) / 2;
   return (
-    <div className="viewport-navigation-hud" aria-hidden>
+    <div
+      className={`viewport-navigation-hud${level === "field" ? " viewport-navigation-hud-field" : ""}`}
+      aria-hidden
+    >
       <div className="viewport-compass"><span>N</span><i /></div>
       <div>
         <strong>{(placement?.name ?? "Basin overview").toUpperCase()}</strong>
@@ -784,17 +928,37 @@ function useSelectedReservoir(): {
 } {
   const activeEntry = useLedgerStore((state) => state.entryById(state.activeEntryId));
   const selection = useSelectionStore((state) => state.selection);
-  if (!activeEntry || selection.kind !== "well" || !selection.id) {
-    return { reservoir: null, prediction: null, selectedWell: false };
+  const level = useFieldStore((state) => state.level);
+  const reservoirRuntime = useFieldStore((state) => state.reservoirRuntime);
+  const importedReservoir = useMemo(
+    () => reservoirVisualizationFromImport(reservoirRuntime),
+    [reservoirRuntime],
+  );
+  const selectedWell = selection.kind === "well" && Boolean(selection.id);
+  const detailKeys = activeEntry && selectedWell
+    ? Object.keys(activeEntry.result.detailed_reservoirs ?? {})
+    : [];
+  const scenarioId = selectedWell
+    ? selection.scenarioId
+      ?? detailKeys.find((id) => id === selection.id || id.startsWith(`${selection.id}--`))
+      ?? null
+    : null;
+  const detailedReservoir = scenarioId
+    ? activeEntry?.result.detailed_reservoirs?.[scenarioId] ?? null
+    : null;
+  if (detailedReservoir) {
+    return {
+      reservoir: detailedReservoir,
+      prediction: scenarioId
+        ? activeEntry?.result.detailed_predictions?.[scenarioId] ?? null
+        : null,
+      selectedWell,
+    };
   }
-  const detailKeys = Object.keys(activeEntry.result.detailed_reservoirs ?? {});
-  const scenarioId = selection.scenarioId
-    ?? detailKeys.find((id) => id === selection.id || id.startsWith(`${selection.id}--`))
-    ?? null;
   return {
-    reservoir: scenarioId ? activeEntry.result.detailed_reservoirs?.[scenarioId] ?? null : null,
-    prediction: scenarioId ? activeEntry.result.detailed_predictions?.[scenarioId] ?? null : null,
-    selectedWell: true,
+    reservoir: level === "field" ? importedReservoir : null,
+    prediction: null,
+    selectedWell,
   };
 }
 
@@ -822,7 +986,7 @@ function FieldLegend() {
         <span>{formatLegend(staticRange[1])}</span>
       </div>
       <p>
-        900 × 600 × 6 m local proxy · static source: {String(
+        {formatLegend(reservoir.grid.length_x_m)} × {formatLegend(reservoir.grid.length_y_m)} × {formatLegend(reservoir.grid.thickness_m)} m local proxy · static source: {String(
           reservoir.provenance.geometry_source_class ?? "declared reservoir input",
         ).replaceAll("_", " ")}
       </p>
@@ -836,6 +1000,15 @@ function FieldLegend() {
 
 function ReservoirAvailability() {
   const { reservoir, selectedWell } = useSelectedReservoir();
+  const level = useFieldStore((state) => state.level);
+  if (level === "field" && !reservoir) {
+    return (
+      <div className="reservoir-unavailable" role="status">
+        <strong>Reservoir model unavailable</strong>
+        <span>Re-import or relink the MRST model to restore the field grid.</span>
+      </div>
+    );
+  }
   if (!selectedWell || reservoir) return null;
   return (
     <div className="reservoir-unavailable" role="status">
@@ -978,15 +1151,32 @@ function samplePath(path: Coordinate[]): Coordinate[] {
   return out;
 }
 
-/** Handles the View ▸ Reset Camera command (dispatched as a window event). */
-function CameraRig({ projector }: { projector: TerrainProjector }) {
+interface CameraDestination {
+  fromPosition: THREE.Vector3;
+  fromTarget: THREE.Vector3;
+  position: THREE.Vector3;
+  target: THREE.Vector3;
+  elapsed: number;
+  duration: number;
+}
+
+/** Handles level transitions and the View > Reset Camera command. */
+function CameraRig({
+  projector,
+  level,
+}: {
+  projector: TerrainProjector;
+  level: SceneLevel;
+}) {
   const { camera } = useThree();
   const controls = useRef<OrbitControlsImpl>(null);
-  const destination = useRef<{ position: THREE.Vector3; target: THREE.Vector3 } | null>(null);
+  const destination = useRef<CameraDestination | null>(null);
   const activeEntry = useLedgerStore((s) => s.entryById(s.activeEntryId));
   const selection = useSelectionStore((s) => s.selection);
   const exaggeration = useWorkspaceStore((s) => s.verticalExaggeration);
   const motion = useWorkspaceStore((s) => s.cameraMotion);
+  const placement = useFieldStore((state) => state.placement);
+  const reservoir = useFieldStore((state) => state.reservoir);
 
   const selectedHasReservoir = useMemo(() => {
     if (!activeEntry || selection.kind !== "well" || !selection.id) return false;
@@ -1004,51 +1194,86 @@ function CameraRig({ projector }: { projector: TerrainProjector }) {
     return new THREE.Vector3(x, y + 0.08, z);
   }, [activeEntry, exaggeration, projector, selection.id]);
 
+  const fieldTarget = useMemo(() => {
+    if (level !== "field" || !placement) return null;
+    const coordinate = {
+      latitude: placement.center_lat,
+      longitude: placement.center_lon,
+    };
+    const [x, z] = projector.toXZ(coordinate);
+    const y = projector.heightOf(projector.elevationAt(coordinate), exaggeration);
+    return new THREE.Vector3(x, y + 0.08, z);
+  }, [exaggeration, level, placement, projector]);
+
+  const fieldOffset = useMemo(() => {
+    const span = reservoir
+      ? Math.max(reservoir.length_x_m, reservoir.length_y_m) /
+        projector.metresPerSceneUnit
+      : 3;
+    return new THREE.Vector3(
+      Math.max(3.8, span * 1.15),
+      Math.max(3.2, span * 0.9),
+      Math.max(5.2, span * 1.6),
+    );
+  }, [projector.metresPerSceneUnit, reservoir]);
+
   useEffect(() => {
     const move = (position: THREE.Vector3, target: THREE.Vector3) => {
       if (!motion) {
+        destination.current = null;
         camera.position.copy(position);
         controls.current?.target.copy(target);
         controls.current?.update();
         return;
       }
-      destination.current = { position, target };
+      destination.current = {
+        fromPosition: camera.position.clone(),
+        fromTarget:
+          controls.current?.target.clone() ?? new THREE.Vector3(0, 0.35, 0),
+        position,
+        target,
+        elapsed: 0,
+        duration: 0.6,
+      };
     };
-    const reset = () => move(new THREE.Vector3(0, 12.5, 22), new THREE.Vector3(0, 0.35, 0));
+    const reset = () => {
+      if (level === "field" && fieldTarget) {
+        move(fieldTarget.clone().add(fieldOffset), fieldTarget.clone());
+      } else {
+        move(
+          new THREE.Vector3(0, 12.5, 22),
+          new THREE.Vector3(0, 0.35, 0),
+        );
+      }
+    };
     const frame = () => {
+      if (level === "field" && fieldTarget) return reset();
       if (!selectedTarget) return reset();
       const offset = selectedHasReservoir
-        // A selected detailed case should read like a simulator reservoir view,
-        // not a small annotation on the regional terrain. The local grid keeps
-        // its physical 900:600 proportions; only the camera framing changes.
         ? new THREE.Vector3(1.25, 1.05, 1.7)
         : new THREE.Vector3(4.8, 5.4, 7.2);
       move(selectedTarget.clone().add(offset), selectedTarget.clone());
     };
     window.addEventListener("viewport:reset-camera", reset);
     window.addEventListener("viewport:frame-selection", frame);
+    if (level === "field" || selectedTarget) frame();
+    else reset();
     return () => {
       window.removeEventListener("viewport:reset-camera", reset);
       window.removeEventListener("viewport:frame-selection", frame);
     };
-  }, [camera, motion, selectedHasReservoir, selectedTarget]);
+  }, [camera, fieldOffset, fieldTarget, level, motion, selectedHasReservoir, selectedTarget]);
 
-  useEffect(() => {
-    if (selectedTarget) window.dispatchEvent(new CustomEvent("viewport:frame-selection"));
-  }, [selectedTarget]);
-
-  useFrame(() => {
+  useFrame((_, delta) => {
     const next = destination.current;
     if (!next || !controls.current) return;
-    camera.position.lerp(next.position, 0.12);
-    controls.current.target.lerp(next.target, 0.12);
+    next.elapsed = Math.min(next.duration, next.elapsed + delta);
+    const progress = next.elapsed / next.duration;
+    const eased = progress * progress * (3 - 2 * progress);
+    camera.position.lerpVectors(next.fromPosition, next.position, eased);
+    controls.current.target.lerpVectors(next.fromTarget, next.target, eased);
     controls.current.update();
-    if (camera.position.distanceTo(next.position) < 0.015 && controls.current.target.distanceTo(next.target) < 0.015) {
-      camera.position.copy(next.position);
-      controls.current.target.copy(next.target);
-      controls.current.update();
-      destination.current = null;
-    }
+    if (progress >= 1) destination.current = null;
   });
 
   return (

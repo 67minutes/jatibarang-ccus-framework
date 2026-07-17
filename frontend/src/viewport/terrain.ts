@@ -15,6 +15,13 @@ export interface TerrainData {
   elevations: number[];
 }
 
+export interface TerrainBounds {
+  minLon: number;
+  minLat: number;
+  maxLon: number;
+  maxLat: number;
+}
+
 export type TerrainPalette = "geologic" | "monochrome";
 
 const GEOLOGIC_STOPS: Array<[number, [number, number, number]]> = [
@@ -54,6 +61,33 @@ export function terrainColor(
 
 /** Half-width of the terrain plane in scene units (plane spans [-SIZE, SIZE]). */
 export const TERRAIN_SIZE = 10;
+
+/**
+ * Geographic crop used by the field-level scene. The reservoir has no native
+ * georeference, so the imported footprint is centred on the user's placement
+ * and padded by three footprint widths before the backend clips it to the DEM.
+ */
+export function fieldWindowBounds(
+  center: Coordinate,
+  footprint: { length_x_m: number; length_y_m: number },
+  paddingMultiplier = 3,
+): TerrainBounds {
+  const paddingMetres =
+    Math.max(footprint.length_x_m, footprint.length_y_m) * paddingMultiplier;
+  const latitudeRadians = (center.latitude * Math.PI) / 180;
+  const metresPerDegreeLongitude = Math.max(
+    1,
+    111_320 * Math.abs(Math.cos(latitudeRadians)),
+  );
+  const latitudePadding = paddingMetres / 111_320;
+  const longitudePadding = paddingMetres / metresPerDegreeLongitude;
+  return {
+    minLon: center.longitude - longitudePadding,
+    minLat: center.latitude - latitudePadding,
+    maxLon: center.longitude + longitudePadding,
+    maxLat: center.latitude + latitudePadding,
+  };
+}
 
 export interface TerrainProjector {
   /** Project a coordinate to scene x/z within the terrain plane. */

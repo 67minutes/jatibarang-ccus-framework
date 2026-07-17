@@ -5,8 +5,10 @@ import * as THREE from "three";
 import type {
   CellField,
   Grid2D,
+  PredictionResult,
   ReservoirVisualization,
 } from "../api/types";
+import type { ReservoirImportResponse } from "../api/client";
 import { useLedgerStore } from "../state/ledger.store";
 import { useSelectionStore } from "../state/selection.store";
 import { useWorkspaceStore } from "../state/workspace.store";
@@ -30,6 +32,184 @@ interface Props {
   position: [number, number];
   groundY: number;
   metresPerSceneUnit: number;
+  rotation?: [number, number, number];
+  /** Imported MRST geology shown before a detailed screening result exists. */
+  fallbackReservoir?: ReservoirVisualization | null;
+}
+
+const STATIC_FIELD_SPECS = {
+  permeability_md: ["Permeability", "mD", "log10"],
+  porosity_fraction: ["Porosity", "fraction", "linear"],
+  structure_m: ["Relative structure", "m", "linear"],
+  fracture_proxy: ["Fracture proxy", "fraction", "linear"],
+  barrier: ["Barrier", "fraction", "binary"],
+  facies: ["Facies", "code", "categorical"],
+  well_mask: ["Well mask", "fraction", "binary"],
+  completion_mask: ["Completion mask", "fraction", "binary"],
+} as const;
+
+function importedGrid(value: unknown): Grid2D | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as { shape?: unknown; values?: unknown };
+  if (
+    !Array.isArray(candidate.shape) ||
+    candidate.shape.length !== 2 ||
+    candidate.shape[0] !== 64 ||
+    candidate.shape[1] !== 64 ||
+    !Array.isArray(candidate.values) ||
+    candidate.values.length !== 64 * 64 ||
+    candidate.values.some(
+      (item) => typeof item !== "number" || !Number.isFinite(item),
+    )
+  ) {
+    return null;
+  }
+  return { shape: [64, 64], values: candidate.values as number[] };
+}
+
+function finitePositive(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : null;
+}
+
+function seedBaseline(
+  seed: Record<string, unknown>,
+): ReservoirVisualization["baseline_state"] {
+  const frames = seed.frames;
+  if (!Array.isArray(frames) || frames.length === 0) return null;
+  const last = frames[frames.length - 1];
+  if (!last || typeof last !== "object") return null;
+  const state = last as Record<string, unknown>;
+  const pressure = importedGrid(state.pressure_bar);
+  const gas = importedGrid(state.gas_saturation);
+  const zCo2 = importedGrid(state.z_co2);
+  if (!pressure || !gas || !zCo2) return null;
+  return {
+    pressure_bar: pressure,
+    gas_saturation: gas,
+    z_co2: zCo2,
+    oil_saturation: null,
+  };
+}
+
+/**
+ * Convert an imported MRST model to the same static contract used by retained
+ * screening results. Invalid or incomplete imports stay unavailable; the
+ * viewport never manufactures a demo grid in their place.
+ */
+export function reservoirVisualizationFromImport(
+  imported: ReservoirImportResponse | null,
+): ReservoirVisualization | null {
+  if (!imported || !imported.geology || typeof imported.geology !== "object") {
+    return null;
+  }
+  const geology = imported.geology as Record<string, unknown>;
+  const permeability = importedGrid(geology.permeability_md);
+  const porosity = importedGrid(geology.porosity_fraction);
+  const structure = importedGrid(geology.structure_m);
+  const fractures = importedGrid(geology.fracture_proxy);
+  const barriers = importedGrid(geology.barrier);
+  const facies = importedGrid(geology.facies);
+  const wellMask = importedGrid(geology.well_mask);
+  const completionMask = importedGrid(geology.completion_mask);
+  const lengthX = finitePositive(geology.length_x_m);
+  const lengthY = finitePositive(geology.length_y_m);
+  const thickness = finitePositive(geology.thickness_m);
+  if (
+    !permeability ||
+    !porosity ||
+    !structure ||
+    !fractures ||
+    !barriers ||
+    !facies ||
+    !wellMask ||
+    !completionMask ||
+    !lengthX ||
+    !lengthY ||
+    !thickness
+  ) {
+    return null;
+  }
+
+  const staticFields = {
+    permeability_md: permeability,
+    porosity_fraction: porosity,
+    structure_m: structure,
+    fracture_proxy: fractures,
+    barrier: barriers,
+    facies,
+    well_mask: wellMask,
+    completion_mask: completionMask,
+  };
+  const metadata: ReservoirVisualization["field_metadata"] = {};
+  for (const [name, [label, unit, scale]] of Object.entries(
+    STATIC_FIELD_SPECS,
+  )) {
+    const grid = staticFields[name as keyof typeof staticFields];
+    const [minimum, maximum] = finiteRange(grid.values);
+    metadata[name] = {
+      label,
+      unit,
+      minimum,
+      maximum,
+      scale,
+      source_class: "mrst_derived_geology",
+    };
+  }
+
+  const baseline = seedBaseline(imported.native_seed);
+  const baselineSourceClass =
+    typeof imported.native_seed.source_class === "string"
+      ? imported.native_seed.source_class
+      : "mrst_ground_truth";
+  if (baseline) {
+    for (const [name, label, unit] of [
+      ["pressure_bar", "Pressure", "bar"],
+      ["gas_saturation", "Gas saturation", "fraction"],
+      ["z_co2", "CO2 composition", "fraction"],
+    ] as const) {
+      const [minimum, maximum] = finiteRange(baseline[name].values);
+      metadata[name] = {
+        label,
+        unit,
+        minimum,
+        maximum,
+        scale: "linear",
+        source_class: baselineSourceClass,
+      };
+    }
+  }
+
+  return {
+    scenario_id: `imported:${imported.model_id}`,
+    geology_id: imported.model_id,
+    grid: {
+      nx: 64,
+      ny: 64,
+      nz: 1,
+      length_x_m: lengthX,
+      length_y_m: lengthY,
+      thickness_m: thickness,
+    },
+    static_fields: staticFields,
+    baseline_state: baseline,
+    field_metadata: metadata,
+    provenance: {
+      coordinate_reference: "local_proxy_grid",
+      geometry_source_class: "mrst_derived_geology",
+      geometry_source_id: imported.sha256,
+      baseline_source_class: baselineSourceClass,
+      baseline_source_id:
+        typeof imported.native_seed.source_id === "string"
+          ? imported.native_seed.source_id
+          : imported.native_fingerprint,
+      baseline_frame_index: baseline ? 7 : null,
+      baseline_semantics: baseline ? "final_warm_start_frame" : "unavailable",
+      vertical_layers: 1,
+      surveyed_orientation: false,
+    },
+  };
 }
 
 /**
@@ -37,7 +217,13 @@ interface Props {
  * 6 m single-layer contract and the MRST structure surface; no fake K-layers
  * or surveyed depth are implied. The old response columns remain opt-in.
  */
-export function ReservoirGrid({ position, groundY, metresPerSceneUnit }: Props) {
+export function ReservoirGrid({
+  position,
+  groundY,
+  metresPerSceneUnit,
+  rotation = [0, 0, 0],
+  fallbackReservoir = null,
+}: Props) {
   const activeEntry = useLedgerStore((state) => state.entryById(state.activeEntryId));
   const selection = useSelectionStore((state) => state.selection);
   const layers = useWorkspaceStore((state) => state.layers);
@@ -58,8 +244,13 @@ export function ReservoirGrid({ position, groundY, metresPerSceneUnit }: Props) 
     return available.find((id) => id === selection.id || id.startsWith(`${selection.id}--`)) ?? null;
   }, [activeEntry, selection]);
 
-  const reservoir = scenarioId ? activeEntry?.result.detailed_reservoirs?.[scenarioId] : undefined;
-  const prediction = scenarioId ? activeEntry?.result.detailed_predictions?.[scenarioId] : undefined;
+  const detailedReservoir = scenarioId
+    ? activeEntry?.result.detailed_reservoirs?.[scenarioId]
+    : undefined;
+  const reservoir = detailedReservoir ?? fallbackReservoir ?? undefined;
+  const prediction: PredictionResult | undefined = detailedReservoir && scenarioId
+    ? activeEntry?.result.detailed_predictions?.[scenarioId]
+    : undefined;
   const frames = useMemo(() => (prediction ? framesFromPrediction(prediction) : []), [prediction]);
 
   useEffect(() => {
@@ -77,7 +268,7 @@ export function ReservoirGrid({ position, groundY, metresPerSceneUnit }: Props) 
     }
   });
 
-  if (selection.kind !== "well" || !reservoir || !layers.reservoir) return null;
+  if (!reservoir || !layers.reservoir) return null;
 
   const frame = frameAtStep(frames, step);
   const scale = 1 / metresPerSceneUnit;
@@ -86,7 +277,11 @@ export function ReservoirGrid({ position, groundY, metresPerSceneUnit }: Props) 
   const datumY = groundY + 0.035;
 
   return (
-    <group position={[position[0], datumY, position[1]]} scale={[scale, scale * verticalExaggeration, scale]}>
+    <group
+      position={[position[0], datumY, position[1]]}
+      rotation={rotation}
+      scale={[scale, scale * verticalExaggeration, scale]}
+    >
       <LocalDatumLeader groundOffsetMetres={(datumY - groundY) / (scale * verticalExaggeration)} />
       <StaticReservoir
         reservoir={reservoir}
