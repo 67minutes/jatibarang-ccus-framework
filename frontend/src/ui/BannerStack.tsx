@@ -1,4 +1,5 @@
 import { useUiStore } from "../state/ui.store";
+import { scientificDisplayText } from "./presentation";
 
 /** Dismissable banner stack (e.g. 503 dependency banners) below the toolbar. */
 export function BannerStack() {
@@ -9,7 +10,7 @@ export function BannerStack() {
     <div className="banner-stack">
       {banners.map((b) => (
         <div key={b.id} className={`banner banner-${b.severity}`} role="status">
-          <span>{b.message}</span>
+          <span>{scientificDisplayText(b.message)}</span>
           <button
             type="button"
             className="banner-dismiss"

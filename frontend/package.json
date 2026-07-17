@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Screening workbench frontend for the Jatibarang CCUS framework (Feature 006).",
+  "description": "Fieldman CCUS screening workbench frontend (Feature 006).",
   "scripts": {
     "gen:types": "openapi-typescript ../specs/005-screening-api/contracts/openapi.yaml -o src/api/types.gen.ts",
     "bake:terrain": "node scripts/bake-terrain.mjs",

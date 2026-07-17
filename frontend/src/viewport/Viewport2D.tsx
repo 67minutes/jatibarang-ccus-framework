@@ -2,8 +2,9 @@ import { useMemo } from "react";
 import { useLedgerStore } from "../state/ledger.store";
 import { useSelectionStore } from "../state/selection.store";
 import { useWorkspaceStore } from "../state/workspace.store";
+import { useFieldStore } from "../state/field.store";
 import { selectPlan } from "../layout/ProjectTree";
-import { collectSceneObjects, projectToView } from "./scene";
+import { collectSceneObjects, projectToView, type Scene } from "./scene";
 import "./viewport.css";
 
 /**
@@ -17,12 +18,38 @@ export function Viewport2D({ degraded = false }: { degraded?: boolean }) {
   const selection = useSelectionStore((s) => s.selection);
   const select = useSelectionStore((s) => s.select);
   const layers = useWorkspaceStore((s) => s.layers);
+  const wells = useFieldStore((s) => s.wells);
+  const sources = useFieldStore((s) => s.sources);
+  const placement = useFieldStore((s) => s.placement);
+  const reservoir = useFieldStore((s) => s.reservoir);
 
   const plan = activeEntry ? selectPlan(activeEntry.result, carbonPriceId) : null;
-  const scene = useMemo(
+  const resultScene = useMemo(
     () => (activeEntry ? collectSceneObjects(activeEntry.request, plan) : null),
     [activeEntry, plan],
   );
+  const draftScene = useMemo<Scene | null>(() => {
+    if (!placement || wells.length + sources.length === 0) return null;
+    return {
+      nodes: [
+        ...sources.map((source) => ({
+          id: source.id,
+          kind: "source" as const,
+          location: { latitude: source.lat, longitude: source.lon },
+          dim: false,
+        })),
+        ...wells.map((well) => ({
+          id: well.id,
+          kind: "well" as const,
+          location: { latitude: well.lat, longitude: well.lon },
+          dim: false,
+        })),
+      ],
+      routes: [],
+      boosters: [],
+    };
+  }, [placement, sources, wells]);
+  const scene = resultScene?.nodes.length ? resultScene : draftScene;
 
   if (!scene || scene.nodes.length === 0) {
     return (
@@ -42,6 +69,19 @@ export function Viewport2D({ degraded = false }: { degraded?: boolean }) {
 
   return (
     <div className="viewport-2d">
+      {placement && reservoir ? (
+        <button
+          type="button"
+          className="field-breadcrumb field-entry"
+          aria-label="Enter field view"
+          onClick={() => {
+            useFieldStore.getState().enterField();
+            useWorkspaceStore.getState().setViewport("3d");
+          }}
+        >
+          {"Field \u25b8"}
+        </button>
+      ) : null}
       <svg viewBox="0 0 900 560" className="viewport-svg" role="img" aria-label="Study map">
         {/* Routes */}
         {layers.routes &&

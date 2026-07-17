@@ -75,6 +75,12 @@ function selectedFieldIsAvailable(field: CellField): boolean {
   return availablePredictionFields(prediction, reservoir.baseline_state).has(field);
 }
 
+function activeResultIsSaveable(): boolean {
+  const ledger = useLedgerStore.getState();
+  const entry = ledger.entryById(ledger.activeEntryId);
+  return Boolean(entry && entry.requestPayloadMode !== "artifact_referenced");
+}
+
 export const commands: Command[] = [
   // ---- File -------------------------------------------------------------
   {
@@ -101,14 +107,14 @@ export const commands: Command[] = [
     toolbar: true,
     icon: "💾",
     run: () => getActions().saveStudy?.(),
-    isEnabled: () => Boolean(getActions().saveStudy && getActions().hasActiveResult?.()),
+    isEnabled: () => Boolean(getActions().saveStudy && activeResultIsSaveable()),
   },
   {
     id: "file.saveAs",
     label: "Save Study As…",
     shortcut: "Ctrl+Shift+S",
     run: () => getActions().saveStudyAs?.(),
-    isEnabled: () => Boolean(getActions().saveStudyAs && getActions().hasActiveResult?.()),
+    isEnabled: () => Boolean(getActions().saveStudyAs && activeResultIsSaveable()),
   },
   {
     id: "file.exportRanking",
@@ -126,7 +132,7 @@ export const commands: Command[] = [
     id: "file.exportMemo",
     label: "Export Study Memo JSON",
     run: () => getActions().saveStudyAs?.(),
-    isEnabled: () => Boolean(getActions().saveStudyAs && getActions().hasActiveResult?.()),
+    isEnabled: () => Boolean(getActions().saveStudyAs && activeResultIsSaveable()),
   },
 
   // ---- Edit -------------------------------------------------------------

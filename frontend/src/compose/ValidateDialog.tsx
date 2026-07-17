@@ -1,5 +1,6 @@
 import { useHealth, usePresets } from "../api/queries";
 import { Badge } from "../ui/confidence";
+import { presetDisplayName, scientificDisplayText } from "../ui/presentation";
 
 /**
  * Preflight report (design §7.1): dependency readiness from /health and per
@@ -34,10 +35,14 @@ export function ValidateDialog() {
         <ul className="preflight-list">
           {presets.data.map((p) => (
             <li key={p.preset_id}>
-              <span className="mono">{p.preset_id}</span>
+              <span>{presetDisplayName(p.preset_id)}</span>
               <span>
                 <Badge tone={p.ready ? "ok" : "warning"}>{p.ready ? "ready" : "not ready"}</Badge>
-                {!p.ready && p.reason && <span className="preflight-reason"> {p.reason}</span>}
+                {!p.ready && p.reason && (
+                  <span className="preflight-reason">
+                    {" "}{scientificDisplayText(p.reason)}
+                  </span>
+                )}
               </span>
             </li>
           ))}
@@ -46,8 +51,8 @@ export function ValidateDialog() {
         <p className="empty-hint">No preset metadata.</p>
       )}
       <p className="empty-hint" style={{ paddingLeft: 0 }}>
-        The demo uses an inline request, so a NOT READY preset does not block
-        screening.
+        Imported field studies use an inline request, so a NOT READY preset does
+        not block screening.
       </p>
     </div>
   );

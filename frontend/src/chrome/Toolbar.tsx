@@ -77,7 +77,9 @@ export function Toolbar() {
       <div className="toolbar-sep" />
 
       <label className="toolbar-field">
-        <span>Response</span>
+        <span className="toolbar-control-label" data-compact="Rsp">
+          Response
+        </span>
         <select
           aria-label="Dynamic response field"
           value={colorField}
@@ -93,7 +95,9 @@ export function Toolbar() {
       </label>
 
       <label className="toolbar-field">
-        <span>Columns</span>
+        <span className="toolbar-control-label" data-compact="Col">
+          Columns
+        </span>
         <select
           aria-label="Height field"
           value={heightField}
@@ -109,7 +113,9 @@ export function Toolbar() {
       </label>
 
       <div className="toolbar-stepper">
-        <span>Terrain</span>
+        <span className="toolbar-control-label" data-compact="Ter">
+          Terrain
+        </span>
         <button
           type="button"
           aria-label="Decrease vertical exaggeration"
@@ -130,7 +136,9 @@ export function Toolbar() {
       </div>
 
       <div className="toolbar-stepper">
-        <span>Reservoir</span>
+        <span className="toolbar-control-label" data-compact="Res">
+          Reservoir
+        </span>
         <button
           type="button"
           aria-label="Decrease reservoir vertical exaggeration"

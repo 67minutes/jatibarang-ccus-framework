@@ -33,6 +33,7 @@ import {
 import { SourceDialog, type SourceDialogValue } from "./SourceDialog";
 import { InfluenceZones, influenceEntries } from "./InfluenceZones";
 import { getTerrainWindow } from "../api/client";
+import { scientificDisplayText } from "../ui/presentation";
 import { useUiStore } from "../state/ui.store";
 import "./viewport.css";
 
@@ -60,6 +61,11 @@ export function Viewport3D() {
   const wells = useFieldStore((state) => state.wells);
   const sources = useFieldStore((state) => state.sources);
   const modal = useUiStore((state) => state.modal);
+  const activeEntry = useLedgerStore((state) =>
+    state.entryById(state.activeEntryId),
+  );
+  const readOnlySummary =
+    activeEntry?.requestPayloadMode === "artifact_referenced";
   const selection = useSelectionStore((state) => state.selection);
   const select = useSelectionStore((state) => state.select);
   const clearSelection = useSelectionStore((state) => state.clear);
@@ -75,6 +81,12 @@ export function Viewport3D() {
     () => (terrainData ? makeProjector(terrainData) : null),
     [terrainData],
   );
+
+  useEffect(() => {
+    if (!readOnlySummary) return;
+    setContextTarget(null);
+    setSourceEditor(null);
+  }, [readOnlySummary]);
 
   useEffect(() => {
     if (level !== "field") {
@@ -141,6 +153,7 @@ export function Viewport3D() {
   ) => {
     event.stopPropagation();
     event.nativeEvent.preventDefault();
+    if (readOnlySummary && request.kind !== "outline") return;
     const bounds = wrapperRef.current?.getBoundingClientRect();
     setContextTarget({
       ...request,
@@ -160,6 +173,10 @@ export function Viewport3D() {
     : undefined;
 
   const saveSource = (value: SourceDialogValue) => {
+    if (readOnlySummary) {
+      setSourceEditor(null);
+      return;
+    }
     const field = useFieldStore.getState();
     if (sourceEditor?.sourceId) {
       field.updateSource(sourceEditor.sourceId, value);
@@ -186,7 +203,9 @@ export function Viewport3D() {
       <div className="viewport-empty">
         <div className="viewport-empty-hint">
           <strong>Terrain overview unavailable</strong>
-          <span>Re-import or relink the registered terrain for this study.</span>
+          <span>
+            Create a new study and re-import the terrain to restore this scene.
+          </span>
         </div>
       </div>
     );
@@ -232,14 +251,26 @@ export function Viewport3D() {
         />
         <CameraRig projector={projector} level={sceneLevel} />
       </Canvas>
-      {level === "field" ? (
-        <button
-          type="button"
-          className="field-breadcrumb"
-          onClick={() => useFieldStore.getState().exitField()}
-        >
-          {"\u25c2 Basin"}
-        </button>
+      {placement && reservoir ? (
+        level === "field" ? (
+          <button
+            type="button"
+            className="field-breadcrumb"
+            onClick={() => useFieldStore.getState().exitField()}
+          >
+            {"\u25c2 Basin"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="field-breadcrumb field-entry"
+            onClick={() => useFieldStore.getState().enterField()}
+            aria-label="Enter field view"
+            title="Open the high-resolution field view"
+          >
+            {"Field \u25b8"}
+          </button>
+        )
       ) : null}
       {level === "field" && !fieldReady ? (
         <div className="field-window-loading" role="status">
@@ -267,25 +298,30 @@ export function Viewport3D() {
           wellName={contextWell?.name}
           canRemoveWell={contextWell?.kind === "placed"}
           onAddSource={() =>
+            !readOnlySummary &&
             setSourceEditor({ lat: contextTarget.lat, lon: contextTarget.lon })
           }
           onAddWell={() => {
+            if (readOnlySummary) return;
             const created = useFieldStore
               .getState()
               .addWell(contextTarget.lat, contextTarget.lon);
             select({ kind: "well", id: created.id });
           }}
           onRenameWell={(name) => {
+            if (readOnlySummary) return;
             if (contextTarget.targetId) {
               useFieldStore.getState().renameWell(contextTarget.targetId, name);
             }
           }}
           onRemoveWell={() => {
+            if (readOnlySummary) return;
             if (!contextTarget.targetId) return;
             useFieldStore.getState().removeWell(contextTarget.targetId);
             if (selection.id === contextTarget.targetId) clearSelection();
           }}
           onEditSource={() => {
+            if (readOnlySummary) return;
             if (!contextSource) return;
             setSourceEditor({
               sourceId: contextSource.id,
@@ -294,6 +330,7 @@ export function Viewport3D() {
             });
           }}
           onRemoveSource={() => {
+            if (readOnlySummary) return;
             if (!contextTarget.targetId) return;
             useFieldStore.getState().removeSource(contextTarget.targetId);
             if (selection.id === contextTarget.targetId) clearSelection();
@@ -341,6 +378,8 @@ function SceneContent({
   ) => void;
 }) {
   const activeEntry = useLedgerStore((s) => s.entryById(s.activeEntryId));
+  const readOnlySummary =
+    activeEntry?.requestPayloadMode === "artifact_referenced";
   const carbonPriceId = useSelectionStore((s) => s.carbonPriceId);
   const exaggeration = useWorkspaceStore((s) => s.verticalExaggeration);
   const layers = useWorkspaceStore((s) => s.layers);
@@ -418,7 +457,7 @@ function SceneContent({
           projector={projector}
           placement={placement}
           reservoir={reservoir}
-          interactive={activeTool === "select"}
+          interactive={activeTool === "select" && !readOnlySummary}
           onContextMenu={(event) =>
             onContext(event, {
               kind: "outline",
@@ -1003,9 +1042,12 @@ function FieldLegend() {
         <span>{formatLegend(staticRange[1])}</span>
       </div>
       <p>
-        {formatLegend(reservoir.grid.length_x_m)} × {formatLegend(reservoir.grid.length_y_m)} × {formatLegend(reservoir.grid.thickness_m)} m local proxy · static source: {String(
-          reservoir.provenance.geometry_source_class ?? "declared reservoir input",
-        ).replaceAll("_", " ")}
+        {formatLegend(reservoir.grid.length_x_m)} × {formatLegend(reservoir.grid.length_y_m)} × {formatLegend(reservoir.grid.thickness_m)} m local proxy · static source: {scientificDisplayText(
+          String(
+            reservoir.provenance.geometry_source_class ??
+              "declared reservoir input",
+          ).replaceAll("_", " "),
+        )}
       </p>
       <div className="field-legend-dynamic">
         <span>{dynamicLabel(dynamicField)}</span>
@@ -1018,11 +1060,19 @@ function FieldLegend() {
 function ReservoirAvailability() {
   const { reservoir, selectedWell } = useSelectedReservoir();
   const level = useFieldStore((state) => state.level);
+  const readOnlySummary = useLedgerStore(
+    (state) =>
+      state.entryById(state.activeEntryId)?.requestPayloadMode ===
+      "artifact_referenced",
+  );
   if (level === "field" && !reservoir) {
     return (
       <div className="reservoir-unavailable" role="status">
         <strong>Reservoir model unavailable</strong>
-        <span>Re-import or relink the MRST model to restore the field grid.</span>
+        <span>
+          Create a new study and re-import the MRST model to restore the field
+          grid.
+        </span>
       </div>
     );
   }
@@ -1030,7 +1080,11 @@ function ReservoirAvailability() {
   return (
     <div className="reservoir-unavailable" role="status">
       <strong>Detailed reservoir not retained</strong>
-      <span>Choose a shortlisted scenario or rerun with detailed fields enabled.</span>
+      <span>
+        {readOnlySummary
+          ? "This saved result summary omits cell fields. Create a new study and re-import the reservoir to regenerate them."
+          : "Choose a shortlisted scenario or rerun with detailed fields enabled."}
+      </span>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { scientificDisplayText } from "./presentation";
 
 interface Props {
   /** Region label shown in the fallback. */
@@ -38,7 +39,9 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="region-error" role="alert">
           <strong>{this.props.label} failed to render.</strong>
-          <p className="region-error-msg mono">{error.message}</p>
+          <p className="region-error-msg mono">
+            {scientificDisplayText(error.message)}
+          </p>
           <button type="button" className="btn" onClick={this.reset}>
             Retry
           </button>

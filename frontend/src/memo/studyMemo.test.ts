@@ -7,7 +7,9 @@ import { snapshotFieldSetup } from "./export";
 import { hydrateMemoFieldSetup } from "./import";
 import {
   entryToMemo,
+  isStudyMemo,
   isLegacyMemo,
+  memoToEntry,
   STUDY_MEMO_KIND,
   STUDY_MEMO_VERSION,
   type FieldSetupMemo,
@@ -117,6 +119,26 @@ describe("memo v3", () => {
     expect(isLegacyMemo({ memo_version: 3 })).toBe(false);
   });
 
+  it("recognizes omitted catalogs and accepts legacy empty catalogs", () => {
+    const request: Record<string, unknown> = { mode: "inline" };
+    const candidate: Record<string, unknown> = {
+      ...memo(3, setup),
+      request_payload_mode: "artifact_referenced",
+      result_payload_mode: "summary",
+      request,
+    };
+
+    expect(isStudyMemo(candidate)).toBe(true);
+    candidate.result_payload_mode = undefined;
+    expect(isStudyMemo(candidate)).toBe(true);
+    candidate.result_payload_mode = "summary";
+    request.geologies = {};
+    request.seeds = {};
+    expect(isStudyMemo(candidate)).toBe(true);
+    request.geologies = { unexpected: {} };
+    expect(isStudyMemo(candidate)).toBe(false);
+  });
+
   it("exports a deep lightweight field snapshot without runtime payloads", () => {
     const liveTerrain: TerrainRef = {
       ...terrain,
@@ -180,11 +202,43 @@ describe("memo v3", () => {
       fiscal_cases: [],
       economic_assumptions: {},
     } satisfies ScreenRequest;
+    const result = {
+      request_fingerprint: "F".repeat(64),
+      plans: [
+        {
+          well_strategies: [
+            {
+              prediction: {
+                fields: [{ step_index: 0, pressure_bar: [[100]] }],
+              },
+            },
+          ],
+        },
+      ],
+      detailed_predictions: {
+        "W01--native": {
+          scenario_id: "W01--native",
+          fields: [
+            {
+              step_index: 0,
+              pressure_bar: [[100]],
+              gas_saturation: [[0.1]],
+              z_co2: [[0.8]],
+              oil_saturation: null,
+              origin: "surrogate",
+            },
+          ],
+        },
+      },
+      detailed_reservoirs: {
+        "W01--native": { scenario_id: "W01--native" },
+      },
+    } as unknown as ScreenResult;
     const entry = {
       entryId: "entry-1",
       label: "memo",
       request,
-      result: {} as ScreenResult,
+      result,
       fingerprint: "F".repeat(64),
       savedAt: "2026-07-18T00:00:00.000Z",
       imported: false,
@@ -193,9 +247,25 @@ describe("memo v3", () => {
     const saved = entryToMemo(entry, "app", "api", setup);
 
     expect(saved.request_payload_mode).toBe("artifact_referenced");
-    expect(saved.request).toMatchObject({ geologies: {}, seeds: {} });
+    expect(saved.result_payload_mode).toBe("summary");
+    expect(saved.request).not.toHaveProperty("geologies");
+    expect(saved.request).not.toHaveProperty("seeds");
+    expect(saved.result.detailed_predictions["W01--native"].fields).toBeNull();
+    expect(saved.result.detailed_reservoirs).toEqual({});
+    expect(saved.result.plans[0].well_strategies[0].prediction.fields).toBeNull();
     expect(request.geologies).toHaveProperty("model-1");
+    expect(result.detailed_predictions["W01--native"].fields).toHaveLength(1);
+    expect(result.plans[0].well_strategies[0].prediction.fields).toHaveLength(1);
     expect(JSON.stringify(saved).length).toBeLessThan(10_000);
+
+    const restored = memoToEntry(saved, true);
+    expect(restored.requestPayloadMode).toBe("artifact_referenced");
+    expect(restored.resultPayloadMode).toBe("summary");
+
+    const embedded = entryToMemo(entry, "app", "api");
+    expect(embedded.request_payload_mode).toBe("embedded");
+    expect(embedded.result_payload_mode).toBe("full");
+    expect(embedded.result.detailed_predictions["W01--native"].fields).toHaveLength(1);
   });
 
   it("hydrates field references, refetches terrain, and leaves runtime null", async () => {

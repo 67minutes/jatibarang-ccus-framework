@@ -41,6 +41,12 @@ export function sourceValidationIssue(
 ): string | null {
   for (const source of sources) {
     if (
+      !Number.isFinite(source.lat) ||
+      source.lat < -90 ||
+      source.lat > 90 ||
+      !Number.isFinite(source.lon) ||
+      source.lon < -180 ||
+      source.lon > 180 ||
       !Number.isFinite(source.annual_capacity_t) ||
       source.annual_capacity_t <= 0 ||
       !Number.isFinite(source.max_mass_flow_kg_s) ||
@@ -52,7 +58,7 @@ export function sourceValidationIssue(
       source.co2_purity < 0.95 ||
       source.co2_purity > 1
     ) {
-      return `${source.name || source.id} has invalid capacity, flow, pressure, temperature, or CO2 purity.`;
+      return `${source.name || source.id} has an invalid location, capacity, flow, pressure, temperature, or CO2 purity.`;
     }
   }
   return null;

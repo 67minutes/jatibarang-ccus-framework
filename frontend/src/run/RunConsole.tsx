@@ -4,6 +4,7 @@ import { useLedgerStore } from "../state/ledger.store";
 import { buildTimeline, dedupFromEvents } from "./stageTimeline";
 import { runCommand, isCommandEnabled } from "../chrome/commands";
 import { Badge } from "../ui/confidence";
+import { scientificDisplayText } from "../ui/presentation";
 import "./run-console.css";
 
 /**
@@ -75,7 +76,9 @@ export function RunConsole() {
         </div>
       )}
       {status === "failed" && errorMessage && (
-        <div className="run-error-line">Run failed: {errorMessage}</div>
+        <div className="run-error-line">
+          Run failed: {scientificDisplayText(errorMessage)}
+        </div>
       )}
 
       <ol className="stage-list">
@@ -98,7 +101,8 @@ export function RunConsole() {
           <ul>
             {warnings.map((w, i) => (
               <li key={i}>
-                <span className="mono run-warn-stage">{w.stage}</span> {w.message}
+                <span className="mono run-warn-stage">{w.stage}</span>{" "}
+                {scientificDisplayText(w.message)}
                 {Array.isArray(w.payload?.scenario_ids) && (w.payload.scenario_ids as unknown[]).length > 0 && (
                   <span className="run-warn-scope mono">
                     {" "}

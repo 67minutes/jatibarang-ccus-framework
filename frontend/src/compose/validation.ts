@@ -39,13 +39,17 @@ export const TRAINED_RANGES = {
   anisotropy_ratio_max: 2.99,
 };
 
-export function readCarbonPrices(draft: InlineScreenRequest): CarbonPriceScenario[] {
+export function readCarbonPrices(
+  draft: Pick<InlineScreenRequest, "carbon_prices">,
+): CarbonPriceScenario[] {
   return (draft.carbon_prices as CarbonPriceScenario[]).filter(
     (p) => p && typeof p === "object" && "scenario_id" in p,
   );
 }
 
-export function readFiscalCases(draft: InlineScreenRequest): FiscalCaseLite[] {
+export function readFiscalCases(
+  draft: Pick<InlineScreenRequest, "fiscal_cases">,
+): FiscalCaseLite[] {
   return (draft.fiscal_cases as FiscalCaseLite[]).filter(
     (f) => f && typeof f === "object" && "case_id" in f,
   );

@@ -1,4 +1,4 @@
-# Jatibarang CCUS Screening Workbench (Feature 006)
+# Fieldman CCUS Screening Workbench (Feature 006)
 
 A single-user, local-first frontend for the Feature 005 screening API. It is a
 classical **WIMP desktop workbench** (menu bar / toolbar / status bar / docked
@@ -76,12 +76,11 @@ npm run e2e                # Playwright smoke/offline/error tests (needs a
                            #   backend on :8000 serving a build)
 ```
 
-## Regenerating demo assets
+## Regenerating the reference study
 
-See [`public/assets/README.md`](public/assets/README.md). The scripts are
-`scripts/gen_demo_request.py` (real Figure 3 median-case request),
-`scripts/capture-canned.mjs` (matching screen result), and
-`scripts/bake-terrain.mjs` (terrain heightmap).
+The app boots blank and does not load baked demo assets. Rebuild the reference
+study through the real import and screening flow documented in
+[`data/jatibarang/README_demo_memo.md`](../data/jatibarang/README_demo_memo.md).
 
 ## Notable design points
 

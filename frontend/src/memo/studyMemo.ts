@@ -1,4 +1,8 @@
-import type { ScreenRequest, ScreenResult } from "../api/types";
+import type {
+  InlineScreenRequest,
+  ScreenRequest,
+  ScreenResult,
+} from "../api/types";
 import type {
   FieldPlacement,
   PlacedSource,
@@ -14,8 +18,8 @@ import type { StudyMetadata } from "../state/study.store";
  * It is simultaneously the persistence mechanism (no browser storage — the file
  * IS the state), the collaboration unit (a colleague imports it), the
  * reproducibility contract (re-compose -> run -> same fingerprint or the inputs
- * changed), and the Feature 007 hand-off artifact. Field memos retain the
- * decision request and artifact hashes, while relinkable geology/launch-pad
+ * changed), and the Feature 007 hand-off artifact. Field memos retain a
+ * decision-request summary and artifact hashes, while geology/launch-pad
  * payloads stay in the backend import registry rather than bloating the file.
  */
 
@@ -35,7 +39,7 @@ export interface FieldSetupMemo {
   sources: PlacedSource[];
 }
 
-export interface StudyMemo {
+interface StudyMemoBase {
   kind: typeof STUDY_MEMO_KIND;
   memo_version: number;
   app_version: string;
@@ -44,26 +48,65 @@ export interface StudyMemo {
   label: string;
   study?: StudyMetadata;
   field_setup?: FieldSetupMemo;
-  /** Older/non-field memos may embed payloads; field memos reference artifacts. */
-  request_payload_mode?: "embedded" | "artifact_referenced";
-  request: ScreenRequest;
   fingerprint: string;
   result: ScreenResult;
 }
 
+/**
+ * Decision-facing request metadata retained in a portable field memo. The two
+ * required API catalogs are absent, so this type cannot be submitted as an
+ * InlineScreenRequest. The referenced reservoir hashes remain in field_setup.
+ */
+export type ArtifactReferencedRequestSummary = Omit<
+  InlineScreenRequest,
+  "geologies" | "seeds"
+> & {
+  geologies?: never;
+  seeds?: never;
+};
+
+export type StudyMemo = StudyMemoBase &
+  (
+    | {
+        request_payload_mode?: "embedded";
+        result_payload_mode?: "full";
+        request: ScreenRequest;
+      }
+    | {
+        request_payload_mode: "artifact_referenced";
+        /** Older v3 files may contain a full result; new exports are summaries. */
+        result_payload_mode?: "full" | "summary";
+        request: ArtifactReferencedRequestSummary;
+      }
+  );
+
 /** A run held in the session ledger (in-memory; exportable as a StudyMemo). */
-export interface LedgerEntry {
+interface LedgerEntryBase {
   /** Stable id for UI keys; the fingerprint is the scientific identity. */
   entryId: string;
   fingerprint: string;
   label: string;
   savedAt: string;
-  request: ScreenRequest;
   result: ScreenResult;
-  /** True when loaded from a canned/imported memo rather than a live run. */
+  /** True when loaded from a saved memo rather than a live run. */
   imported: boolean;
   study?: StudyMetadata;
 }
+
+export type LedgerEntry = LedgerEntryBase &
+  (
+    | {
+        requestPayloadMode?: "embedded";
+        resultPayloadMode?: "full";
+        request: ScreenRequest;
+      }
+    | {
+        /** Result summaries are inspectable but cannot be recomposed. */
+        requestPayloadMode: "artifact_referenced";
+        resultPayloadMode?: "full" | "summary";
+        request: ArtifactReferencedRequestSummary;
+      }
+  );
 
 export function shortFingerprint(fingerprint: string): string {
   return fingerprint ? fingerprint.slice(0, 8).toLowerCase() : "--------";
@@ -72,12 +115,46 @@ export function shortFingerprint(fingerprint: string): string {
 export function isStudyMemo(value: unknown): value is StudyMemo {
   if (!value || typeof value !== "object") return false;
   const memo = value as Record<string, unknown>;
-  return (
+  if (!(
     memo.kind === STUDY_MEMO_KIND &&
     typeof memo.fingerprint === "string" &&
+    memo.request !== null &&
     typeof memo.request === "object" &&
+    memo.result !== null &&
     typeof memo.result === "object"
-  );
+  )) {
+    return false;
+  }
+  if (
+    (memo.request_payload_mode !== undefined &&
+      memo.request_payload_mode !== "embedded" &&
+      memo.request_payload_mode !== "artifact_referenced") ||
+    (memo.result_payload_mode !== undefined &&
+      memo.result_payload_mode !== "full" &&
+      memo.result_payload_mode !== "summary")
+  ) {
+    return false;
+  }
+
+  if (memo.request_payload_mode === "artifact_referenced") {
+    const request = memo.request as Record<string, unknown>;
+    const omittedOrEmptyCatalog = (catalog: unknown) =>
+      catalog === undefined ||
+      (catalog !== null &&
+        typeof catalog === "object" &&
+        Object.keys(catalog).length === 0);
+    return (
+      (memo.result_payload_mode === undefined ||
+        memo.result_payload_mode === "summary") &&
+      memo.field_setup !== null &&
+      typeof memo.field_setup === "object" &&
+      request.mode === "inline" &&
+      omittedOrEmptyCatalog(request.geologies) &&
+      omittedOrEmptyCatalog(request.seeds)
+    );
+  }
+
+  return memo.result_payload_mode !== "summary";
 }
 
 /** Version-2 and older memos remain readable but have no field-scene state. */
@@ -86,15 +163,28 @@ export function isLegacyMemo(memo: Pick<StudyMemo, "memo_version">): boolean {
 }
 
 export function memoToEntry(memo: StudyMemo, imported: boolean): LedgerEntry {
-  return {
+  const common: LedgerEntryBase = {
     entryId: crypto.randomUUID(),
     fingerprint: memo.fingerprint,
     label: memo.label || shortFingerprint(memo.fingerprint),
     savedAt: memo.saved_at,
-    request: memo.request,
     result: memo.result,
     imported,
     study: memo.study,
+  };
+  if (memo.request_payload_mode === "artifact_referenced") {
+    return {
+      ...common,
+      request: artifactRequestSummary(memo.request),
+      requestPayloadMode: "artifact_referenced",
+      resultPayloadMode: memo.result_payload_mode ?? "full",
+    };
+  }
+  return {
+    ...common,
+    request: memo.request,
+    requestPayloadMode: "embedded",
+    resultPayloadMode: "full",
   };
 }
 
@@ -104,16 +194,47 @@ export function entryToMemo(
   apiContractVersion: string,
   fieldSetup?: FieldSetupMemo,
 ): StudyMemo {
-  const request = structuredClone(entry.request);
-  const artifactReferenced = Boolean(
-    fieldSetup && request.mode === "inline",
-  );
-  if (artifactReferenced && request.mode === "inline") {
-    // Candidates, sources, decisions, and schedule selection remain readable.
-    // The model/bank hashes in field_setup are the portable link contract.
-    request.geologies = {};
-    request.seeds = {};
+  if (entry.requestPayloadMode === "artifact_referenced") {
+    const request = structuredClone(entry.request);
+    if (!fieldSetup || request.mode !== "inline") {
+      throw new Error("An artifact-referenced memo requires a field setup.");
+    }
+    return {
+      kind: STUDY_MEMO_KIND,
+      memo_version: STUDY_MEMO_VERSION,
+      app_version: appVersion,
+      api_contract_version: apiContractVersion,
+      saved_at: new Date().toISOString(),
+      label: entry.label,
+      study: entry.study,
+      field_setup: fieldSetup,
+      request_payload_mode: "artifact_referenced",
+      result_payload_mode: "summary",
+      request: artifactRequestSummary(request),
+      fingerprint: entry.fingerprint,
+      result: summarizeFieldResult(entry.result),
+    };
   }
+
+  const request = structuredClone(entry.request);
+  if (fieldSetup && request.mode === "inline") {
+    return {
+      kind: STUDY_MEMO_KIND,
+      memo_version: STUDY_MEMO_VERSION,
+      app_version: appVersion,
+      api_contract_version: apiContractVersion,
+      saved_at: new Date().toISOString(),
+      label: entry.label,
+      study: entry.study,
+      field_setup: fieldSetup,
+      request_payload_mode: "artifact_referenced",
+      result_payload_mode: "summary",
+      request: artifactRequestSummary(request),
+      fingerprint: entry.fingerprint,
+      result: summarizeFieldResult(entry.result),
+    };
+  }
+
   return {
     kind: STUDY_MEMO_KIND,
     memo_version: STUDY_MEMO_VERSION,
@@ -123,11 +244,52 @@ export function entryToMemo(
     label: entry.label,
     study: entry.study,
     field_setup: fieldSetup,
-    request_payload_mode: artifactReferenced
-      ? "artifact_referenced"
-      : "embedded",
+    request_payload_mode: "embedded",
+    result_payload_mode: "full",
     request,
     fingerprint: entry.fingerprint,
     result: entry.result,
+  };
+}
+
+/** Strip legacy empty catalogs and return a non-submittable request summary. */
+function artifactRequestSummary(
+  request: InlineScreenRequest | ArtifactReferencedRequestSummary,
+): ArtifactReferencedRequestSummary {
+  const {
+    geologies: _geologies,
+    seeds: _seeds,
+    ...summary
+  } = request as InlineScreenRequest;
+  return summary;
+}
+
+/**
+ * Keep decision-facing outputs portable while leaving cell-by-cell arrays in
+ * the hash-addressed reservoir import. Aggregate timelines, production,
+ * inventory, plume summaries, economics, warnings, and fingerprints remain in
+ * the memo. A new import-backed study is required to regenerate spatial fields.
+ */
+function summarizeFieldResult(result: ScreenResult): ScreenResult {
+  const detailedPredictions = Object.fromEntries(
+    Object.entries(result.detailed_predictions ?? {}).map(
+      ([scenarioId, prediction]) => [
+        scenarioId,
+        { ...prediction, fields: null },
+      ],
+    ),
+  );
+  const plans = (result.plans ?? []).map((plan) => ({
+    ...plan,
+    well_strategies: plan.well_strategies.map((strategy) => ({
+      ...strategy,
+      prediction: { ...strategy.prediction, fields: null },
+    })),
+  }));
+  return {
+    ...result,
+    plans,
+    detailed_predictions: detailedPredictions,
+    detailed_reservoirs: {},
   };
 }

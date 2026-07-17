@@ -292,8 +292,8 @@ export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
           well_ij: [...setup.reservoir.well_ij],
           covered_fingerprints: [...setup.reservoir.covered_fingerprints],
         },
-        // Runtime geology and launch pads must be re-linked from the backend
-        // registry. They are never serialized into a portable memo.
+        // Runtime geology and launch pads are never serialized into a portable
+        // result summary. A new import-backed study is required to screen.
         reservoirRuntime: null,
         placement: { ...setup.placement },
         // Preserve memo coordinates exactly. A later move/rotate re-derives

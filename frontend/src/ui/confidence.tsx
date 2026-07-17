@@ -1,4 +1,5 @@
 import type { ScreenFlag } from "../api/types";
+import { scientificDisplayText } from "./presentation";
 import "./confidence.css";
 
 /**
@@ -29,8 +30,10 @@ export function FlagList({ flags }: { flags: ScreenFlag[] }) {
     <ul className="flag-list">
       {flags.map((f, i) => (
         <li key={`${f.code}-${i}`} className={`flag flag-${f.severity}`}>
-          <span className="flag-code">{f.code}</span>
-          <span className="flag-msg">{f.message}</span>
+          <span className="flag-code">
+            {scientificDisplayText(f.code.replace(/_/g, " "))}
+          </span>
+          <span className="flag-msg">{scientificDisplayText(f.message)}</span>
           {f.scenario_ids.length > 0 && (
             <span className="flag-scope mono" title={f.scenario_ids.join(", ")}>
               {f.scenario_ids.length} cell{f.scenario_ids.length > 1 ? "s" : ""}
@@ -59,7 +62,7 @@ export function ConfidenceNote({ reasons }: { reasons: string[] }) {
       <Badge tone="warning">low confidence</Badge>
       <ul>
         {reasons.map((r, i) => (
-          <li key={i}>{r}</li>
+          <li key={i}>{scientificDisplayText(r)}</li>
         ))}
       </ul>
     </div>

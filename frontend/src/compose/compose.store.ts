@@ -11,7 +11,7 @@ import type {
  * The compose draft: a working copy of an inline screening request.
  *
  * The heavy nested blocks (geologies, seeds, candidates, economic_assumptions)
- * come from a loaded base — the demo seed design or a re-composed ledger entry
+ * come from an imported field definition or a re-composed ledger entry
  * — and are treated as opaque. The composer exposes the decision surface an
  * engineer actually turns between runs: carbon prices, cost case, supply
  * scenarios, the operational grid, budget, fiscal selection, and top-k.

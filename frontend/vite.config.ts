@@ -13,6 +13,8 @@ const API_PATHS = [
   "/model",
   "/predict",
   "/paper",
+  "/terrain",
+  "/reservoir",
   "/docs",
   "/openapi.json",
 ];

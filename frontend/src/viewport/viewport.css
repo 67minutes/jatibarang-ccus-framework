@@ -179,6 +179,9 @@
   background: rgba(14, 35, 41, 0.94);
   outline: none;
 }
+.field-breadcrumb.field-entry {
+  top: 51px;
+}
 .field-window-loading {
   position: absolute;
   left: 50%;

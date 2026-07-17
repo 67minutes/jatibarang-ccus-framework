@@ -3,7 +3,11 @@ import type { ReservoirImportResponse } from "../api/client";
 import type { FieldSetupMemo } from "../memo/studyMemo";
 import { comboFingerprint, scheduleCombos, type ScheduleCombo } from "./coverage";
 import { createDefaultStudyRequestBase, DEFAULT_OPERATIONAL_GRID } from "./defaults";
-import { buildStudyRequest, studySchedulePlan } from "./studyRequest";
+import {
+  buildStudyRequest,
+  sourceValidationIssue,
+  studySchedulePlan,
+} from "./studyRequest";
 
 const firstCombo = scheduleCombos(DEFAULT_OPERATIONAL_GRID)[0];
 const firstFingerprint = comboFingerprint(firstCombo, 45);
@@ -98,6 +102,14 @@ function field(imported: ReservoirImportResponse): FieldSetupMemo {
 }
 
 describe("buildStudyRequest", () => {
+  it("rejects source coordinates outside the API contract", () => {
+    const imported = runtime();
+    const setup = field(imported);
+    setup.sources[0].lat = 90.01;
+
+    expect(sourceValidationIssue(setup.sources)).toMatch(/invalid location/i);
+  });
+
   it("builds a full editable inline draft from the placed field", () => {
     const imported = runtime();
     const request = buildStudyRequest({

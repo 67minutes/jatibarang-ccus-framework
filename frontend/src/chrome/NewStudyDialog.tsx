@@ -31,6 +31,7 @@ import {
   useStudyStore,
 } from "../state/study.store";
 import { applyWellsCsvRows, parseWellsCsv } from "./wellsCsv";
+import { scientificDisplayText } from "../ui/presentation";
 
 const IMPORT_TERRAIN = "__import__";
 
@@ -96,7 +97,9 @@ function finiteCoordinate(
 }
 
 function messageFrom(error: unknown): string {
-  return error instanceof Error ? error.message : "The import could not be completed.";
+  return error instanceof Error
+    ? scientificDisplayText(error.message)
+    : "The import could not be completed.";
 }
 
 interface LaunchPadCoveragePreview {

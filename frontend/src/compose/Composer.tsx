@@ -21,6 +21,7 @@ import {
   type StudySchedulePlan,
 } from "./studyRequest";
 import type { OperatingScheduleInput } from "./coverage";
+import { displayWireKey, scientificDisplayText } from "../ui/presentation";
 import "./compose.css";
 
 const COST_CASES: CostCase[] = ["low", "base", "high"];
@@ -203,7 +204,7 @@ export function Composer() {
         }
         fieldIssue={
           fieldReservoir && !reservoirRuntime
-            ? "Relink the imported reservoir model before screening."
+            ? "Create a new study and re-import the reservoir model before screening."
             : fieldReservoir && fieldSources.length === 0
               ? "Add at least one CO2 source in the basin view before screening."
               : fieldReservoir && sourceIssue
@@ -340,12 +341,17 @@ function ScheduleCoveragePanel({
   runtimeAvailable: boolean;
 }) {
   if (error) {
-    return <p className="coverage-message coverage-error">{error}</p>;
+    return (
+      <p className="coverage-message coverage-error">
+        {scientificDisplayText(error)}
+      </p>
+    );
   }
   if (!runtimeAvailable || !coverage) {
     return (
       <p className="coverage-message">
-        Relink the imported reservoir model to calculate launch-pad coverage.
+        Create a new study and re-import the reservoir model to calculate
+        launch-pad coverage.
       </p>
     );
   }
@@ -489,12 +495,18 @@ function ComposeFooter({
         <ul className="compose-issues">
           {report.errors.map((e, i) => (
             <li key={`e${i}`} className="compose-issue-error">
-              <span className="mono">{e.field}</span> {e.message}
+              <span className="mono">
+                {displayWireKey(e.field).replaceAll("_", " ")}
+              </span>{" "}
+              {scientificDisplayText(e.message)}
             </li>
           ))}
           {report.warnings.map((w, i) => (
             <li key={`w${i}`} className="compose-issue-warn">
-              <span className="mono">{w.field}</span> {w.message}
+              <span className="mono">
+                {displayWireKey(w.field).replaceAll("_", " ")}
+              </span>{" "}
+              {scientificDisplayText(w.message)}
             </li>
           ))}
         </ul>

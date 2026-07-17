@@ -23,7 +23,7 @@ export async function pickStudyMemo(): Promise<StudyMemo | null> {
     throw new Error("Selected file is not valid JSON.");
   }
   if (!isStudyMemo(parsed)) {
-    throw new Error("Selected file is not a Jatibarang study memo.");
+    throw new Error("Selected file is not a compatible study memo.");
   }
   await hydrateMemoFieldSetup(parsed);
   return parsed;
@@ -31,8 +31,8 @@ export async function pickStudyMemo(): Promise<StudyMemo | null> {
 
 /**
  * Replace any live field with the memo's lightweight setup. Overview pixels
- * are re-linked from the terrain registry; reservoir runtime data remains
- * intentionally unavailable until the user re-imports the model and bank.
+ * are restored from the terrain registry; reservoir runtime data remains
+ * intentionally unavailable because artifact-referenced memos are read-only.
  */
 export async function hydrateMemoFieldSetup(memo: StudyMemo): Promise<void> {
   const field = useFieldStore.getState();

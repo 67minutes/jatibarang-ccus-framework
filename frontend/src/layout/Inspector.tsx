@@ -13,11 +13,15 @@ import type {
 import { useComposeStore } from "../compose/compose.store";
 import { useStudyStore } from "../state/study.store";
 import { useFieldStore } from "../state/field.store";
+import {
+  quantityDisplayName,
+  scientificDisplayText,
+} from "../ui/presentation";
 
 /**
  * The inspector (right region): properties, results, and confidence flags for
- * the current selection. The FieldTwin properties panel, repurposed for results
- * rather than editable geometry — the scene is read-only.
+ * the current selection. This properties panel is repurposed for results rather
+ * than editable geometry — the scene is read-only.
  */
 export function Inspector() {
   const activeEntry = useLedgerStore((s) => s.entryById(s.activeEntryId));
@@ -149,7 +153,7 @@ function WellDetail({
           <ul className="confidence-note" style={{ paddingLeft: 18 }}>
             {extrap.map((f) => (
               <li key={f.quantity}>
-                {f.quantity}: {num(f.observed_min, 2)}–{num(f.observed_max, 2)} vs trained{" "}
+                {quantityDisplayName(f.quantity)}: {num(f.observed_min, 2)}–{num(f.observed_max, 2)} vs trained{" "}
                 {num(f.trained_min, 2)}–{num(f.trained_max, 2)}
               </li>
             ))}
@@ -199,7 +203,9 @@ export function WellInterferenceWarnings({
               {pair.recommendations.length > 0 ? (
                 <ul aria-label={`Recommendations for ${otherWell}`}>
                   {pair.recommendations.map((recommendation) => (
-                    <li key={recommendation}>{recommendation.replace(/_/g, " ")}</li>
+                    <li key={recommendation}>
+                      {scientificDisplayText(recommendation.replace(/_/g, " "))}
+                    </li>
                   ))}
                 </ul>
               ) : null}

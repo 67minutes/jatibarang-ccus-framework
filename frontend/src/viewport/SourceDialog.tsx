@@ -26,6 +26,8 @@ export function SourceDialog({
 }: SourceDialogProps) {
   const titleId = useId();
   const nameRef = useRef<HTMLInputElement>(null);
+  const [latitude, setLatitude] = useState(String(initial?.lat ?? lat));
+  const [longitude, setLongitude] = useState(String(initial?.lon ?? lon));
   const [name, setName] = useState(initial?.name ?? "");
   const [capacity, setCapacity] = useState(
     initial ? String(initial.annual_capacity_t) : "",
@@ -57,6 +59,8 @@ export function SourceDialog({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    const sourceLatitude = Number(latitude);
+    const sourceLongitude = Number(longitude);
     const annualCapacity = Number(capacity);
     const outletPressure = Number(pressure);
     const outletTemperature = Number(temperature);
@@ -64,6 +68,19 @@ export function SourceDialog({
     const maxMassFlow = Number(peakFlow);
     if (
       !name.trim() ||
+      !latitude.trim() ||
+      !longitude.trim() ||
+      !capacity.trim() ||
+      !pressure.trim() ||
+      !temperature.trim() ||
+      !purity.trim() ||
+      !peakFlow.trim() ||
+      !Number.isFinite(sourceLatitude) ||
+      sourceLatitude < -90 ||
+      sourceLatitude > 90 ||
+      !Number.isFinite(sourceLongitude) ||
+      sourceLongitude < -180 ||
+      sourceLongitude > 180 ||
       !Number.isFinite(annualCapacity) ||
       annualCapacity <= 0 ||
       !Number.isFinite(outletPressure) ||
@@ -79,8 +96,8 @@ export function SourceDialog({
     }
     onSave({
       name: name.trim(),
-      lat,
-      lon,
+      lat: sourceLatitude,
+      lon: sourceLongitude,
       annual_capacity_t: annualCapacity,
       outlet_pressure_bar: outletPressure,
       outlet_temperature_c: outletTemperature,
@@ -112,10 +129,31 @@ export function SourceDialog({
           </button>
         </header>
         <form onSubmit={submit}>
-          <p className="source-dialog-coordinate">
-            {lat.toFixed(6)}, {lon.toFixed(6)} · geographic placement
-          </p>
           <div className="source-dialog-grid">
+            <label className="source-dialog-field">
+              <span>Latitude</span>
+              <input
+                type="number"
+                min="-90"
+                max="90"
+                step="any"
+                value={latitude}
+                onChange={(event) => setLatitude(event.target.value)}
+                required
+              />
+            </label>
+            <label className="source-dialog-field">
+              <span>Longitude</span>
+              <input
+                type="number"
+                min="-180"
+                max="180"
+                step="any"
+                value={longitude}
+                onChange={(event) => setLongitude(event.target.value)}
+                required
+              />
+            </label>
             <label className="source-dialog-field source-dialog-field-wide">
               <span>Source name</span>
               <input

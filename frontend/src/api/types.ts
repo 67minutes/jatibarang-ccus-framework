@@ -1,5 +1,5 @@
 /**
- * Domain API types for the Jatibarang CCUS screening workbench.
+ * Domain API types for the CCUS screening workbench.
  *
  * The OpenAPI contract (`specs/005-screening-api/contracts/openapi.yaml`) is a
  * *summary* — `openapi-typescript` emits it into `types.gen.ts` for path /

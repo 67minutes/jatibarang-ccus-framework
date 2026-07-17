@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   commands,
   isCommandEnabled,
@@ -8,6 +8,8 @@ import {
 } from "./commands";
 import { useLedgerStore } from "../state/ledger.store";
 import { useSelectionStore } from "../state/selection.store";
+import { useActionsStore } from "../state/actions.store";
+import type { LedgerEntry } from "../memo/studyMemo";
 
 function commandIds(nodes: MenuNode[]): string[] {
   return nodes.flatMap((node) => {
@@ -21,6 +23,7 @@ describe("command inventory", () => {
   beforeEach(() => {
     useLedgerStore.setState({ entries: [], activeEntryId: null, compareIds: [null, null] });
     useSelectionStore.getState().clear();
+    useActionsStore.setState({ actions: {} });
   });
 
   it("places every command in exactly one menu and keeps the toolbar a subset", () => {
@@ -36,5 +39,37 @@ describe("command inventory", () => {
       .filter((id) => id.startsWith("view.colorBy.") || id.startsWith("view.heightBy."));
     expect(fieldCommands).toHaveLength(8);
     expect(fieldCommands.every((id) => !isCommandEnabled(id))).toBe(true);
+  });
+
+  it("keeps exports available but disables memo saves for a read-only summary", () => {
+    const entry = {
+      entryId: "summary",
+      fingerprint: "F".repeat(64),
+      label: "summary",
+      savedAt: "2026-07-18T00:00:00.000Z",
+      imported: true,
+      requestPayloadMode: "artifact_referenced",
+      resultPayloadMode: "summary",
+      request: { mode: "inline" },
+      result: {},
+    } as unknown as LedgerEntry;
+    useLedgerStore.setState({
+      entries: [entry],
+      activeEntryId: entry.entryId,
+      compareIds: [null, null],
+    });
+    useActionsStore.setState({
+      actions: {
+        saveStudy: vi.fn(),
+        saveStudyAs: vi.fn(),
+        exportRankingCsv: vi.fn(),
+        hasActiveResult: () => true,
+      },
+    });
+
+    expect(isCommandEnabled("file.save")).toBe(false);
+    expect(isCommandEnabled("file.saveAs")).toBe(false);
+    expect(isCommandEnabled("file.exportMemo")).toBe(false);
+    expect(isCommandEnabled("file.exportRanking")).toBe(true);
   });
 });

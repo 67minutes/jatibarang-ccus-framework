@@ -4,6 +4,9 @@ import type {
   ScreenRequest,
 } from "../api/types";
 import type { SelectionKind } from "../state/selection.store";
+import type { ArtifactReferencedRequestSummary } from "../memo/studyMemo";
+
+type SceneRequest = ScreenRequest | ArtifactReferencedRequestSummary;
 
 /**
  * Scene assembly shared by the 2D map and (Phase 4) the 3D viewport. Produces a
@@ -50,7 +53,7 @@ function isCoordinate(value: unknown): value is Coordinate {
 }
 
 /** Extract `{id -> location}` from the loosely-typed request candidates/sources. */
-export function nodeCoordinateMap(request: ScreenRequest): Map<string, Coordinate> {
+export function nodeCoordinateMap(request: SceneRequest): Map<string, Coordinate> {
   const coords = new Map<string, Coordinate>();
   if (request.mode !== "inline") return coords;
   for (const source of request.sources) {
@@ -68,7 +71,7 @@ export function nodeCoordinateMap(request: ScreenRequest): Map<string, Coordinat
 }
 
 export function collectSceneObjects(
-  request: ScreenRequest,
+  request: SceneRequest,
   plan: CarbonPricePlan | null,
 ): Scene {
   const coords = nodeCoordinateMap(request);

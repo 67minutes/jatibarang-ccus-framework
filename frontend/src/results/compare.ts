@@ -1,4 +1,4 @@
-import type { InlineScreenRequest, ScreenRequest, ScreenResult } from "../api/types";
+import type { ScreenResult } from "../api/types";
 import type { LedgerEntry } from "../memo/studyMemo";
 import { readCarbonPrices } from "../compose/validation";
 
@@ -28,27 +28,31 @@ export interface StudyComparison {
   trajectories: RankTrajectory[];
 }
 
-function summarizeRequest(request: ScreenRequest): Record<string, string> {
+type ComparableScreenRequest = LedgerEntry["request"];
+
+function summarizeRequest(request: ComparableScreenRequest): Record<string, string> {
   const out: Record<string, string> = { mode: request.mode };
   if (request.mode === "inline") {
-    const inline = request as InlineScreenRequest;
-    out.carbon_prices = readCarbonPrices(inline)
+    out.carbon_prices = readCarbonPrices(request)
       .map((p) => `${p.scenario_id}=${p.carbon_price_usd_per_tonne}`)
       .join(", ");
-    out.cost_case = inline.cost_case ?? "base";
-    out.supply_scenarios = (inline.supply_scenarios ?? []).join("+");
-    out.selection_fiscal_case_id = inline.selection_fiscal_case_id ?? "pre_tax";
-    out.annual_co2_budget_tonnes = String(inline.annual_co2_budget_tonnes);
-    out.project_life_years = String(inline.project_life_years ?? 8);
-    out.candidates = String(inline.candidates.length);
-    out.shortlist_top_k = String(inline.shortlist_top_k ?? 5);
+    out.cost_case = request.cost_case ?? "base";
+    out.supply_scenarios = (request.supply_scenarios ?? []).join("+");
+    out.selection_fiscal_case_id = request.selection_fiscal_case_id ?? "pre_tax";
+    out.annual_co2_budget_tonnes = String(request.annual_co2_budget_tonnes);
+    out.project_life_years = String(request.project_life_years ?? 8);
+    out.candidates = String(request.candidates.length);
+    out.shortlist_top_k = String(request.shortlist_top_k ?? 5);
   } else {
     out.preset_id = request.preset_id;
   }
   return out;
 }
 
-export function diffRequests(a: ScreenRequest, b: ScreenRequest): RequestDelta[] {
+export function diffRequests(
+  a: ComparableScreenRequest,
+  b: ComparableScreenRequest,
+): RequestDelta[] {
   const sa = summarizeRequest(a);
   const sb = summarizeRequest(b);
   const fields = new Set([...Object.keys(sa), ...Object.keys(sb)]);

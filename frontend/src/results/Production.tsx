@@ -101,7 +101,7 @@ export function Production() {
       </ResponsiveContainer>
       <p className="empty-hint" style={{ paddingLeft: 0 }}>
         {predictions.length > 1
-          ? "Overlapping lines indicate identical wells (uniform demo geology). Select a well to highlight it."
+          ? "Overlapping lines indicate wells with identical predicted histories. Select a well to highlight it."
           : "Select a shortlist row or well to highlight its scenario."}
       </p>
     </div>

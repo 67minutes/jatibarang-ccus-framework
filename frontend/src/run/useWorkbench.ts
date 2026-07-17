@@ -98,7 +98,7 @@ export function prepareScreeningRequest(
       if (!imported) {
         return failedPreparation(
           "reservoir-relink-required",
-          "Relink the imported reservoir model before screening.",
+          "This saved field is a read-only result summary. Create a new study and re-import the reservoir model before screening.",
         );
       }
       if (field.sources.length === 0) {
@@ -287,7 +287,8 @@ export function useWorkbench(): void {
       hasActiveResult: () => useLedgerStore.getState().activeEntryId != null,
       canRecompose: () => {
         const entry = useLedgerStore.getState().activeEntry();
-        if (!entry || entry.request.mode !== "inline") return false;
+        if (!entry || entry.requestPayloadMode === "artifact_referenced") return false;
+        if (entry.request.mode !== "inline") return false;
         return !(
           entry.imported &&
           useUiStore.getState().banners.some((banner) => banner.id === "memo-legacy")
@@ -349,7 +350,11 @@ export function useWorkbench(): void {
             useComposeStore.setState({ draft: null, past: [], future: [] });
             useLedgerStore.getState().importMemo(memo);
             if (memo.study) useStudyStore.getState().load(memo.study);
-            if (!isLegacyMemo(memo) && memo.request.mode === "inline") {
+            if (
+              !isLegacyMemo(memo) &&
+              memo.request_payload_mode !== "artifact_referenced" &&
+              memo.request.mode === "inline"
+            ) {
               useComposeStore.getState().loadBase({
                 ...memo.request,
                 run_id: null,
@@ -362,7 +367,7 @@ export function useWorkbench(): void {
                 id: "memo-reservoir-relink",
                 severity: "info",
                 message:
-                  "Field references restored. Re-import the matching reservoir model and launch-pad bank before re-screening.",
+                  "Saved result summary restored read-only. To rerun or regenerate cell fields, create a new study and re-import the matching reservoir model and launch-pad bank.",
               });
             }
             const axis = carbonPriceAxis(memo.result);
@@ -379,11 +384,15 @@ export function useWorkbench(): void {
       },
       saveStudy: async () => {
         const entry = useLedgerStore.getState().activeEntry();
-        if (entry) await exportStudyMemo(entry);
+        if (entry && entry.requestPayloadMode !== "artifact_referenced") {
+          await exportStudyMemo(entry);
+        }
       },
       saveStudyAs: async () => {
         const entry = useLedgerStore.getState().activeEntry();
-        if (entry) await exportStudyMemo(entry);
+        if (entry && entry.requestPayloadMode !== "artifact_referenced") {
+          await exportStudyMemo(entry);
+        }
       },
       exportRankingCsv: async () => {
         const entry = useLedgerStore.getState().activeEntry();
@@ -404,7 +413,8 @@ export function useWorkbench(): void {
       },
       recomposeActive: () => {
         const entry = useLedgerStore.getState().activeEntry();
-        if (entry && entry.request.mode === "inline") {
+        if (entry && entry.requestPayloadMode !== "artifact_referenced") {
+          if (entry.request.mode !== "inline") return;
           if (
             entry.imported &&
             useUiStore.getState().banners.some((banner) => banner.id === "memo-legacy")

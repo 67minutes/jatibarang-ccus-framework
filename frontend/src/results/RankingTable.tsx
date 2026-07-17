@@ -6,6 +6,7 @@ import { preliminaryRanking } from "./displayData";
 import { Badge } from "../ui/confidence";
 import { usd } from "../util/format";
 import type { ScreenFlag, ScreenResult } from "../api/types";
+import { scientificDisplayText } from "../ui/presentation";
 import "./results.css";
 
 /**
@@ -85,11 +86,19 @@ export function RankingTable() {
                 <td className="num">{usd(item.designated_npv_usd)}</td>
                 <td className="mono ranking-prices">{item.carbon_price_scenario_ids.length}</td>
                 <td className="ranking-notes">
-                  {item.reasons.slice(0, 2).join("; ")}
+                  {item.reasons
+                    .slice(0, 2)
+                    .map((reason) => scientificDisplayText(reason.replace(/_/g, " ")))
+                    .join("; ")}
                   {flags.length > 0 && (
                     <Badge
                       tone={flags.some((f) => f.severity === "blocking") ? "danger" : "warning"}
-                      title={flags.map((f) => `${f.code}: ${f.message}`).join("\n")}
+                      title={flags
+                        .map(
+                          (flag) =>
+                            `${scientificDisplayText(flag.code.replace(/_/g, " "))}: ${scientificDisplayText(flag.message)}`,
+                        )
+                        .join("\n")}
                     >
                       {flags.length} flag{flags.length > 1 ? "s" : ""}
                     </Badge>
@@ -122,7 +131,9 @@ function PreLogisticsRanking({
     <div className="ranking">
       <div className="ranking-caption">
         No development shortlist at <strong>{focusPrice != null ? `$${focusPrice}/t` : "—"}</strong> —{" "}
-        <Badge tone="warning" title={reason}>{reason.replace(/_/g, " ")}</Badge>
+        <Badge tone="warning" title={scientificDisplayText(reason)}>
+          {scientificDisplayText(reason.replace(/_/g, " "))}
+        </Badge>
         <span>showing pre-logistics well ranking</span>
       </div>
       <table className="data-table">
