@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { FieldSetupMemo } from "../memo/studyMemo";
+import type { TerrainData } from "../viewport/terrain";
 import {
   nativeWellPosition,
   useFieldStore,
@@ -34,12 +35,22 @@ const placement: FieldPlacement = {
   rotation_deg: 0,
 };
 
+const overview: TerrainData = {
+  width: 2,
+  height: 2,
+  extent: terrain.extent,
+  minElev: 10,
+  maxElev: 40,
+  elevations: [10, 20, 30, 40],
+};
+
 describe("field store", () => {
   beforeEach(() => useFieldStore.getState().reset());
 
   it("setup derives the native well from well_ij", () => {
-    useFieldStore.getState().setup(terrain, reservoir, placement);
+    useFieldStore.getState().setup(terrain, reservoir, placement, overview);
     const state = useFieldStore.getState();
+    expect(state.overviewData).toBe(overview);
     expect(state.wells).toHaveLength(1);
     expect(state.wells[0]).toMatchObject({
       id: "W01",
@@ -132,8 +143,10 @@ describe("field store", () => {
       sources: [],
     };
 
+    useFieldStore.getState().setup(terrain, reservoir, placement, overview);
     useFieldStore.getState().hydrate(setup);
 
+    expect(useFieldStore.getState().overviewData).toBeNull();
     expect(useFieldStore.getState().wells[0]).toMatchObject({
       id: "W01",
       name: "Memo native",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CarbonPricePlan, EconomicScenarioResult, ScreenResult } from "../api/types";
+import type { CarbonPricePlan, EconomicScenarioResult } from "../api/types";
 import {
   carbonPriceAxis,
   economicForPlan,
@@ -7,34 +7,32 @@ import {
   planForPrice,
   selectionAtPrice,
 } from "./priceScrubber";
-import { readFixture } from "../test/fixture";
+import { screenResultFixture } from "../test/screenResult.fixture";
 
-const canned = JSON.parse(readFixture("public/assets/canned-demo.json")) as ScreenResult;
-
-describe("priceScrubber over the real canned result", () => {
+describe("priceScrubber over a deterministic result fixture", () => {
   it("builds an ascending carbon-price axis matching the plans", () => {
-    const axis = carbonPriceAxis(canned);
-    expect(axis.length).toBe(canned.plans.length);
+    const axis = carbonPriceAxis(screenResultFixture);
+    expect(axis.length).toBe(screenResultFixture.plans.length);
     const prices = axis.map((p) => p.price);
     expect([...prices].sort((a, b) => a - b)).toEqual(prices);
   });
 
   it("resolves a plan for a given scenario id and falls back to the first", () => {
-    const axis = carbonPriceAxis(canned);
+    const axis = carbonPriceAxis(screenResultFixture);
     const target = axis[axis.length - 1].scenarioId;
-    expect(planForPrice(canned, target)?.carbon_price_scenario_id).toBe(target);
-    expect(planForPrice(canned, "nope")).toBe(canned.plans[0]);
+    expect(planForPrice(screenResultFixture, target)?.carbon_price_scenario_id).toBe(target);
+    expect(planForPrice(screenResultFixture, "nope")).toBe(screenResultFixture.plans[0]);
   });
 
   it("reads the selection set per price from the cross-price comparison", () => {
-    for (const point of carbonPriceAxis(canned)) {
-      const set = selectionAtPrice(canned, point.scenarioId);
+    for (const point of carbonPriceAxis(screenResultFixture)) {
+      const set = selectionAtPrice(screenResultFixture, point.scenarioId);
       expect(set).toBeInstanceOf(Set);
     }
   });
 
   it("returns null economics gracefully when no network is viable", () => {
-    const plan = planForPrice(canned, null)!;
+    const plan = planForPrice(screenResultFixture, null)!;
     expect(economicForPlan(plan, "pre_tax")).toBeNull();
     const kpi = kpiSummary(null);
     expect(kpi.npv).toBeNull();

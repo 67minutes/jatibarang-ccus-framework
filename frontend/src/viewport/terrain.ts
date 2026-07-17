@@ -52,18 +52,6 @@ export function terrainColor(
   return stops[stops.length - 1][1];
 }
 
-let cache: Promise<TerrainData> | null = null;
-
-export function loadTerrain(): Promise<TerrainData> {
-  if (!cache) {
-    cache = fetch("/assets/terrain.json").then((r) => {
-      if (!r.ok) throw new Error("terrain asset unavailable");
-      return r.json() as Promise<TerrainData>;
-    });
-  }
-  return cache;
-}
-
 /** Half-width of the terrain plane in scene units (plane spans [-SIZE, SIZE]). */
 export const TERRAIN_SIZE = 10;
 

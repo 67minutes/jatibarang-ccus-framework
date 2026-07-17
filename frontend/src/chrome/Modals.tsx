@@ -133,7 +133,7 @@ function AboutBody() {
   return (
     <div>
       <p style={{ marginTop: 0 }}>
-        Jatibarang CCUS Screening Workbench — a Fieldman CCUS-planning module.
+        CCUS Screening Workbench — a Fieldman CCUS-planning module.
         Screening-grade results; not FEED, PSC, or final-paper economics.
       </p>
       <dl className="kv">

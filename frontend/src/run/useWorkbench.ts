@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { ApiError, deleteRun, postScreen } from "../api/client";
 import { streamScreen } from "../api/sse";
-import type { InlineScreenRequest, ScreenRequest, ScreenResult } from "../api/types";
+import type { ScreenRequest, ScreenResult } from "../api/types";
 import { useActionsStore } from "../state/actions.store";
 import { useComposeStore } from "../compose/compose.store";
 import { useLedgerStore } from "../state/ledger.store";
@@ -22,47 +22,15 @@ const STALL_TIMEOUT_MS = 20_000;
 
 /**
  * The workbench controller. Owns run execution (SSE + watchdog + sync
- * fallback), wires every menu/toolbar action into the registry, and loads the
- * demo base into the composer on first mount. Actions read fresh store state so
- * they never go stale.
+ * fallback) and wires every menu/toolbar action into the registry. Studies are
+ * loaded explicitly through New/Open; mount performs no study-asset fetches.
+ * Actions read fresh store state so they never go stale.
  */
 export function useWorkbench(): void {
   const abortRef = useRef<AbortController | null>(null);
   const watchdogRef = useRef<number | null>(null);
-  const baseTemplateRef = useRef<InlineScreenRequest | null>(null);
 
-  // Load the demo base request into the composer, and the cached demo result
-  // into the ledger (paired with that request so its map renders), so the
-  // workbench is populated and the core demo runs even with no backend
-  // (design §8). Assets are optional and degrade quietly.
-  useEffect(() => {
-    const requestP = fetch("/assets/demo-request.json")
-      .then((r) => (r.ok ? (r.json() as Promise<InlineScreenRequest>) : null))
-      .catch(() => null);
-
-    requestP.then((draft) => {
-      if (draft) baseTemplateRef.current = draft;
-      if (draft && !useComposeStore.getState().draft) useComposeStore.getState().loadBase(draft);
-    });
-
-    if (useLedgerStore.getState().entries.length === 0) {
-      Promise.all([
-        requestP,
-        fetch("/assets/canned-demo.json")
-          .then((r) => (r.ok ? (r.json() as Promise<ScreenResult>) : null))
-          .catch(() => null),
-      ]).then(([draft, result]) => {
-        if (!result) return;
-        const ledger = useLedgerStore.getState();
-        if (ledger.entries.some((e) => e.fingerprint === result.request_fingerprint)) return;
-        const request = (draft ?? { mode: "inline" }) as ScreenRequest;
-        ledger.recordRun(request, result, { label: "Jatibarang demo (cached)", imported: true });
-        const axis = carbonPriceAxis(result);
-        if (axis.length > 0) useSelectionStore.getState().setCarbonPrice(axis[0].scenarioId);
-      });
-    }
-  }, []);
-
+  // Register the action surface once; blank boot performs no study-data load.
   useEffect(() => {
     function clearWatchdog() {
       if (watchdogRef.current != null) {
@@ -192,18 +160,8 @@ export function useWorkbench(): void {
       },
       hasActiveResult: () => useLedgerStore.getState().activeEntryId != null,
       createNewStudy: (options) => {
-        const current = useComposeStore.getState().draft;
-        const source = options.template === "current" ? current : baseTemplateRef.current ?? current;
-        if (!source) {
-          useUiStore.getState().pushBanner({
-            id: "new-study-unavailable",
-            severity: "warning",
-            message: "The study template is still loading. Try New Study again in a moment.",
-          });
-          return;
-        }
         useStudyStore.getState().create(options);
-        useComposeStore.getState().loadBase({ ...source, run_id: null });
+        useComposeStore.setState({ draft: null, past: [], future: [] });
         useLedgerStore.getState().setActive(null);
         useSelectionStore.getState().clear();
         const workspace = useWorkspaceStore.getState();
@@ -211,7 +169,6 @@ export function useWorkbench(): void {
         workspace.setExaggeration(options.verticalExaggeration);
         workspace.setActiveTool("select");
         workspace.setActiveTab("compose");
-        useUiStore.getState().dismissBanner("new-study-unavailable");
       },
       openStudy: async () => {
         try {

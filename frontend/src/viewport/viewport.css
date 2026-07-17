@@ -24,6 +24,29 @@
   text-align: center;
   color: var(--text-dim);
   font-size: var(--fs-md);
+  background-color: #0b1014;
+  background-image:
+    linear-gradient(rgba(139, 158, 168, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 158, 168, 0.045) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.viewport-empty-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  background: rgba(18, 23, 29, 0.92);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+.viewport-empty-hint strong {
+  color: var(--text);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+.viewport-empty-hint span {
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
 }
 .viewport-empty-dim {
   color: var(--text-faint);

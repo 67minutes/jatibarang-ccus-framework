@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Html, Line, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -10,12 +10,12 @@ import { useCursorStore } from "../state/cursor.store";
 import { selectPlan } from "../layout/ProjectTree";
 import { collectSceneObjects, nodeCoordinateMap, type Scene } from "./scene";
 import {
-  loadTerrain,
   makeProjector,
   terrainColor,
   TERRAIN_SIZE,
   type TerrainProjector,
 } from "./terrain";
+import { useFieldStore } from "../state/field.store";
 import { ReservoirGrid } from "./ReservoirGrid";
 import type { CellField, Coordinate, PredictionResult, ReservoirVisualization } from "../api/types";
 import { finiteRange, type StaticReservoirField } from "./reservoirGeometry";
@@ -27,25 +27,30 @@ import "./viewport.css";
  * by the surrounding error boundary, which swaps in the 2D map (design §5.2).
  */
 export function Viewport3D() {
-  const [projector, setProjector] = useState<TerrainProjector | null>(null);
-  const [failed, setFailed] = useState(false);
+  const terrain = useFieldStore((state) => state.terrain);
+  const terrainOverview = useFieldStore((state) => state.overviewData);
+  const projector = useMemo(
+    () => (terrainOverview ? makeProjector(terrainOverview) : null),
+    [terrainOverview],
+  );
 
-  useEffect(() => {
-    let alive = true;
-    loadTerrain()
-      .then((data) => alive && setProjector(makeProjector(data)))
-      .catch(() => alive && setFailed(true));
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  // Surface a terrain-load failure to the error boundary -> 2D fallback.
-  if (failed) throw new Error("terrain unavailable for 3D viewport");
+  if (!terrain) {
+    return (
+      <div className="viewport-empty">
+        <div className="viewport-empty-hint">
+          <strong>No study loaded</strong>
+          <span>New Study — Ctrl+N · Open Study — Ctrl+O</span>
+        </div>
+      </div>
+    );
+  }
   if (!projector) {
     return (
       <div className="viewport-empty">
-        <div className="viewport-empty-dim">Loading terrain…</div>
+        <div className="viewport-empty-hint">
+          <strong>Terrain overview unavailable</strong>
+          <span>Re-import or relink the registered terrain for this study.</span>
+        </div>
       </div>
     );
   }

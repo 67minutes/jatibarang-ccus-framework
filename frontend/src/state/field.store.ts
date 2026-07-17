@@ -1,5 +1,6 @@
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 import type { FieldSetupMemo } from "../memo/studyMemo";
+import type { TerrainData } from "../viewport/terrain";
 
 /** Hash-addressed terrain registered by the local backend. */
 export interface TerrainRef {
@@ -61,6 +62,8 @@ export type SceneLevel = "basin" | "field";
 
 interface FieldState {
   terrain: TerrainRef | null;
+  /** Runtime overview used by the viewport; deliberately excluded from memos. */
+  overviewData: TerrainData | null;
   reservoir: ReservoirRef | null;
   placement: FieldPlacement | null;
   /** The first well is the model's native well whenever a reservoir is set. */
@@ -72,6 +75,7 @@ interface FieldState {
     terrain: TerrainRef,
     reservoir: ReservoirRef,
     placement: FieldPlacement,
+    overviewData?: TerrainData | null,
   ) => void;
   moveField: (center_lat: number, center_lon: number) => void;
   rotateField: (rotation_deg: number) => void;
@@ -93,6 +97,7 @@ interface FieldState {
 
 const EMPTY_STATE = {
   terrain: null,
+  overviewData: null,
   reservoir: null,
   placement: null,
   wells: [],
@@ -164,9 +169,10 @@ export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
   create<FieldState>((set, get) => ({
     ...EMPTY_STATE,
 
-    setup: (terrain, reservoir, placement) =>
+    setup: (terrain, reservoir, placement, overviewData = null) =>
       set({
         terrain,
+        overviewData,
         reservoir,
         placement,
         wells: [nativeWell(placement, reservoir)],
@@ -261,6 +267,9 @@ export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
     hydrate: (setup) =>
       set({
         terrain: { ...setup.terrain, extent: { ...setup.terrain.extent } },
+        // Reopened memos carry only hash-addressed references. Task 8 relinks
+        // the overview through the registry rather than embedding raster data.
+        overviewData: null,
         reservoir: {
           ...setup.reservoir,
           well_ij: [...setup.reservoir.well_ij],
