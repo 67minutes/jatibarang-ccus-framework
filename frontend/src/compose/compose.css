@@ -85,6 +85,89 @@
   font-size: var(--fs-xs);
 }
 
+.schedule-coverage {
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bg-input) 72%, transparent);
+}
+.coverage-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.coverage-summary > div {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.coverage-summary strong {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+.coverage-summary span,
+.coverage-message,
+.coverage-native,
+.coverage-explanation,
+.coverage-details {
+  font-size: var(--fs-xs);
+}
+.coverage-message,
+.coverage-native,
+.coverage-explanation {
+  margin: 7px 0 0;
+}
+.coverage-message,
+.coverage-native {
+  color: var(--text-dim);
+}
+.coverage-error,
+.coverage-explanation {
+  color: var(--warn);
+}
+.coverage-details {
+  margin-top: 8px;
+  color: var(--text-dim);
+}
+.coverage-details summary {
+  cursor: pointer;
+  user-select: none;
+}
+.coverage-table {
+  max-height: 210px;
+  margin-top: 7px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+}
+.coverage-row {
+  display: grid;
+  grid-template-columns: minmax(76px, 1.3fr) repeat(5, minmax(42px, 0.75fr)) minmax(72px, 1fr);
+  gap: 7px;
+  padding: 4px 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.coverage-row:last-child {
+  border-bottom: 0;
+}
+.coverage-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--text-dim);
+  background: var(--bg-input);
+  text-transform: uppercase;
+}
+.coverage-row-disabled {
+  color: var(--text-faint);
+  opacity: 0.68;
+}
+
 .compose-footer {
   margin-top: 16px;
   border-top: 1px solid var(--border);
@@ -95,6 +178,11 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+.compose-field-issue {
+  margin: 8px 0 0;
+  color: var(--warn);
+  font-size: var(--fs-xs);
 }
 .compose-issues {
   list-style: none;

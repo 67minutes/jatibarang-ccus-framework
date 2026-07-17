@@ -67,9 +67,10 @@ export function SourceDialog({
       !Number.isFinite(annualCapacity) ||
       annualCapacity <= 0 ||
       !Number.isFinite(outletPressure) ||
+      outletPressure < 80 ||
       !Number.isFinite(outletTemperature) ||
       !Number.isFinite(co2Purity) ||
-      co2Purity <= 0 ||
+      co2Purity < 0.95 ||
       co2Purity > 1 ||
       !Number.isFinite(maxMassFlow) ||
       maxMassFlow <= 0
@@ -144,6 +145,7 @@ export function SourceDialog({
                 <span>Outlet pressure (bar)</span>
                 <input
                   type="number"
+                  min="80"
                   step="0.1"
                   value={pressure}
                   onChange={(event) => setPressure(event.target.value)}
@@ -164,7 +166,7 @@ export function SourceDialog({
                 <span>CO₂ purity (fraction)</span>
                 <input
                   type="number"
-                  min="0.01"
+                  min="0.95"
                   max="1"
                   step="0.01"
                   value={purity}

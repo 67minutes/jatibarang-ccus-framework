@@ -13,8 +13,9 @@ export function RequestDrawer() {
   return (
     <div className="request-drawer">
       <div className="request-drawer-note">
-        Geology and seed grids (64×64 fields) are elided for readability. This is
-        the exact request that will be sent, minus those large arrays.
+        Editable decision request. At Screen time, current wells, sources, and
+        launch-pad coverage are applied; 64×64 geology and seed grids are elided
+        here for readability.
       </div>
       <pre className="request-json mono">{text}</pre>
     </div>

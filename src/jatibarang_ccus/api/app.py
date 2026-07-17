@@ -350,6 +350,7 @@ def create_app(
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         stored = artifacts.put(Path(payload.model_path))
         bank_id = bank_sha = None
+        bank = {}
         covered = [imported.seed.schedule_fingerprint]
         if payload.bank_path:
             try:
@@ -366,6 +367,11 @@ def create_app(
             "geology": imported.geology.model_dump(),
             "native_schedule": imported.schedule.model_dump(),
             "native_fingerprint": imported.seed.schedule_fingerprint,
+            "native_seed": imported.seed.model_dump(mode="json"),
+            "bank_seeds": {
+                fingerprint: seed.model_dump(mode="json")
+                for fingerprint, seed in sorted(bank.items())
+            },
             "well_ij": list(imported.well_ij),
             "completion_ij": [list(pair) for pair in imported.completion_ij],
             "launchpads": {

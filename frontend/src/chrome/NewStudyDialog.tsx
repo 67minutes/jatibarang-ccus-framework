@@ -14,6 +14,11 @@ import {
   type RegisteredTerrain,
   type ReservoirImportResponse,
 } from "../api/client";
+import { DEFAULT_OPERATIONAL_GRID } from "../compose/defaults";
+import {
+  studySchedulePlan,
+  type StudySchedulePlan,
+} from "../compose/studyRequest";
 import { useActionsStore } from "../state/actions.store";
 import {
   useFieldStore,
@@ -93,6 +98,29 @@ function messageFrom(error: unknown): string {
   return error instanceof Error ? error.message : "The import could not be completed.";
 }
 
+interface LaunchPadCoveragePreview {
+  plan: StudySchedulePlan | null;
+  error: string | null;
+}
+
+/**
+ * Keep model inspection resilient to older or incomplete import payloads. A
+ * malformed preview must not take down the New Study dialog; final request
+ * construction still performs the same strict validation before screening.
+ */
+export function launchPadCoveragePreview(
+  imported: ReservoirImportResponse,
+): LaunchPadCoveragePreview {
+  try {
+    return {
+      plan: studySchedulePlan(DEFAULT_OPERATIONAL_GRID, imported),
+      error: null,
+    };
+  } catch (error) {
+    return { plan: null, error: messageFrom(error) };
+  }
+}
+
 export function NewStudyDialog({ onDone }: { onDone: () => void }) {
   const createNewStudy = useActionsStore((state) => state.actions.createNewStudy);
   const current = useStudyStore((state) => state.study);
@@ -149,6 +177,14 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
       .toLowerCase();
     return `${stem || "untitled-study"}.study.json`;
   }, [memoName, memoTouched, name]);
+
+  const coveragePreview = useMemo(
+    () =>
+      reservoirImportResult
+        ? launchPadCoveragePreview(reservoirImportResult)
+        : null,
+    [reservoirImportResult],
+  );
 
   useEffect(() => {
     mounted.current = true;
@@ -363,10 +399,6 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
     }
   }
 
-  const bankLaunchPadCount = reservoirImportResult
-    ? Object.keys(reservoirImportResult.bank_seeds).length
-    : 0;
-
   return (
     <form className="dialog-form" onSubmit={submit}>
       <p className="dialog-intro">
@@ -477,15 +509,25 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
           <p className="dialog-error dialog-field-wide">{reservoirError}</p>
         ) : null}
         <div className="dialog-status dialog-field-wide" aria-live="polite">
-          {reservoirImportResult ? (
-            bankLaunchPadCount > 0 ? (
-              <>
-                <strong>{bankLaunchPadCount.toLocaleString()}</strong> bank launch pads
-                available; exact grid coverage is shown in Compose.
-              </>
-            ) : (
-              <>Native schedule only.</>
-            )
+          {coveragePreview?.plan ? (
+            <>
+              <strong>
+                {coveragePreview.plan.coverage.covered.toLocaleString()} of{" "}
+                {coveragePreview.plan.coverage.total.toLocaleString()}
+              </strong>{" "}
+              grid schedules have launch pads.
+              {coveragePreview.plan.native.available &&
+              !coveragePreview.plan.native.onGrid ? (
+                <span>
+                  {" "}The native schedule is real and runnable, but outside the
+                  active grid.
+                </span>
+              ) : null}
+            </>
+          ) : coveragePreview?.error ? (
+            <>
+              Launch-pad coverage preview unavailable: {coveragePreview.error}
+            </>
           ) : (
             <>Inspect the reservoir model to preview launch-pad coverage.</>
           )}

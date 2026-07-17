@@ -9,8 +9,11 @@ from fastapi.testclient import TestClient
 from rasterio.transform import from_bounds as transform_from_bounds
 
 from jatibarang_ccus.api.app import create_app
+from jatibarang_ccus.imports.launchpads import write_launchpad_bank
+from jatibarang_ccus.imports.mrst import load_mrst_reservoir
 from jatibarang_ccus.imports.store import ImportStore
 from jatibarang_ccus.imports.terrain import TerrainRegistry
+from jatibarang_ccus.surrogate.schemas import SeedHistory
 
 from tests.screening.helpers import FakeRunner
 
@@ -82,7 +85,39 @@ def test_reservoir_import_returns_typed_payload(tmp_path: Path) -> None:
         assert body["geology"]["length_x_m"] == 900.0
         assert body["native_fingerprint"]
         assert body["launchpads"]["covered_fingerprints"] == [body["native_fingerprint"]]
+        native_seed = SeedHistory.model_validate(body["native_seed"])
+        assert native_seed.schedule_fingerprint == body["native_fingerprint"]
+        assert body["bank_seeds"] == {}
         assert body["well_ij"][0] in range(64)
 
         bad = client.post("/reservoir/import", json={"model_path": str(tmp_path / "x.mat")})
         assert bad.status_code == 422
+
+
+def test_reservoir_import_returns_fingerprint_keyed_bank_seeds(tmp_path: Path) -> None:
+    model = Path("data/validation_cases/case_0016.mat")
+    bank_entry = load_mrst_reservoir(Path("data/validation_cases/case_0115.mat")).seed
+    bank_path = tmp_path / "model.launchpads.npz"
+    bank_sha256 = write_launchpad_bank(
+        bank_path,
+        {bank_entry.schedule_fingerprint: bank_entry},
+    )
+
+    with TestClient(_app(tmp_path)) as client:
+        response = client.post(
+            "/reservoir/import",
+            json={"model_path": str(model), "bank_path": str(bank_path)},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["launchpads"]["bank_id"]
+    assert body["launchpads"]["bank_sha256"] == bank_sha256
+    assert body["launchpads"]["covered_fingerprints"] == sorted(
+        {body["native_fingerprint"], bank_entry.schedule_fingerprint}
+    )
+    assert set(body["bank_seeds"]) == {bank_entry.schedule_fingerprint}
+    restored = SeedHistory.model_validate(body["bank_seeds"][bank_entry.schedule_fingerprint])
+    assert restored.schedule_fingerprint == bank_entry.schedule_fingerprint
+    stored_bank = tmp_path / "imports" / body["launchpads"]["bank_id"] / bank_path.name
+    assert stored_bank.exists()
