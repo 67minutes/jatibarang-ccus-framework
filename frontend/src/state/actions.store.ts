@@ -21,6 +21,7 @@ export interface WorkbenchActions {
   cancelRun?: () => void;
   validate?: () => void;
   recomposeActive?: () => void;
+  canRecompose?: () => boolean;
   canScreen?: () => boolean;
   canCancel?: () => boolean;
   hasActiveResult?: () => boolean;

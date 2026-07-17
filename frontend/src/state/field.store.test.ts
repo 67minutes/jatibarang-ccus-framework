@@ -24,6 +24,7 @@ const reservoir: ReservoirRef = {
   native_fingerprint: "fp-native",
   covered_fingerprints: ["fp-native"],
   bank_id: null,
+  bank_sha256: null,
   well_ij: [30, 36],
   length_x_m: 900,
   length_y_m: 600,

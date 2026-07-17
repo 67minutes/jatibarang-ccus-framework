@@ -134,6 +134,7 @@ function WellDetail({
       </dl>
 
       {sharedReservoir ? <SharedReservoirNotice /> : null}
+      <WellInterferenceWarnings plan={plan} wellId={strat.candidate_id} />
 
       {conf.extended_horizon && (
         <div style={{ margin: "6px 0" }}>
@@ -158,6 +159,55 @@ function WellDetail({
       <ConfidenceNote reasons={conf.low_confidence_reasons} />
       <FlagList flags={strat.flags} />
     </div>
+  );
+}
+
+/**
+ * Render only overlap pairs explicitly returned by the active price plan.
+ * The Inspector deliberately does not reconstruct overlap from distance or
+ * radius values: that scientific verdict belongs to the backend audit.
+ */
+export function WellInterferenceWarnings({
+  plan,
+  wellId,
+}: {
+  plan: CarbonPricePlan;
+  wellId: string;
+}) {
+  const pairs = plan.interference.flagged_pairs.filter(
+    (pair) =>
+      pair.overlap &&
+      (pair.first_well_id === wellId || pair.second_well_id === wellId),
+  );
+  if (pairs.length === 0) return null;
+
+  return (
+    <section className="confidence-note" aria-label="Interference warnings">
+      <Badge tone="warning">
+        {pairs.length === 1 ? "interference overlap" : `${pairs.length} interference overlaps`}
+      </Badge>
+      <ul>
+        {pairs.map((pair) => {
+          const otherWell =
+            pair.first_well_id === wellId
+              ? pair.second_well_id
+              : pair.first_well_id;
+          return (
+            <li key={`${pair.first_well_id}-${pair.second_well_id}`}>
+              {otherWell}: {num(pair.distance_m, 0)} m spacing vs{" "}
+              {num(pair.radius_sum_m, 0)} m combined influence radius
+              {pair.recommendations.length > 0 ? (
+                <ul aria-label={`Recommendations for ${otherWell}`}>
+                  {pair.recommendations.map((recommendation) => (
+                    <li key={recommendation}>{recommendation.replace(/_/g, " ")}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

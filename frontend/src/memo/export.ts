@@ -1,7 +1,8 @@
-import type { LedgerEntry } from "./studyMemo";
+import type { FieldSetupMemo, LedgerEntry } from "./studyMemo";
 import { entryToMemo } from "./studyMemo";
 import { APP_VERSION, API_CONTRACT_VERSION } from "../version";
 import type { ScreenResult } from "../api/types";
+import { useFieldStore } from "../state/field.store";
 
 /**
  * Study-memo and CSV export. Uses the File System Access API when available,
@@ -43,10 +44,41 @@ async function saveBlob(blob: Blob, suggestedName: string, mime: string): Promis
 }
 
 export async function exportStudyMemo(entry: LedgerEntry): Promise<void> {
-  const memo = entryToMemo(entry, APP_VERSION, API_CONTRACT_VERSION);
+  const memo = entryToMemo(
+    entry,
+    APP_VERSION,
+    API_CONTRACT_VERSION,
+    snapshotFieldSetup(),
+  );
   const blob = new Blob([JSON.stringify(memo, null, 2)], { type: "application/json" });
   const name = entry.study?.memo_file_name || `${sanitize(entry.label)}.study.json`;
   await saveBlob(blob, name, "application/json");
+}
+
+/**
+ * Capture only portable field references and engineer-authored placement.
+ * Runtime terrain pixels, reservoir arrays, and launch-pad payloads remain in
+ * their hash-addressed backend registries and are deliberately not memo data.
+ */
+export function snapshotFieldSetup(): FieldSetupMemo | undefined {
+  const { terrain, reservoir, placement, wells, sources } =
+    useFieldStore.getState();
+  if (!terrain || !reservoir || !placement) return undefined;
+
+  return {
+    terrain: {
+      ...terrain,
+      extent: { ...terrain.extent },
+    },
+    reservoir: {
+      ...reservoir,
+      covered_fingerprints: [...reservoir.covered_fingerprints],
+      well_ij: [...reservoir.well_ij],
+    },
+    placement: { ...placement },
+    wells: wells.map((well) => ({ ...well })),
+    sources: sources.map((source) => ({ ...source })),
+  };
 }
 
 export function rankingToCsv(result: ScreenResult): string {

@@ -14,8 +14,9 @@ import type { StudyMetadata } from "../state/study.store";
  * It is simultaneously the persistence mechanism (no browser storage — the file
  * IS the state), the collaboration unit (a colleague imports it), the
  * reproducibility contract (re-compose -> run -> same fingerprint or the inputs
- * changed), and the Feature 007 hand-off artifact. It bundles the exact request,
- * its fingerprint, the full result, and the app/contract versions.
+ * changed), and the Feature 007 hand-off artifact. Field memos retain the
+ * decision request and artifact hashes, while relinkable geology/launch-pad
+ * payloads stay in the backend import registry rather than bloating the file.
  */
 
 export const STUDY_MEMO_KIND = "jatibarang.ccus.study-memo";
@@ -43,6 +44,8 @@ export interface StudyMemo {
   label: string;
   study?: StudyMetadata;
   field_setup?: FieldSetupMemo;
+  /** Older/non-field memos may embed payloads; field memos reference artifacts. */
+  request_payload_mode?: "embedded" | "artifact_referenced";
   request: ScreenRequest;
   fingerprint: string;
   result: ScreenResult;
@@ -99,7 +102,18 @@ export function entryToMemo(
   entry: LedgerEntry,
   appVersion: string,
   apiContractVersion: string,
+  fieldSetup?: FieldSetupMemo,
 ): StudyMemo {
+  const request = structuredClone(entry.request);
+  const artifactReferenced = Boolean(
+    fieldSetup && request.mode === "inline",
+  );
+  if (artifactReferenced && request.mode === "inline") {
+    // Candidates, sources, decisions, and schedule selection remain readable.
+    // The model/bank hashes in field_setup are the portable link contract.
+    request.geologies = {};
+    request.seeds = {};
+  }
   return {
     kind: STUDY_MEMO_KIND,
     memo_version: STUDY_MEMO_VERSION,
@@ -108,7 +122,11 @@ export function entryToMemo(
     saved_at: new Date().toISOString(),
     label: entry.label,
     study: entry.study,
-    request: entry.request,
+    field_setup: fieldSetup,
+    request_payload_mode: artifactReferenced
+      ? "artifact_referenced"
+      : "embedded",
+    request,
     fingerprint: entry.fingerprint,
     result: entry.result,
   };

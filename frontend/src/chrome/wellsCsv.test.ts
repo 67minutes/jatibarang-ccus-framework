@@ -69,6 +69,7 @@ describe("parseWellsCsv", () => {
       native_fingerprint: "C".repeat(64),
       covered_fingerprints: ["C".repeat(64)],
       bank_id: null,
+      bank_sha256: null,
       well_ij: [31, 32] as [number, number],
       length_x_m: 900,
       length_y_m: 600,

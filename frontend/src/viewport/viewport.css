@@ -565,6 +565,21 @@
   box-shadow: 0 0 0 1px rgba(240, 105, 93, 0.25);
 }
 
+.influence-warning-badge {
+  display: inline-flex;
+  padding: 2px 5px;
+  color: #ffe7df;
+  background: rgba(90, 22, 18, 0.9);
+  border: 1px solid #e4463b;
+  border-radius: 2px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.35);
+  font: 8px var(--font-mono);
+  letter-spacing: 0.06em;
+  pointer-events: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .field-outline-label {
   display: block;
   min-width: max-content;

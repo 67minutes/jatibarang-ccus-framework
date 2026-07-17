@@ -15,7 +15,7 @@ import { pickStudyMemo } from "../memo/import";
 import { carbonPriceAxis } from "../results/priceScrubber";
 import { useStudyStore } from "../state/study.store";
 import { exportViewportSnapshot } from "../viewport/snapshot";
-import { shortFingerprint } from "../memo/studyMemo";
+import { isLegacyMemo, shortFingerprint } from "../memo/studyMemo";
 import type { FieldSetupMemo } from "../memo/studyMemo";
 import { useFieldStore } from "../state/field.store";
 import { createDefaultStudyRequestBase } from "../compose/defaults";
@@ -285,6 +285,14 @@ export function useWorkbench(): void {
         return status === "running" || status === "stalled";
       },
       hasActiveResult: () => useLedgerStore.getState().activeEntryId != null,
+      canRecompose: () => {
+        const entry = useLedgerStore.getState().activeEntry();
+        if (!entry || entry.request.mode !== "inline") return false;
+        return !(
+          entry.imported &&
+          useUiStore.getState().banners.some((banner) => banner.id === "memo-legacy")
+        );
+      },
       createNewStudy: (options) => {
         const status = useRunStore.getState().status;
         if (status === "running" || status === "stalled") {
@@ -338,8 +346,25 @@ export function useWorkbench(): void {
         try {
           const memo = await pickStudyMemo();
           if (memo) {
+            useComposeStore.setState({ draft: null, past: [], future: [] });
             useLedgerStore.getState().importMemo(memo);
             if (memo.study) useStudyStore.getState().load(memo.study);
+            if (!isLegacyMemo(memo) && memo.request.mode === "inline") {
+              useComposeStore.getState().loadBase({
+                ...memo.request,
+                run_id: null,
+              });
+            }
+            const ui = useUiStore.getState();
+            ui.dismissBanner("memo-reservoir-relink");
+            if (memo.field_setup && memo.request_payload_mode === "artifact_referenced") {
+              ui.pushBanner({
+                id: "memo-reservoir-relink",
+                severity: "info",
+                message:
+                  "Field references restored. Re-import the matching reservoir model and launch-pad bank before re-screening.",
+              });
+            }
             const axis = carbonPriceAxis(memo.result);
             if (axis.length > 0) useSelectionStore.getState().setCarbonPrice(axis[0].scenarioId);
             useWorkspaceStore.getState().setActiveTab("ranking");
@@ -380,6 +405,12 @@ export function useWorkbench(): void {
       recomposeActive: () => {
         const entry = useLedgerStore.getState().activeEntry();
         if (entry && entry.request.mode === "inline") {
+          if (
+            entry.imported &&
+            useUiStore.getState().banners.some((banner) => banner.id === "memo-legacy")
+          ) {
+            return;
+          }
           const currentDraft = useComposeStore.getState().draft;
           const hasLiveField = useFieldStore.getState().reservoir !== null;
           // A coverage-limited run stores an explicit schedules request. Keep

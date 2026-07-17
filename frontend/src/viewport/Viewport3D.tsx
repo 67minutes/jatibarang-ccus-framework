@@ -31,6 +31,7 @@ import {
   type SceneContextTarget,
 } from "./SceneContextMenu";
 import { SourceDialog, type SourceDialogValue } from "./SourceDialog";
+import { InfluenceZones, influenceEntries } from "./InfluenceZones";
 import { getTerrainWindow } from "../api/client";
 import { useUiStore } from "../state/ui.store";
 import "./viewport.css";
@@ -347,6 +348,7 @@ function SceneContent({
   const placement = useFieldStore((s) => s.placement);
   const reservoir = useFieldStore((s) => s.reservoir);
   const reservoirRuntime = useFieldStore((s) => s.reservoirRuntime);
+  const fieldWells = useFieldStore((s) => s.wells);
   const importedReservoir = useMemo(
     () => reservoirVisualizationFromImport(reservoirRuntime),
     [reservoirRuntime],
@@ -356,6 +358,13 @@ function SceneContent({
   const scene = useMemo<Scene | null>(
     () => (activeEntry ? collectSceneObjects(activeEntry.request, plan) : null),
     [activeEntry, plan],
+  );
+  const influence = useMemo(
+    () =>
+      activeEntry
+        ? influenceEntries(activeEntry.result, plan, fieldWells)
+        : [],
+    [activeEntry, fieldWells, plan],
   );
 
   // Locate the selected well to anchor the reservoir cutaway beneath it.
@@ -417,6 +426,13 @@ function SceneContent({
               lon: placement.center_lon,
             })
           }
+        />
+      ) : null}
+      {layers.influence && influence.length > 0 ? (
+        <InfluenceZones
+          projector={projector}
+          entries={influence}
+          exaggeration={exaggeration}
         />
       ) : null}
       <FieldObjects
@@ -869,6 +885,7 @@ const LAYER_OPTIONS: Array<[keyof ReturnType<typeof useWorkspaceStore.getState>[
   ["labels", "Labels"],
   ["routes", "Routes"],
   ["boosters", "Boosters"],
+  ["influence", "Influence zones"],
   ["reservoir", "Reservoir cells"],
   ["reservoirGrid", "Cell edges"],
   ["propertyFill", "Property fill"],

@@ -66,6 +66,7 @@ export function reservoirRefFromImport(
     native_fingerprint: imported.native_fingerprint,
     covered_fingerprints: [...imported.launchpads.covered_fingerprints],
     bank_id: imported.launchpads.bank_id,
+    bank_sha256: imported.launchpads.bank_sha256,
     well_ij: [...imported.well_ij],
     length_x_m: requiredGeologyNumber(imported.geology, "length_x_m"),
     length_y_m: requiredGeologyNumber(imported.geology, "length_y_m"),

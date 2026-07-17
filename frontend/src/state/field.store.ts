@@ -32,6 +32,7 @@ export interface ReservoirRef {
   native_fingerprint: string;
   covered_fingerprints: string[];
   bank_id: string | null;
+  bank_sha256: string | null;
   well_ij: [number, number];
   length_x_m: number;
   length_y_m: number;

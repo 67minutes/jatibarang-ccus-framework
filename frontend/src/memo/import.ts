@@ -1,4 +1,7 @@
-import { isStudyMemo, type StudyMemo } from "./studyMemo";
+import { getTerrainWindow } from "../api/client";
+import { useFieldStore } from "../state/field.store";
+import { useUiStore } from "../state/ui.store";
+import { isLegacyMemo, isStudyMemo, type StudyMemo } from "./studyMemo";
 
 /**
  * Load a study memo from a file the user picks. Prefers the File System Access
@@ -22,7 +25,56 @@ export async function pickStudyMemo(): Promise<StudyMemo | null> {
   if (!isStudyMemo(parsed)) {
     throw new Error("Selected file is not a Jatibarang study memo.");
   }
+  await hydrateMemoFieldSetup(parsed);
   return parsed;
+}
+
+/**
+ * Replace any live field with the memo's lightweight setup. Overview pixels
+ * are re-linked from the terrain registry; reservoir runtime data remains
+ * intentionally unavailable until the user re-imports the model and bank.
+ */
+export async function hydrateMemoFieldSetup(memo: StudyMemo): Promise<void> {
+  const field = useFieldStore.getState();
+  const ui = useUiStore.getState();
+
+  // A memo open is a replacement operation. Never leave objects from the
+  // previously open study behind when the incoming memo has no field setup.
+  field.reset();
+
+  if (isLegacyMemo(memo)) {
+    ui.pushBanner({
+      id: "memo-legacy",
+      severity: "info",
+      message:
+        "This memo predates field setups; opened read-only without a field scene.",
+    });
+    return;
+  }
+
+  ui.dismissBanner("memo-legacy");
+  if (!memo.field_setup) return;
+
+  field.hydrate(memo.field_setup);
+  try {
+    const overview = await getTerrainWindow(
+      memo.field_setup.terrain.terrain_id,
+      memo.field_setup.terrain.extent,
+      512,
+    );
+    // A second open/reset may have completed while the overview was loading.
+    // Only attach it if this memo's terrain is still the active field.
+    const activeTerrain = useFieldStore.getState().terrain;
+    if (
+      activeTerrain?.terrain_id === memo.field_setup.terrain.terrain_id &&
+      activeTerrain.sha256 === memo.field_setup.terrain.sha256
+    ) {
+      useFieldStore.setState({ overviewData: overview });
+    }
+  } catch {
+    // The references and engineer-authored map edits are still useful when the
+    // registry is offline. Opening the memo must not depend on raster loading.
+  }
 }
 
 async function pickFile(): Promise<File | null> {

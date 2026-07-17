@@ -195,7 +195,7 @@ export const commands: Command[] = [
     label: "Show Dashboard",
     run: () => ws().togglePanel("dashboard"),
   },
-  ...(["routes", "boosters", "exclusions", "labels"] as const).map<Command>((layer) => ({
+  ...(["routes", "boosters", "exclusions", "influence", "labels"] as const).map<Command>((layer) => ({
     id: `view.layer.${layer}`,
     label: `${layer[0].toUpperCase()}${layer.slice(1)}`,
     run: () => ws().toggleLayer(layer),
@@ -264,7 +264,8 @@ export const commands: Command[] = [
     id: "study.recompose",
     label: "Re-compose from Ledger Entry",
     run: () => getActions().recomposeActive?.(),
-    isEnabled: () => Boolean(getActions().recomposeActive && getActions().hasActiveResult?.()),
+    isEnabled: () =>
+      Boolean(getActions().recomposeActive && getActions().canRecompose?.()),
   },
   {
     id: "study.compare",
@@ -429,7 +430,7 @@ export const menus: Menu[] = [
       {
         kind: "submenu",
         label: "Layers",
-        items: (["routes", "boosters", "exclusions", "labels"] as const).map((layer) => ({
+        items: (["routes", "boosters", "exclusions", "influence", "labels"] as const).map((layer) => ({
           kind: "command" as const,
           commandId: `view.layer.${layer}`,
         })),

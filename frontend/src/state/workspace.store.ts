@@ -21,6 +21,7 @@ export interface LayerVisibility {
   routes: boolean;
   boosters: boolean;
   exclusions: boolean;
+  influence: boolean;
   labels: boolean;
   reservoir: boolean;
   reservoirGrid: boolean;
@@ -122,6 +123,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     routes: true,
     boosters: true,
     exclusions: true,
+    influence: true,
     labels: true,
     reservoir: true,
     reservoirGrid: true,
