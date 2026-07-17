@@ -12,97 +12,33 @@ import threading
 from time import perf_counter, sleep
 from typing import Any
 
-import h5py
 import numpy as np
 import torch
 
 from .postprocessing import co2_density_kg_m3, reservoir_inventory_tonnes
-from .preprocessing import compile_request, schedule_fingerprint
+from .preprocessing import compile_request
 from .runner import SurrogateRunner, load_surrogate
-from .schemas import GeologyInput, Grid2D, OperatingSchedule, PredictRequest, ReservoirState, SeedHistory
+from .schemas import PredictRequest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATION_DIR = REPO_ROOT / "data" / "validation_cases"
 MANIFEST = VALIDATION_DIR / "manifest.json"
 OUTPUT_DIR = REPO_ROOT / "paper" / "validation"
-SECONDS_PER_DAY = 86400.0
-
-
-def _grid(values: np.ndarray) -> Grid2D:
-    return Grid2D.from_array(np.asarray(values, dtype=np.float32))
 
 
 def load_validation_case(case_id: str) -> tuple[PredictRequest, dict[str, np.ndarray]]:
-    path = VALIDATION_DIR / f"{case_id}.mat"
-    if not path.exists():
-        raise FileNotFoundError(f"Validation file is missing: {path}")
-    with h5py.File(path, "r") as handle:
-        params = {key: float(np.asarray(handle["params"][key]).reshape(-1)[0]) for key in handle["params"].keys()}
-        arrays = {
-            key: np.asarray(handle[key], dtype=np.float32)
-            for key in ("pressure", "gas_sat", "z_co2", "oil_sat", "perm_map", "poro_map", "structure_map", "fracture_proxy_map", "barrier_map", "facies_map", "well_mask", "completion_mask")
-        }
-        dt = np.asarray(handle["dt_days"], dtype=np.float32).reshape(-1)
-        stages = np.rint(np.asarray(handle["stage_labels"])).astype(np.int64).reshape(-1)
-        oil_rate = np.asarray(handle["well_oil_rate"], dtype=np.float32).reshape(-1)
-        gas_rate = np.asarray(handle["well_gas_rate"], dtype=np.float32).reshape(-1)
+    from ..imports.mrst import load_mrst_reservoir
 
-    geology = GeologyInput(
-        permeability_md=_grid(np.power(10.0, arrays["perm_map"])),
-        porosity_fraction=_grid(arrays["poro_map"]),
-        structure_m=_grid(arrays["structure_map"]),
-        fracture_proxy=_grid(arrays["fracture_proxy_map"]),
-        barrier=_grid(arrays["barrier_map"]),
-        facies=_grid(arrays["facies_map"]),
-        well_mask=_grid(arrays["well_mask"]),
-        completion_mask=_grid(arrays["completion_mask"]),
-        anisotropy_ratio=params["anisotropy_ratio"],
-        reservoir_temperature_c=91.0,
-        length_x_m=900.0,
-        length_y_m=600.0,
-        thickness_m=6.0,
+    path = VALIDATION_DIR / f"{case_id}.mat"
+    imported = load_mrst_reservoir(path)
+    request = PredictRequest(
+        scenario_id=case_id,
+        geology=imported.geology,
+        schedule=imported.schedule,
+        seed=imported.seed,
     )
-    schedule = OperatingSchedule(
-        injection_rate_m3_day=params["inj_rate_surf"],
-        injection_duration_days=params["t_inj_days"],
-        soak_duration_days=params["t_soak_days"],
-        production_duration_days=params["t_prod_days"],
-        production_bhp_psi=params["prod_bhp_psi"],
-        cycles=int(params["n_cycles"]),
-    )
-    frames = [
-        ReservoirState(
-            pressure_bar=_grid(arrays["pressure"][index]),
-            gas_saturation=_grid(arrays["gas_sat"][index]),
-            z_co2=_grid(arrays["z_co2"][index]),
-        )
-        for index in range(8)
-    ]
-    produce = (stages == 3).astype(np.float32)
-    oil_delta = np.abs(oil_rate) * dt * SECONDS_PER_DAY * produce
-    gas_delta = np.abs(gas_rate) * dt * SECONDS_PER_DAY * produce
-    seed = SeedHistory(
-        # The exports do not contain the pre-operation state. The first exported
-        # frame is retained as the explicit validation baseline and disclosed in
-        # the scientific caveats.
-        initial_state=frames[0],
-        frames=frames,
-        oil_delta_m3=oil_delta[:8].tolist(),
-        gas_delta_m3=gas_delta[:8].tolist(),
-        source_class="mrst_ground_truth",
-        source_id=case_id,
-        schedule_fingerprint=schedule_fingerprint(schedule),
-    )
-    targets = {
-        "pressure": arrays["pressure"],
-        "gas_sat": arrays["gas_sat"],
-        "z_co2": arrays["z_co2"],
-        "oil_sat": arrays["oil_sat"],
-        "oil_delta_m3": oil_delta,
-        "gas_delta_m3": gas_delta,
-    }
-    return PredictRequest(scenario_id=case_id, geology=geology, schedule=schedule, seed=seed), targets
+    return request, imported.targets
 
 
 def _r2(true: np.ndarray, pred: np.ndarray) -> float:
