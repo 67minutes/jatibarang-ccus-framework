@@ -474,6 +474,16 @@
   word-break: break-all;
 }
 
+.shared-reservoir-notice {
+  margin: 10px 0;
+  padding: 8px 9px;
+  color: var(--text-dim);
+  background: rgba(77, 137, 147, 0.08);
+  border-left: 2px solid #5aaeba;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
 .shortcut-table {
   width: 100%;
   border-collapse: collapse;

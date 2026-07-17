@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Html, Line, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -13,13 +13,28 @@ import {
   makeProjector,
   terrainColor,
   TERRAIN_SIZE,
+  xzToCoordinate,
   type TerrainProjector,
 } from "./terrain";
 import { useFieldStore } from "../state/field.store";
 import { ReservoirGrid } from "./ReservoirGrid";
 import type { CellField, Coordinate, PredictionResult, ReservoirVisualization } from "../api/types";
 import { finiteRange, type StaticReservoirField } from "./reservoirGeometry";
+import { FieldOutline, pointInField } from "./FieldOutline";
+import {
+  SceneContextMenu,
+  type SceneContextTarget,
+} from "./SceneContextMenu";
+import { SourceDialog, type SourceDialogValue } from "./SourceDialog";
 import "./viewport.css";
+
+type SceneContextRequest = Omit<SceneContextTarget, "x" | "y">;
+
+interface SourceEditorState {
+  lat: number;
+  lon: number;
+  sourceId?: string;
+}
 
 /**
  * The 3D field-twin viewport (design §5): monochrome SRTM terrain with the
@@ -29,10 +44,56 @@ import "./viewport.css";
 export function Viewport3D() {
   const terrain = useFieldStore((state) => state.terrain);
   const terrainOverview = useFieldStore((state) => state.overviewData);
+  const placement = useFieldStore((state) => state.placement);
+  const reservoir = useFieldStore((state) => state.reservoir);
+  const wells = useFieldStore((state) => state.wells);
+  const sources = useFieldStore((state) => state.sources);
+  const selection = useSelectionStore((state) => state.selection);
+  const select = useSelectionStore((state) => state.select);
+  const clearSelection = useSelectionStore((state) => state.clear);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [contextTarget, setContextTarget] = useState<SceneContextTarget | null>(null);
+  const [sourceEditor, setSourceEditor] = useState<SourceEditorState | null>(null);
   const projector = useMemo(
     () => (terrainOverview ? makeProjector(terrainOverview) : null),
     [terrainOverview],
   );
+
+  const openContext = (
+    event: ThreeEvent<MouseEvent>,
+    request: SceneContextRequest,
+  ) => {
+    event.stopPropagation();
+    event.nativeEvent.preventDefault();
+    const bounds = wrapperRef.current?.getBoundingClientRect();
+    setContextTarget({
+      ...request,
+      x: event.nativeEvent.clientX - (bounds?.left ?? 0),
+      y: event.nativeEvent.clientY - (bounds?.top ?? 0),
+    });
+  };
+
+  const contextWell = contextTarget?.targetId
+    ? wells.find((well) => well.id === contextTarget.targetId)
+    : undefined;
+  const contextSource = contextTarget?.targetId
+    ? sources.find((source) => source.id === contextTarget.targetId)
+    : undefined;
+  const sourceBeingEdited = sourceEditor?.sourceId
+    ? sources.find((source) => source.id === sourceEditor.sourceId)
+    : undefined;
+
+  const saveSource = (value: SourceDialogValue) => {
+    const field = useFieldStore.getState();
+    if (sourceEditor?.sourceId) {
+      field.updateSource(sourceEditor.sourceId, value);
+      select({ kind: "source", id: sourceEditor.sourceId });
+    } else {
+      const created = field.addSource(value);
+      select({ kind: "source", id: created.id });
+    }
+    setSourceEditor(null);
+  };
 
   if (!terrain) {
     return (
@@ -55,7 +116,11 @@ export function Viewport3D() {
     );
   }
   return (
-    <div className="viewport-3d">
+    <div
+      ref={wrapperRef}
+      className="viewport-3d"
+      onContextMenu={(event) => event.preventDefault()}
+    >
       <Canvas
         camera={{ position: [0, 12.5, 22], fov: 40, near: 0.1, far: 400 }}
         dpr={[1, 1.75]}
@@ -84,9 +149,69 @@ export function Viewport3D() {
           shadow-camera-bottom={-14}
         />
         <directionalLight position={[14, 8, -12]} color="#74aabd" intensity={0.85} />
-        <SceneContent projector={projector} />
+        <SceneContent projector={projector} onContext={openContext} />
         <CameraRig projector={projector} />
       </Canvas>
+      {contextTarget ? (
+        <SceneContextMenu
+          target={contextTarget}
+          canAddCandidateWell={Boolean(
+            placement &&
+              reservoir &&
+              pointInField(
+                contextTarget.lat,
+                contextTarget.lon,
+                placement,
+                reservoir,
+              ),
+          )}
+          wellName={contextWell?.name}
+          canRemoveWell={contextWell?.kind === "placed"}
+          onAddSource={() =>
+            setSourceEditor({ lat: contextTarget.lat, lon: contextTarget.lon })
+          }
+          onAddWell={() => {
+            const created = useFieldStore
+              .getState()
+              .addWell(contextTarget.lat, contextTarget.lon);
+            select({ kind: "well", id: created.id });
+          }}
+          onRenameWell={(name) => {
+            if (contextTarget.targetId) {
+              useFieldStore.getState().renameWell(contextTarget.targetId, name);
+            }
+          }}
+          onRemoveWell={() => {
+            if (!contextTarget.targetId) return;
+            useFieldStore.getState().removeWell(contextTarget.targetId);
+            if (selection.id === contextTarget.targetId) clearSelection();
+          }}
+          onEditSource={() => {
+            if (!contextSource) return;
+            setSourceEditor({
+              sourceId: contextSource.id,
+              lat: contextSource.lat,
+              lon: contextSource.lon,
+            });
+          }}
+          onRemoveSource={() => {
+            if (!contextTarget.targetId) return;
+            useFieldStore.getState().removeSource(contextTarget.targetId);
+            if (selection.id === contextTarget.targetId) clearSelection();
+          }}
+          onEnterField={() => useFieldStore.getState().enterField()}
+          onClose={() => setContextTarget(null)}
+        />
+      ) : null}
+      {sourceEditor ? (
+        <SourceDialog
+          initial={sourceBeingEdited}
+          lat={sourceEditor.lat}
+          lon={sourceEditor.lon}
+          onSave={saveSource}
+          onClose={() => setSourceEditor(null)}
+        />
+      ) : null}
       <ViewportNavigationHud projector={projector} />
       <LayerManager />
       <FieldLegend />
@@ -99,16 +224,28 @@ export function Viewport3D() {
         <span><i className="lg-pipe" /> pipeline</span>
         <span><i className="lg-truck" /> trucking</span>
       </div>
-      <div className="viewport-mode-tag">3D · field + local reservoir</div>
+      <div className="viewport-mode-tag">3D · basin</div>
     </div>
   );
 }
 
-function SceneContent({ projector }: { projector: TerrainProjector }) {
+function SceneContent({
+  projector,
+  onContext,
+}: {
+  projector: TerrainProjector;
+  onContext: (
+    event: ThreeEvent<MouseEvent>,
+    request: SceneContextRequest,
+  ) => void;
+}) {
   const activeEntry = useLedgerStore((s) => s.entryById(s.activeEntryId));
   const carbonPriceId = useSelectionStore((s) => s.carbonPriceId);
   const exaggeration = useWorkspaceStore((s) => s.verticalExaggeration);
   const layers = useWorkspaceStore((s) => s.layers);
+  const activeTool = useWorkspaceStore((s) => s.activeTool);
+  const placement = useFieldStore((s) => s.placement);
+  const reservoir = useFieldStore((s) => s.reservoir);
 
   const plan = activeEntry ? selectPlan(activeEntry.result, carbonPriceId) : null;
   const scene = useMemo<Scene | null>(
@@ -128,9 +265,48 @@ function SceneContent({ projector }: { projector: TerrainProjector }) {
 
   return (
     <group>
-      {layers.terrain && <Terrain projector={projector} exaggeration={exaggeration} />}
+      {layers.terrain && (
+        <Terrain
+          projector={projector}
+          exaggeration={exaggeration}
+          onContextMenu={(event, coordinate) =>
+            onContext(event, {
+              kind: "terrain",
+              lat: coordinate.latitude,
+              lon: coordinate.longitude,
+            })
+          }
+        />
+      )}
+      {placement && reservoir ? (
+        <FieldOutline
+          projector={projector}
+          placement={placement}
+          reservoir={reservoir}
+          interactive={activeTool === "select"}
+          onContextMenu={(event) =>
+            onContext(event, {
+              kind: "outline",
+              lat: placement.center_lat,
+              lon: placement.center_lon,
+            })
+          }
+        />
+      ) : null}
+      <FieldObjects
+        projector={projector}
+        exaggeration={exaggeration}
+        layers={layers}
+        onContext={onContext}
+      />
       {scene && (
-        <SceneObjects projector={projector} scene={scene} exaggeration={exaggeration} layers={layers} />
+        <SceneObjects
+          projector={projector}
+          scene={scene}
+          exaggeration={exaggeration}
+          layers={layers}
+          showNodes={!placement}
+        />
       )}
       {wellSpot && (
         <ReservoirGrid
@@ -147,9 +323,14 @@ function SceneContent({ projector }: { projector: TerrainProjector }) {
 function Terrain({
   projector,
   exaggeration,
+  onContextMenu,
 }: {
   projector: TerrainProjector;
   exaggeration: number;
+  onContextMenu: (
+    event: ThreeEvent<MouseEvent>,
+    coordinate: Coordinate,
+  ) => void;
 }) {
   const { data } = projector;
   const setReadout = useCursorStore((s) => s.setReadout);
@@ -196,15 +377,8 @@ function Terrain({
     return geo;
   }, [data, exaggeration, palette, projector]);
 
-  const coordinateAtPoint = (point: THREE.Vector3): Coordinate => {
-    const { extent } = data;
-    // Inverse projection from scene x/z back to lon/lat.
-    const u = point.x / (2 * TERRAIN_SIZE) + 0.5;
-    const v = -point.z / (2 * TERRAIN_SIZE) + 0.5;
-    const longitude = extent.minLon + u * (extent.maxLon - extent.minLon);
-    const latitude = extent.minLat + v * (extent.maxLat - extent.minLat);
-    return { latitude, longitude };
-  };
+  const coordinateAtPoint = (point: THREE.Vector3): Coordinate =>
+    xzToCoordinate(projector, point.x, point.z);
 
   const onMove = (e: ThreeEvent<PointerEvent>) => {
     const { width, height } = data;
@@ -228,6 +402,9 @@ function Terrain({
         receiveShadow
         onPointerMove={onMove}
         onPointerOut={() => setReadout(null)}
+        onContextMenu={(event) =>
+          onContextMenu(event, coordinateAtPoint(event.point))
+        }
         onClick={(event) => {
           if (activeTool !== "measure") return;
           event.stopPropagation();
@@ -248,16 +425,150 @@ function Terrain({
   );
 }
 
+function FieldObjects({
+  projector,
+  exaggeration,
+  layers,
+  onContext,
+}: {
+  projector: TerrainProjector;
+  exaggeration: number;
+  layers: LayerVisibility;
+  onContext: (
+    event: ThreeEvent<MouseEvent>,
+    request: SceneContextRequest,
+  ) => void;
+}) {
+  const wells = useFieldStore((state) => state.wells);
+  const sources = useFieldStore((state) => state.sources);
+  const select = useSelectionStore((state) => state.select);
+  const selection = useSelectionStore((state) => state.selection);
+
+  if (!layers.wells) return null;
+
+  const yAt = (latitude: number, longitude: number, lift: number) => {
+    const coordinate = { latitude, longitude };
+    return (
+      projector.heightOf(projector.elevationAt(coordinate), exaggeration) + lift
+    );
+  };
+
+  return (
+    <group>
+      {wells.map((well) => {
+        const coordinate = { latitude: well.lat, longitude: well.lon };
+        const [x, z] = projector.toXZ(coordinate);
+        const y = yAt(well.lat, well.lon, 0);
+        const selected = selection.kind === "well" && selection.id === well.id;
+        return (
+          <group key={well.id} position={[x, y, z]}>
+            {(selected || well.kind === "native") && (
+              <mesh position={[0, 0.018, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <torusGeometry
+                  args={[selected ? 0.095 : 0.078, 0.012, 10, 28]}
+                />
+                <meshBasicMaterial color={selected ? "#ff6b57" : "#6ed4df"} />
+              </mesh>
+            )}
+            <mesh
+              castShadow
+              position={[0, 0.12, 0]}
+              onClick={(event) => {
+                event.stopPropagation();
+                select({ kind: "well", id: well.id });
+              }}
+              onContextMenu={(event) =>
+                onContext(event, {
+                  kind: "well",
+                  targetId: well.id,
+                  lat: well.lat,
+                  lon: well.lon,
+                })
+              }
+            >
+              <cylinderGeometry args={[0.04, 0.04, 0.24, 10]} />
+              <meshStandardMaterial
+                color={selected ? "#e4463b" : well.kind === "native" ? "#f0e8d6" : "#cfd4da"}
+                emissive={selected ? "#7a2420" : well.kind === "native" ? "#163b40" : "#000000"}
+                emissiveIntensity={selected ? 0.6 : well.kind === "native" ? 0.3 : 0}
+              />
+            </mesh>
+            {layers.labels ? (
+              <Html center position={[0, 0.32, 0]} distanceFactor={3} zIndexRange={[10, 0]}>
+                <span
+                  className={`scene-label${selected ? " scene-label-selected" : ""}`}
+                >
+                  {well.name}
+                </span>
+              </Html>
+            ) : null}
+          </group>
+        );
+      })}
+      {sources.map((source) => {
+        const coordinate = { latitude: source.lat, longitude: source.lon };
+        const [x, z] = projector.toXZ(coordinate);
+        const y = yAt(source.lat, source.lon, 0);
+        const selected = selection.kind === "source" && selection.id === source.id;
+        return (
+          <group key={source.id} position={[x, y, z]}>
+            {selected ? (
+              <mesh position={[0, 0.018, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[0.1, 0.012, 10, 28]} />
+                <meshBasicMaterial color="#ff6b57" />
+              </mesh>
+            ) : null}
+            <mesh
+              castShadow
+              position={[0, 0.09, 0]}
+              onClick={(event) => {
+                event.stopPropagation();
+                select({ kind: "source", id: source.id });
+              }}
+              onContextMenu={(event) =>
+                onContext(event, {
+                  kind: "source",
+                  targetId: source.id,
+                  lat: source.lat,
+                  lon: source.lon,
+                })
+              }
+            >
+              <boxGeometry args={[0.14, 0.18, 0.14]} />
+              <meshStandardMaterial
+                color={selected ? "#e4463b" : "#3e8eb0"}
+                emissive={selected ? "#7a2420" : "#102d38"}
+                emissiveIntensity={0.35}
+              />
+            </mesh>
+            {layers.labels ? (
+              <Html center position={[0, 0.31, 0]} distanceFactor={3} zIndexRange={[10, 0]}>
+                <span
+                  className={`scene-label${selected ? " scene-label-selected" : ""}`}
+                >
+                  {source.name}
+                </span>
+              </Html>
+            ) : null}
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
 function SceneObjects({
   projector,
   scene,
   exaggeration,
   layers,
+  showNodes,
 }: {
   projector: TerrainProjector;
   scene: Scene;
   exaggeration: number;
   layers: LayerVisibility;
+  showNodes: boolean;
 }) {
   const select = useSelectionStore((s) => s.select);
   const selection = useSelectionStore((s) => s.selection);
@@ -292,7 +603,7 @@ function SceneObjects({
         })}
 
       {/* Sources and wells. */}
-      {layers.wells && scene.nodes.map((node) => {
+      {layers.wells && showNodes && scene.nodes.map((node) => {
         const [x, z] = projector.toXZ(node.location);
         const y = yAt(node.location, 0);
         const selected = selection.id === node.id;
@@ -393,13 +704,14 @@ function MeasurementOverlay({
 
 function ViewportNavigationHud({ projector }: { projector: TerrainProjector }) {
   const { extent, minElev, maxElev } = projector.data;
+  const placement = useFieldStore((state) => state.placement);
   const centerLat = (extent.minLat + extent.maxLat) / 2;
   const centerLon = (extent.minLon + extent.maxLon) / 2;
   return (
     <div className="viewport-navigation-hud" aria-hidden>
       <div className="viewport-compass"><span>N</span><i /></div>
       <div>
-        <strong>JATIBARANG FIELD</strong>
+        <strong>{(placement?.name ?? "Basin overview").toUpperCase()}</strong>
         <span>{Math.abs(centerLat).toFixed(3)}{"\u00b0S \u00b7 "}{centerLon.toFixed(3)}{"\u00b0E"}</span>
         <span>terrain {minElev.toFixed(0)}{"\u2013"}{maxElev.toFixed(0)} m MSL</span>
       </div>

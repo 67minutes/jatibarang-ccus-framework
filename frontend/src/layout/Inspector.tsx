@@ -12,6 +12,7 @@ import type {
 } from "../api/types";
 import { useComposeStore } from "../compose/compose.store";
 import { useStudyStore } from "../state/study.store";
+import { useFieldStore } from "../state/field.store";
 
 /**
  * The inspector (right region): properties, results, and confidence flags for
@@ -24,12 +25,24 @@ export function Inspector() {
   const carbonPriceId = useSelectionStore((s) => s.carbonPriceId);
   const draft = useComposeStore((s) => s.draft);
   const study = useStudyStore((s) => s.study);
+  const fieldReservoir = useFieldStore((s) => s.reservoir);
+  const placement = useFieldStore((s) => s.placement);
+  const wells = useFieldStore((s) => s.wells);
+  const sources = useFieldStore((s) => s.sources);
 
   const plan = activeEntry ? selectPlan(activeEntry.result, carbonPriceId) : null;
 
   return (
     <Panel title="Inspector">
-      {!activeEntry && draft ? (
+      {!activeEntry && fieldReservoir && placement ? (
+        <FieldSetupDetail
+          selection={selection}
+          fieldName={placement.name}
+          modelFile={fieldReservoir.source_file}
+          wells={wells}
+          sources={sources}
+        />
+      ) : !activeEntry && draft ? (
         <div className="study-draft-inspector">
           <h3>{study.name}</h3>
           <p>{draft.candidates.length} candidate wells {"\u00b7"} draft ready to screen</p>
@@ -44,7 +57,12 @@ export function Inspector() {
       ) : !plan ? (
         <p className="empty-hint">No plan available for the current carbon price.</p>
       ) : (
-        <SelectionDetail plan={plan} kind={selection.kind} id={selection.id} />
+        <SelectionDetail
+          plan={plan}
+          kind={selection.kind}
+          id={selection.id}
+          sharedReservoir={Boolean(fieldReservoir)}
+        />
       )}
     </Panel>
   );
@@ -54,14 +72,24 @@ function SelectionDetail({
   plan,
   kind,
   id,
+  sharedReservoir,
 }: {
   plan: CarbonPricePlan;
   kind: string;
   id: string;
+  sharedReservoir: boolean;
 }) {
   if (kind === "well") {
     const strat = plan.well_strategies.find((w) => w.candidate_id === id);
-    if (strat) return <WellDetail plan={plan} strat={strat} />;
+    if (strat) {
+      return (
+        <WellDetail
+          plan={plan}
+          strat={strat}
+          sharedReservoir={sharedReservoir}
+        />
+      );
+    }
   }
   if (kind === "route") {
     const seg = plan.pipeline.built_segments.find((s) => s.segment_id === id);
@@ -74,7 +102,15 @@ function SelectionDetail({
   return <p className="empty-hint">No detail for {kind} {id} at this price.</p>;
 }
 
-function WellDetail({ plan, strat }: { plan: CarbonPricePlan; strat: WellStrategyResult }) {
+function WellDetail({
+  plan,
+  strat,
+  sharedReservoir,
+}: {
+  plan: CarbonPricePlan;
+  strat: WellStrategyResult;
+  sharedReservoir: boolean;
+}) {
   const selected = plan.selected_wells.includes(strat.candidate_id);
   const conf = strat.prediction.confidence;
   const extrap = strat.prediction.extrapolation_flags.filter((f) => f.is_extrapolation);
@@ -96,6 +132,8 @@ function WellDetail({ plan, strat }: { plan: CarbonPricePlan; strat: WellStrateg
         <dt>Peak mass flow</dt>
         <dd>{num(strat.peak_mass_flow_kg_s, 2)} kg/s</dd>
       </dl>
+
+      {sharedReservoir ? <SharedReservoirNotice /> : null}
 
       {conf.extended_horizon && (
         <div style={{ margin: "6px 0" }}>
@@ -119,6 +157,90 @@ function WellDetail({ plan, strat }: { plan: CarbonPricePlan; strat: WellStrateg
       )}
       <ConfidenceNote reasons={conf.low_confidence_reasons} />
       <FlagList flags={strat.flags} />
+    </div>
+  );
+}
+
+function SharedReservoirNotice() {
+  return (
+    <p className="shared-reservoir-notice">
+      Reservoir response assumes the local geology at this site matches the
+      study&apos;s reservoir model.
+    </p>
+  );
+}
+
+function FieldSetupDetail({
+  selection,
+  fieldName,
+  modelFile,
+  wells,
+  sources,
+}: {
+  selection: ReturnType<typeof useSelectionStore.getState>["selection"];
+  fieldName: string;
+  modelFile: string;
+  wells: ReturnType<typeof useFieldStore.getState>["wells"];
+  sources: ReturnType<typeof useFieldStore.getState>["sources"];
+}) {
+  if (selection.kind === "well" && selection.id) {
+    const well = wells.find((item) => item.id === selection.id);
+    if (well) {
+      return (
+        <div>
+          <div className="inspector-head">
+            <h3>{well.name}</h3>
+            <Badge tone={well.kind === "native" ? "ok" : "neutral"}>
+              {well.kind === "native" ? "model well" : "candidate"}
+            </Badge>
+          </div>
+          <dl className="kv">
+            <dt>Stable ID</dt>
+            <dd>{well.id}</dd>
+            <dt>Latitude</dt>
+            <dd>{well.lat.toFixed(6)}</dd>
+            <dt>Longitude</dt>
+            <dd>{well.lon.toFixed(6)}</dd>
+            <dt>Reservoir model</dt>
+            <dd>{modelFile}</dd>
+          </dl>
+          <SharedReservoirNotice />
+        </div>
+      );
+    }
+  }
+  if (selection.kind === "source" && selection.id) {
+    const source = sources.find((item) => item.id === selection.id);
+    if (source) {
+      return (
+        <div>
+          <div className="inspector-head">
+            <h3>{source.name}</h3>
+            <Badge tone="neutral">CO₂ source</Badge>
+          </div>
+          <dl className="kv">
+            <dt>Annual capacity</dt>
+            <dd>{tonnes(source.annual_capacity_t)}/yr</dd>
+            <dt>Peak flow</dt>
+            <dd>{num(source.max_mass_flow_kg_s, 2)} kg/s</dd>
+            <dt>Outlet pressure</dt>
+            <dd>{num(source.outlet_pressure_bar, 1)} bar</dd>
+            <dt>CO₂ purity</dt>
+            <dd>{(source.co2_purity * 100).toFixed(1)}%</dd>
+          </dl>
+        </div>
+      );
+    }
+  }
+  return (
+    <div className="study-draft-inspector">
+      <h3>{fieldName}</h3>
+      <p>{modelFile}</p>
+      <p>
+        {wells.length} well{wells.length === 1 ? "" : "s"} · {sources.length}{" "}
+        source{sources.length === 1 ? "" : "s"}
+      </p>
+      <p>Select or right-click an object in the basin scene to inspect or edit it.</p>
     </div>
   );
 }

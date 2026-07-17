@@ -67,6 +67,21 @@ export interface TerrainProjector {
   data: TerrainData;
 }
 
+/** Inverse of TerrainProjector.toXZ for scene interactions and drag handles. */
+export function xzToCoordinate(
+  projector: TerrainProjector,
+  x: number,
+  z: number,
+): Coordinate {
+  const { minLon, maxLon, minLat, maxLat } = projector.data.extent;
+  const u = x / (2 * TERRAIN_SIZE) + 0.5;
+  const v = -z / (2 * TERRAIN_SIZE) + 0.5;
+  return {
+    longitude: minLon + u * (maxLon - minLon),
+    latitude: minLat + v * (maxLat - minLat),
+  };
+}
+
 export function makeProjector(data: TerrainData): TerrainProjector {
   const { minLon, maxLon, minLat, maxLat } = data.extent;
   const spanLon = maxLon - minLon || 1e-9;
