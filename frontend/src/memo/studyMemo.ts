@@ -1,4 +1,11 @@
 import type { ScreenRequest, ScreenResult } from "../api/types";
+import type {
+  FieldPlacement,
+  PlacedSource,
+  PlacedWell,
+  ReservoirRef,
+  TerrainRef,
+} from "../state/field.store";
 import type { StudyMetadata } from "../state/study.store";
 
 /**
@@ -12,7 +19,20 @@ import type { StudyMetadata } from "../state/study.store";
  */
 
 export const STUDY_MEMO_KIND = "jatibarang.ccus.study-memo";
-export const STUDY_MEMO_VERSION = 2;
+export const STUDY_MEMO_VERSION = 3;
+
+/**
+ * Portable, lightweight field setup. Imported raster/model payloads remain
+ * hash-addressed backend artifacts; the memo stores their references and the
+ * engineer's map edits, not the binary payloads.
+ */
+export interface FieldSetupMemo {
+  terrain: TerrainRef;
+  reservoir: ReservoirRef;
+  placement: FieldPlacement;
+  wells: PlacedWell[];
+  sources: PlacedSource[];
+}
 
 export interface StudyMemo {
   kind: typeof STUDY_MEMO_KIND;
@@ -22,6 +42,7 @@ export interface StudyMemo {
   saved_at: string;
   label: string;
   study?: StudyMetadata;
+  field_setup?: FieldSetupMemo;
   request: ScreenRequest;
   fingerprint: string;
   result: ScreenResult;
@@ -54,6 +75,11 @@ export function isStudyMemo(value: unknown): value is StudyMemo {
     typeof memo.request === "object" &&
     typeof memo.result === "object"
   );
+}
+
+/** Version-2 and older memos remain readable but have no field-scene state. */
+export function isLegacyMemo(memo: Pick<StudyMemo, "memo_version">): boolean {
+  return memo.memo_version < STUDY_MEMO_VERSION;
 }
 
 export function memoToEntry(memo: StudyMemo, imported: boolean): LedgerEntry {

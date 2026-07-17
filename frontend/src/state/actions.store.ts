@@ -2,6 +2,15 @@ import { create } from "zustand";
 import type { NewStudyOptions } from "./study.store";
 
 /**
+ * Temporary compatibility surface for the pre-blank-slate dialog. Task 8
+ * removes the template selector; keeping it here lets Task 6 narrow the durable
+ * study metadata contract without breaking the current workbench meanwhile.
+ */
+type WorkbenchNewStudyOptions = NewStudyOptions & {
+  template?: "demo" | "current";
+};
+
+/**
  * Registry of imperative actions that live in feature components (Phase 3+).
  *
  * The command registry is defined in Phase 2 and must build/typecheck before
@@ -11,7 +20,7 @@ import type { NewStudyOptions } from "./study.store";
  */
 
 export interface WorkbenchActions {
-  createNewStudy?: (options: NewStudyOptions) => void;
+  createNewStudy?: (options: WorkbenchNewStudyOptions) => void;
   openStudy?: () => void;
   saveStudy?: () => void;
   saveStudyAs?: () => void;

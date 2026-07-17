@@ -20,7 +20,6 @@ export interface NewStudyOptions {
   name: string;
   analyst: string;
   notes: string;
-  template: "demo" | "current";
   memoFileName: string;
   startView: "2d" | "3d";
   verticalExaggeration: number;
@@ -33,7 +32,7 @@ interface StudyState {
   setMemoFileName: (memoFileName: string) => void;
 }
 
-export const DEFAULT_STUDY_NAME = "Jatibarang screening study";
+export const DEFAULT_STUDY_NAME = "Untitled study";
 
 function safeMemoName(value: string): string {
   const stem = value
@@ -41,7 +40,7 @@ function safeMemoName(value: string): string {
     .replace(/[^a-z0-9._-]+/gi, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 72);
-  return `${stem || "jatibarang-study"}.study.json`;
+  return `${stem || "untitled-study"}.study.json`;
 }
 
 function defaultStudy(): StudyMetadata {
@@ -49,7 +48,7 @@ function defaultStudy(): StudyMetadata {
     name: DEFAULT_STUDY_NAME,
     analyst: "",
     notes: "",
-    memo_file_name: "jatibarang-screening-study.study.json",
+    memo_file_name: "untitled-study.study.json",
     save_location_strategy: "ask_on_save",
     start_view: "3d",
     vertical_exaggeration: 5,

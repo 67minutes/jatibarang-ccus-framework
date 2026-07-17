@@ -1,0 +1,279 @@
+import { create, type StoreApi, type UseBoundStore } from "zustand";
+import type { FieldSetupMemo } from "../memo/studyMemo";
+
+/** Hash-addressed terrain registered by the local backend. */
+export interface TerrainRef {
+  terrain_id: string;
+  sha256: string;
+  source_path: string;
+  extent: {
+    minLon: number;
+    maxLon: number;
+    minLat: number;
+    maxLat: number;
+  };
+}
+
+/** User-declared placement for an otherwise ungeoreferenced reservoir model. */
+export interface FieldPlacement {
+  name: string;
+  center_lat: number;
+  center_lon: number;
+  rotation_deg: number;
+}
+
+/** Lightweight reference to one imported reservoir model and its launch pads. */
+export interface ReservoirRef {
+  model_id: string;
+  sha256: string;
+  source_file: string;
+  native_fingerprint: string;
+  covered_fingerprints: string[];
+  bank_id: string | null;
+  well_ij: [number, number];
+  length_x_m: number;
+  length_y_m: number;
+}
+
+export interface PlacedWell {
+  /** Stable request/selection identity. Renaming never changes this value. */
+  id: string;
+  /** Human-facing label, independently editable from the stable id. */
+  name: string;
+  kind: "native" | "placed";
+  lat: number;
+  lon: number;
+}
+
+export interface PlacedSource {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  annual_capacity_t: number;
+  outlet_pressure_bar: number;
+  outlet_temperature_c: number;
+  co2_purity: number;
+  max_mass_flow_kg_s: number;
+}
+
+export type SceneLevel = "basin" | "field";
+
+interface FieldState {
+  terrain: TerrainRef | null;
+  reservoir: ReservoirRef | null;
+  placement: FieldPlacement | null;
+  /** The first well is the model's native well whenever a reservoir is set. */
+  wells: PlacedWell[];
+  sources: PlacedSource[];
+  level: SceneLevel;
+
+  setup: (
+    terrain: TerrainRef,
+    reservoir: ReservoirRef,
+    placement: FieldPlacement,
+  ) => void;
+  moveField: (center_lat: number, center_lon: number) => void;
+  rotateField: (rotation_deg: number) => void;
+  addWell: (lat: number, lon: number) => PlacedWell;
+  moveWell: (id: string, lat: number, lon: number) => void;
+  renameWell: (id: string, name: string) => void;
+  removeWell: (id: string) => void;
+  addSource: (source: Omit<PlacedSource, "id">) => PlacedSource;
+  updateSource: (
+    id: string,
+    patch: Partial<Omit<PlacedSource, "id">>,
+  ) => void;
+  removeSource: (id: string) => void;
+  enterField: () => void;
+  exitField: () => void;
+  reset: () => void;
+  hydrate: (setup: FieldSetupMemo) => void;
+}
+
+const EMPTY_STATE = {
+  terrain: null,
+  reservoir: null,
+  placement: null,
+  wells: [],
+  sources: [],
+  level: "basin" as const,
+};
+
+function degreesToRadians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+/**
+ * Convert the native MRST well cell to a map coordinate relative to the field
+ * anchor. The imported model has no surveyed orientation; rotation is the
+ * user's local-proxy placement only.
+ */
+export function nativeWellPosition(
+  placement: FieldPlacement,
+  reservoir: ReservoirRef,
+): { lat: number; lon: number } {
+  const dx =
+    (reservoir.well_ij[1] + 0.5 - 32) * (reservoir.length_x_m / 64);
+  const dy =
+    (reservoir.well_ij[0] + 0.5 - 32) * (reservoir.length_y_m / 64);
+  const angle = degreesToRadians(placement.rotation_deg);
+  const east = dx * Math.cos(angle) - dy * Math.sin(angle);
+  const north = dx * Math.sin(angle) + dy * Math.cos(angle);
+  const metresPerDegreeLongitude =
+    111_320 * Math.cos(degreesToRadians(placement.center_lat));
+
+  return {
+    lat: placement.center_lat + north / 111_320,
+    lon: placement.center_lon + east / metresPerDegreeLongitude,
+  };
+}
+
+function nativeWell(
+  placement: FieldPlacement,
+  reservoir: ReservoirRef,
+  name = "W01",
+): PlacedWell {
+  const position = nativeWellPosition(placement, reservoir);
+  return { id: "W01", name, kind: "native", ...position };
+}
+
+function nextId(prefix: string, ids: string[]): string {
+  const highest = ids.reduce((max, id) => {
+    const match = new RegExp(`^${prefix}(\\d+)$`, "i").exec(id);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return `${prefix}${String(highest + 1).padStart(2, "0")}`;
+}
+
+function rederiveNativeWell(
+  wells: PlacedWell[],
+  placement: FieldPlacement,
+  reservoir: ReservoirRef,
+): PlacedWell[] {
+  const currentNative = wells.find((well) => well.kind === "native");
+  const updated = nativeWell(
+    placement,
+    reservoir,
+    currentNative?.name || currentNative?.id || "W01",
+  );
+  return [updated, ...wells.filter((well) => well.kind !== "native")];
+}
+
+export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
+  create<FieldState>((set, get) => ({
+    ...EMPTY_STATE,
+
+    setup: (terrain, reservoir, placement) =>
+      set({
+        terrain,
+        reservoir,
+        placement,
+        wells: [nativeWell(placement, reservoir)],
+        sources: [],
+        level: "basin",
+      }),
+
+    moveField: (center_lat, center_lon) =>
+      set((state) => {
+        if (!state.placement || !state.reservoir) return {};
+        const placement = { ...state.placement, center_lat, center_lon };
+        return {
+          placement,
+          wells: rederiveNativeWell(state.wells, placement, state.reservoir),
+        };
+      }),
+
+    rotateField: (rotation_deg) =>
+      set((state) => {
+        if (!state.placement || !state.reservoir) return {};
+        const placement = { ...state.placement, rotation_deg };
+        return {
+          placement,
+          wells: rederiveNativeWell(state.wells, placement, state.reservoir),
+        };
+      }),
+
+    addWell: (lat, lon) => {
+      const id = nextId(
+        "W",
+        get().wells.map((well) => well.id),
+      );
+      const well: PlacedWell = { id, name: id, kind: "placed", lat, lon };
+      set((state) => ({ wells: [...state.wells, well] }));
+      return well;
+    },
+
+    moveWell: (id, lat, lon) =>
+      set((state) => ({
+        wells: state.wells.map((well) =>
+          well.id === id && well.kind === "placed"
+            ? { ...well, lat, lon }
+            : well,
+        ),
+      })),
+
+    renameWell: (id, name) => {
+      const displayName = name.trim();
+      if (!displayName) return;
+      set((state) => ({
+        wells: state.wells.map((well) =>
+          well.id === id ? { ...well, name: displayName } : well,
+        ),
+      }));
+    },
+
+    removeWell: (id) =>
+      set((state) => ({
+        wells: state.wells.filter(
+          (well) => well.id !== id || well.kind === "native",
+        ),
+      })),
+
+    addSource: (source) => {
+      const id = nextId(
+        "S",
+        get().sources.map((item) => item.id),
+      );
+      const placed: PlacedSource = { ...source, id };
+      set((state) => ({ sources: [...state.sources, placed] }));
+      return placed;
+    },
+
+    updateSource: (id, patch) =>
+      set((state) => ({
+        sources: state.sources.map((source) =>
+          source.id === id ? { ...source, ...patch } : source,
+        ),
+      })),
+
+    removeSource: (id) =>
+      set((state) => ({
+        sources: state.sources.filter((source) => source.id !== id),
+      })),
+
+    enterField: () => {
+      if (get().reservoir) set({ level: "field" });
+    },
+    exitField: () => set({ level: "basin" }),
+    reset: () => set({ ...EMPTY_STATE }),
+
+    hydrate: (setup) =>
+      set({
+        terrain: { ...setup.terrain, extent: { ...setup.terrain.extent } },
+        reservoir: {
+          ...setup.reservoir,
+          well_ij: [...setup.reservoir.well_ij],
+          covered_fingerprints: [...setup.reservoir.covered_fingerprints],
+        },
+        placement: { ...setup.placement },
+        // Preserve memo coordinates exactly. A later move/rotate re-derives
+        // only the native well from the imported model.
+        wells: setup.wells.map((well) => ({
+          ...well,
+          name: well.name || well.id,
+        })),
+        sources: setup.sources.map((source) => ({ ...source })),
+        level: "basin",
+      }),
+  }));
