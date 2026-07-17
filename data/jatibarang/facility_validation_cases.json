@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "basis_type": "facility_validation_cases",
+  "version": "1.0.0",
+  "design": "two_level_four_factor_resolution_IV_D_equals_A_times_B_times_C",
+  "fixed": {
+    "injection_reference_pressure_bar": 1.01325,
+    "injection_reference_temperature_c": 15.0,
+    "produced_gas_reference_pressure_bar": 1.01325,
+    "produced_gas_reference_temperature_c": 15.0,
+    "wellhead_injection_pressure_bar": 137.895146,
+    "delivery_temperature_c": 27.0,
+    "separator_pressure_bar": 10.0,
+    "separator_temperature_c": 35.0,
+    "peak_produced_liquid_m3_day": 75.0,
+    "water_cut_fraction": 0.35,
+    "annual_injected_co2_tonnes": 20000.0,
+    "injection_operating_hours_per_year": 1080.0,
+    "production_operating_hours_per_year": 4560.0,
+    "recycle_enabled": true,
+    "recycle_recovery_fraction": 0.95
+  },
+  "cases": [
+    {"case_id": "F003-001", "A": -1, "B": -1, "C": -1, "D": -1, "injection_rate_std_m3_day": 8000.0, "delivery_pressure_bar": 80.0, "peak_produced_gas_std_m3_day": 4500.0, "produced_co2_mole_fraction": 0.525},
+    {"case_id": "F003-002", "A": -1, "B": -1, "C": 1, "D": 1, "injection_rate_std_m3_day": 8000.0, "delivery_pressure_bar": 80.0, "peak_produced_gas_std_m3_day": 7300.0, "produced_co2_mole_fraction": 0.795},
+    {"case_id": "F003-003", "A": -1, "B": 1, "C": -1, "D": 1, "injection_rate_std_m3_day": 8000.0, "delivery_pressure_bar": 120.0, "peak_produced_gas_std_m3_day": 4500.0, "produced_co2_mole_fraction": 0.795},
+    {"case_id": "F003-004", "A": -1, "B": 1, "C": 1, "D": -1, "injection_rate_std_m3_day": 8000.0, "delivery_pressure_bar": 120.0, "peak_produced_gas_std_m3_day": 7300.0, "produced_co2_mole_fraction": 0.525},
+    {"case_id": "F003-005", "A": 1, "B": -1, "C": -1, "D": 1, "injection_rate_std_m3_day": 10000.0, "delivery_pressure_bar": 80.0, "peak_produced_gas_std_m3_day": 4500.0, "produced_co2_mole_fraction": 0.795},
+    {"case_id": "F003-006", "A": 1, "B": -1, "C": 1, "D": -1, "injection_rate_std_m3_day": 10000.0, "delivery_pressure_bar": 80.0, "peak_produced_gas_std_m3_day": 7300.0, "produced_co2_mole_fraction": 0.525},
+    {"case_id": "F003-007", "A": 1, "B": 1, "C": -1, "D": -1, "injection_rate_std_m3_day": 10000.0, "delivery_pressure_bar": 120.0, "peak_produced_gas_std_m3_day": 4500.0, "produced_co2_mole_fraction": 0.525},
+    {"case_id": "F003-008", "A": 1, "B": 1, "C": 1, "D": 1, "injection_rate_std_m3_day": 10000.0, "delivery_pressure_bar": 120.0, "peak_produced_gas_std_m3_day": 7300.0, "produced_co2_mole_fraction": 0.795}
+  ],
+  "provenance": {
+    "source_class": "engineering_assumption",
+    "source_id": "feature003-calibration-design-v1",
+    "notes": "Bounds combine the trained injection range, Feature 002 delivery boundary, and current Phase 1 produced-gas/composition envelope."
+  }
+}

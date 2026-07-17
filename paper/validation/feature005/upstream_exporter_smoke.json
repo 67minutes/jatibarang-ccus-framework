@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "verdict": "PASS",
+  "scope": "one-derived-seed exporter smoke only",
+  "preset_id": "jatibarang_demo_v1",
+  "run_id": "W01--6FDE14E31D4C",
+  "source_case_id": "case_0004",
+  "schedule_fingerprint": "6FDE14E31D4CF57243E0C2CF439221DC104B9F8B28B468150B9F5645610B5702",
+  "seed_frames": 8,
+  "first_simulation_runtime_seconds": 68.077,
+  "derived_file_bytes": 606757,
+  "derived_file_sha256": "E848B2CA350955F47604FF277DB462BF4EE3DDB21F90C9A27F15A276292F8229",
+  "design_sha256": "D86C1DE22F634F02331170952AB76302E3D49BC5312899E22AB7DC33063E6859",
+  "raw_training_corpus_copied": false,
+  "restart_verified": true,
+  "qualification": "This bounded smoke does not make the 200- or 3240-scenario preset ready and is not a screening result."
+}

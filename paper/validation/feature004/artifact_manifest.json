@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "feature": "004-economic-engine",
+  "algorithm": "SHA-256",
+  "artifact_count": 9,
+  "artifacts": [
+    {
+      "path": "README.md",
+      "sha256": "1ab6ac89a3af329a4236846a2e2636cce04bc1f50e15a9847fbdb6e6daa5d87a",
+      "bytes": 1837
+    },
+    {
+      "path": "accounting_reconciliation.csv",
+      "sha256": "b9a709a4aeb9024eae468548da4e11d5f5f08fea77f2701ddeacd39757d85aab",
+      "bytes": 4011
+    },
+    {
+      "path": "carbon_price_sensitivity.csv",
+      "sha256": "416e0a9d47aacd8bd02e36aeed63e9430c26cea43e9bf7324c775470e7dddee2",
+      "bytes": 4620
+    },
+    {
+      "path": "metric_verification.json",
+      "sha256": "eaf5ea26666771717d3c3870ff39e0080ce629fc22be9d5d4dee337623839e9e",
+      "bytes": 417
+    },
+    {
+      "path": "performance_benchmark.json",
+      "sha256": "b7e05b1dedbe510d90d84c24415d5ddb0022f2fa854de911dff0d7bf8b5210f9",
+      "bytes": 597
+    },
+    {
+      "path": "reference_cashflows.csv",
+      "sha256": "ae7a4f0316c2cfc5aea3cf26d0f161f571a6eafc64b8d88c5c723334e2e8c1b0",
+      "bytes": 16618
+    },
+    {
+      "path": "schema_validation.json",
+      "sha256": "30e20841c5a9ac2937424c2c4364513b68777bf9e333a8bbc763a1e9199acb6b",
+      "bytes": 159
+    },
+    {
+      "path": "uncertainty_ranking.csv",
+      "sha256": "835a8b6e53bb65cdfdc2544ef36692e5d5b5177a06eb874237f470e5a0918e11",
+      "bytes": 1609
+    },
+    {
+      "path": "validation_summary.json",
+      "sha256": "d2782c2f6f9bbc6c472af4812b0b25643ffbc9683d97023e43eb2b28e4426d22",
+      "bytes": 584
+    }
+  ]
+}

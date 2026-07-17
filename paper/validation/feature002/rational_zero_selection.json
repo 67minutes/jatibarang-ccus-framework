@@ -1,0 +1,233 @@
+{
+  "annual_opex_usd": 0.0,
+  "booster_capex_usd": 0.0,
+  "boosters": [],
+  "built_segments": [],
+  "constraint_audit": {
+    "passed": true,
+    "reason": "all_wells_negative_after_logistics"
+  },
+  "costs": {
+    "accounting_basis": "raw_cashflows_levelized_display_only",
+    "annual_booster_energy_usd": 0.0,
+    "annual_maintenance_usd": 0.0,
+    "annual_opex_usd": 0.0,
+    "booster_capex_usd": 0.0,
+    "commodity_supply_usd_per_tonne": 8.0,
+    "cost_case": "base",
+    "cost_year": 2025,
+    "currency": "USD",
+    "levelized_delivered_usd_per_tonne": 8.0,
+    "levelized_transport_usd_per_tonne": 0.0,
+    "pipeline_capex_usd": 0.0,
+    "present_value_lifecycle_cost_usd": 8e-09,
+    "provenance": {
+      "citations": [
+        {
+          "date": "2025-07-09",
+          "organization": "NETL",
+          "title": "NETL Releases Updated Version of CO2_T_COM Transport Cost Model",
+          "url": "https://www.netl.doe.gov/node/14899"
+        },
+        {
+          "date": "2025-10-09",
+          "doi": "10.62849/2025-08",
+          "organization": "IEAGHG",
+          "report_number": "2025-08",
+          "title": "CO2 Transport and Storage Cost Review",
+          "url": "https://ieaghg.org/publications/co2-transport-and-storage-cost-review/"
+        }
+      ],
+      "equations": {
+        "annual_booster_energy_usd": "power_kw * operating_hours_per_year * electricity_usd_per_kwh",
+        "annual_pipeline_maintenance_usd": "pipeline_capex_usd * pipeline_maintenance_fraction",
+        "booster_capex_usd": "booster_fixed_capex_usd + booster_variable_capex_usd_per_kw * power_kw",
+        "levelized_transport_usd_per_tonne": "transport_lifecycle_present_value / (annual_tonnes * present_value_factor)",
+        "pipeline_capex_usd": "pipe_usd_per_inch_m * diameter_in * length_km * 1000",
+        "present_value_factor": "(1 - (1 + discount_rate)^(-project_life_years)) / discount_rate",
+        "trucking_delivered_usd_per_tonne": "loading + liquefaction + reconditioning + distance_transport + co2_supply",
+        "trucking_transport_usd_per_tonne": "trucking_usd_per_tonne_km * one_way_distance_km"
+      },
+      "path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\jatibarang\\pipeline_cost_basis.json",
+      "pipeline_source": {
+        "coefficient_reference_year": 2018,
+        "escalation_factor_2018_to_2025": 1.28,
+        "method": "screening low/base/high inch-mile correlation transcription converted to inch-metre and escalated from 2018 to 2025 USD; no Excel runtime dependency",
+        "release_date": "2025-07-09",
+        "source_currency": "USD",
+        "source_year": 2025,
+        "title": "FECM/NETL CO2_T_COM Transport Cost Model, 2025 update",
+        "url": "https://www.netl.doe.gov/node/14899"
+      },
+      "status": "screening_proxy_not_indonesian_vendor_quote"
+    }
+  },
+  "delivered_cost_usd_per_tonne": {},
+  "domain_status": "no_viable_network",
+  "hydraulic_verification": {
+    "passed": true,
+    "reason": "all_wells_negative_after_logistics",
+    "refinement_attempts": 0
+  },
+  "node_pressures_bar": {},
+  "objective_bound_usd": 0.0,
+  "objective_mode": "max_net_value",
+  "objective_value_usd": 0.0,
+  "optimality_gap": 0.0,
+  "per_well_allocated_cost_usd": {},
+  "pipeline_capex_usd": 0.0,
+  "route_provenance": {
+    "assumptions_fingerprint_sha256": "FBE04C23EDFC4ACB54DF15AC64C5D0F42D6857F7AB7A5881491374C89FFFE4C0",
+    "cache_hit": true,
+    "candidate_well_count": 20,
+    "downsample_factor": 10,
+    "exclusions": {
+      "cross_check": "Badan Informasi Geospasial Ina-Geoportal",
+      "extracted_at": "2026-07-15T00:00:00+07:00",
+      "feature_count": 3,
+      "license": "ODbL 1.0",
+      "path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\jatibarang\\pipeline_exclusions.geojson",
+      "query_bounds_wgs84": [
+        107.7,
+        -6.65,
+        108.55,
+        -6.4
+      ],
+      "sha256": "9B12CDDB8C9793E478EB129051B92DE5754C97E7F8E8E10F297E5A681F918BE8",
+      "source": "OpenStreetMap contributors",
+      "source_url": "https://www.openstreetmap.org/copyright",
+      "status": "public_screening_proxy_not_field_survey"
+    },
+    "junction_count": 54,
+    "local_metric_crs": "+proj=aeqd +lat_0=-6.532047619047619 +lon_0=108.36947619047619 +datum=WGS84 +units=m +no_defs +type=crs",
+    "max_candidate_segment_length_m": 30000.0,
+    "raw_path_count": 63,
+    "route_library_fingerprint": "75066B2555DD13F932398977746E5DA77C6BF66188C54211C368D67EC107E12C",
+    "route_method": "A* on exclusion-aware downsampled SRTM union graph",
+    "routing_algorithm_version": "2.0",
+    "solver_configuration": {
+      "ratio_gap": 0.02,
+      "solver": "cbc",
+      "time_limit_seconds": 30
+    },
+    "source_count": 1,
+    "target_cell_size_m": 300.0,
+    "terrain_crs": "EPSG:4326",
+    "terrain_path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\terrain\\12. DEM SRTM 30m Provinsi Jawa Barat\\DEM SRTM 30M JAWA BARAT.tif",
+    "terrain_sha256": "AA9CC7AD4BD0CB390A80CB8B2CE06061745CFCFE2B010D39F808CF74C506826E"
+  },
+  "selected_wells": [],
+  "solve_time_seconds": 7.697254200000316,
+  "solver": "cbc",
+  "solver_status": "ok",
+  "source_annual_flows_tonnes": {
+    "SUBANG": 0.0
+  },
+  "source_peak_flows_kg_s": {
+    "SUBANG": 0.0
+  },
+  "termination_condition": "optimal",
+  "total_network_cost_usd": 0.0,
+  "well_decisions": [
+    {
+      "candidate_id": "W01",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W02",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W03",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W04",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W05",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W06",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W07",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W08",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W09",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W10",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W11",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W12",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W13",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W14",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W15",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W16",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W17",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W18",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W19",
+      "reason": "negative_net_value",
+      "selected": false
+    },
+    {
+      "candidate_id": "W20",
+      "reason": "negative_net_value",
+      "selected": false
+    }
+  ]
+}

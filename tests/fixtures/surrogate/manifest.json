@@ -1,0 +1,32 @@
+{
+  "description": "Tiny surrogate regression fixtures exported from boreyes2026 for the promoted production_v2 checkpoint.",
+  "source_repo": "C:\\Users\\mauli\\Documents\\boreyes2026",
+  "checkpoint": "model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0.pt",
+  "cases": [
+    {
+      "case_id": "case_0016",
+      "inputs": "case_0016_inputs.npz",
+      "expected": "case_0016_expected.npz",
+      "x_dyn_shape": [8, 20, 64, 64],
+      "x_static_shape": [12, 64, 64],
+      "pred_shape": [24, 4, 64, 64]
+    },
+    {
+      "case_id": "case_0115",
+      "inputs": "case_0115_inputs.npz",
+      "expected": "case_0115_expected.npz",
+      "x_dyn_shape": [8, 20, 64, 64],
+      "x_static_shape": [12, 64, 64],
+      "pred_shape": [24, 4, 64, 64]
+    },
+    {
+      "case_id": "case_0197",
+      "inputs": "case_0197_inputs.npz",
+      "expected": "case_0197_expected.npz",
+      "x_dyn_shape": [8, 20, 64, 64],
+      "x_static_shape": [12, 64, 64],
+      "pred_shape": [24, 4, 64, 64]
+    }
+  ]
+}
+

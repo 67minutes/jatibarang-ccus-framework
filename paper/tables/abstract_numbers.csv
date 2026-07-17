@@ -1,0 +1,18 @@
+key,value,units,source,method,timestamp
+geological_realization_count,177,count,boreyes2026 promoted split + final manifest,Count accepted train/validation/test realizations used by the promoted checkpoint.,2026-06-06T17:10:39+00:00
+porosity_min,0.17,fraction,boreyes2026 final manifest,Minimum poro_mean across accepted promoted-split realizations.,2026-06-06T17:10:39+00:00
+porosity_max,0.22,fraction,boreyes2026 final manifest,Maximum poro_mean across accepted promoted-split realizations.,2026-06-06T17:10:39+00:00
+matrix_permeability_min_md,10.0,mD,data/jatibarang/case_study_assumptions.json,Literature-anchored matrix permeability lower bound before fracture multiplier.,2026-06-06T17:10:39+00:00
+matrix_permeability_max_md,114.0,mD,data/jatibarang/case_study_assumptions.json,Literature-anchored matrix permeability upper bound before fracture multiplier.,2026-06-06T17:10:39+00:00
+one_step_pressure_r2,0.9999,R2,C:\Users\mauli\Documents\boreyes2026\outputs\model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0_metrics.json,Read promoted production_v2 one-step metric and round for abstract reporting.,2026-06-06T17:10:39+00:00
+one_step_gas_plume_iou,0.9756,IoU,C:\Users\mauli\Documents\boreyes2026\outputs\model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0_metrics.json,Read promoted production_v2 one-step gas saturation plume IoU.,2026-06-06T17:10:39+00:00
+cumulative_production_error_pct,1.84,percent,C:\Users\mauli\Documents\boreyes2026\outputs\model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0_metrics.json,Use last-rollout cumulative raw oil relative MAE as the abstract production error bound.,2026-06-06T17:10:39+00:00
+end_sequence_co2_mass_error_pct,3.35,percent,C:\Users\mauli\Documents\boreyes2026\outputs\model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0_metrics.json,Use last-rollout z_co2 mass error from the promoted metrics.,2026-06-06T17:10:39+00:00
+integrated_scenario_count,3240,count,data/jatibarang/case_study_assumptions.json,Candidate count multiplied by operational-grid combinations.,2026-06-06T17:10:39+00:00
+screening_runtime_minutes,0.6351,minutes,Phase 1 screening CLI,"Measured wall-clock time for A* route build, CoolProp precompute/facility, Pyomo/CBC MILP, and economics.",2026-06-06T17:10:39+00:00
+equivalent_compositional_coverage_weeks,2.38,weeks,C:\Users\mauli\Documents\boreyes2026\exports_hnp_expressive\final\manifest.json,Scenario count multiplied by mean MRST manifest runtime; Phase 1 runs only curated validation subset.,2026-06-06T17:10:39+00:00
+current_carbon_price_npv_usd,-8299986.64,USD,Phase 1 real infrastructure economics model,"Final portfolio NPV using A* routes, CoolProp facility costs, Pyomo/CBC well selection, and delivered costs.",2026-06-06T17:10:39+00:00
+jcm_bilateral_price_npv_usd,-2617155.56,USD,Phase 1 real infrastructure economics model,"Final portfolio NPV using A* routes, CoolProp facility costs, Pyomo/CBC well selection, and delivered costs.",2026-06-06T17:10:39+00:00
+changed_priority_candidate_count,18,count,Phase 1 MILP/economics ranking comparison,Count candidates whose integrated MILP/economics ranking shifts by at least the configured rank-delta threshold.,2026-06-06T17:10:39+00:00
+total_candidate_count,20,count,data/jatibarang/case_study_assumptions.json,Candidate well count in the Phase 1 case-study assumptions.,2026-06-06T17:10:39+00:00
+break_even_carbon_price_usd_per_tonne,54.52,USD/tonne CO2,Phase 1 real infrastructure economics model,Carbon price required to bring the current-price Pyomo/CBC-selected portfolio to zero NPV before carbon revenue.,2026-06-06T17:10:39+00:00

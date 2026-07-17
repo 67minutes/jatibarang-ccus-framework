@@ -7,6 +7,12 @@ __pycache__/
 .venv/
 venv/
 
+# Offline .NET validation helper build products
+bin/
+obj/
+*.user
+*.suo
+
 # Node / frontend
 node_modules/
 .next/
@@ -43,11 +49,30 @@ data/terrain/*
 data/validation_cases/*
 !data/validation_cases/.gitkeep
 !data/validation_cases/README.md
+!data/validation_cases/manifest.json
 
 data/scenario_b_runs/*
 !data/scenario_b_runs/.gitkeep
 !data/scenario_b_runs/README.md
+!data/scenario_b_runs/manifest.json
+
+# Derived Feature 005 geology/seed banks. Keep manifests and documentation only.
+data/screening_presets/*
+!data/screening_presets/.gitkeep
+!data/screening_presets/README.md
+!data/screening_presets/*/
+data/screening_presets/*/*
+!data/screening_presets/*/manifest.json
+!data/screening_presets/*/README.md
 
 models/checkpoints/*
 !models/checkpoints/.gitkeep
 !models/checkpoints/README.md
+
+# Generated QA screenshots and heavy paper working outputs
+output/
+paper/results/feature007/working/
+
+# Imported study artifacts (hash-addressed local store). Keep registry docs only.
+data/imports/*
+!data/imports/README.md

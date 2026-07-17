@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0",
+  "basis_type": "facility_design_basis",
+  "version": "1.0.0",
+  "status": "screening_proxy_not_feed",
+  "standard_conditions": {
+    "pressure_bar": 1.01325,
+    "temperature_c": 15.0
+  },
+  "pressure_boundary": {
+    "dense_phase_min_bar": 80.0,
+    "wellhead_injection_max_bar": 137.895146,
+    "calibration_delivery_min_bar": 80.0,
+    "calibration_delivery_max_bar": 120.0
+  },
+  "recycle_compression": {
+    "stages": 3,
+    "isentropic_efficiency": 0.75,
+    "intercooler_outlet_temperature_c": 35.0,
+    "final_recycle_cooler_outlet_temperature_c": 27.0,
+    "intercooler_pressure_drop_bar_per_stage": 0.25,
+    "compressor_max_power_per_train_kw": 1000.0,
+    "spare_trains": 1
+  },
+  "injection_pump": {
+    "efficiency": 0.78,
+    "max_power_per_train_kw": 250.0,
+    "spare_trains": 1
+  },
+  "dehydration": {
+    "outlet_water_target_ppmv": 50.0,
+    "heat_duty_kw_per_kg_s_recycle": 12.0,
+    "max_recycle_kg_s_per_train": 1.0,
+    "spare_trains": 0
+  },
+  "separator": {
+    "operating_pressure_bar": 10.0,
+    "operating_temperature_c": 35.0,
+    "souders_brown_k_m_s": 0.107,
+    "gas_design_margin": 1.2,
+    "oil_residence_minutes": 5.0,
+    "water_residence_minutes": 10.0,
+    "liquid_design_margin": 1.2,
+    "target_length_to_diameter": 3.0,
+    "minimum_diameter_m": 0.6,
+    "maximum_gas_std_m3_day_per_train": 20000.0,
+    "spare_trains": 0
+  },
+  "surface_losses": {
+    "fresh_conditioning_purge_fraction": 0.0005,
+    "fresh_fugitive_fraction": 0.0002,
+    "recycle_fugitive_fraction": 0.0005,
+    "maximum_net_storage_debit_fraction": 0.02
+  },
+  "calibration_envelope": {
+    "injection_rate_std_m3_day": [8000.0, 10000.0],
+    "delivery_pressure_bar": [80.0, 120.0],
+    "peak_produced_gas_std_m3_day": [4500.0, 7300.0],
+    "produced_co2_mole_fraction": [0.525, 0.795]
+  },
+  "calibration_evidence": {
+    "version": "feature003-dwsim-v1",
+    "engineering_validation_verdict": "PASS",
+    "dwsim_version": "10.0.9650.13551",
+    "model_sha256": "c9e966f194d3178905a11b9ffc65ed158902006bca8d80b5817c2ad743abfdb0",
+    "manifest_path": "paper/validation/feature003/artifact_manifest.json",
+    "maximum_power_error_pct": 0.0000198465,
+    "maximum_mass_balance_residual_fraction": 0.0
+  },
+  "provenance": {
+    "source_class": "engineering_assumption",
+    "source_id": "feature003-design-basis-v1",
+    "notes": "Literature-aligned screening assumptions; not a proprietary Jatibarang design or FEED basis."
+  }
+}

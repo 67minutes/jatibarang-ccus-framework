@@ -5,6 +5,7 @@ import { useSelectionStore } from "../state/selection.store";
 import { useLedgerStore } from "../state/ledger.store";
 import { useRunStore } from "../state/run.store";
 import { shortFingerprint } from "../memo/studyMemo";
+import { useStudyStore } from "../state/study.store";
 import "./chrome.css";
 
 /**
@@ -16,6 +17,7 @@ export function StatusBar() {
   const readout = useCursorStore((s) => s.readout);
   const selection = useSelectionStore((s) => s.selection);
   const activeEntry = useLedgerStore((s) => s.entryById(s.activeEntryId));
+  const study = useStudyStore((s) => s.study);
   const runStatus = useRunStore((s) => s.status);
   const startedAt = useRunStore((s) => s.startedAt);
   const finishedAt = useRunStore((s) => s.finishedAt);
@@ -47,8 +49,11 @@ export function StatusBar() {
       <span className="status-cell">
         sel: {selection.kind === "none" ? "none" : `${selection.kind} ${selection.id}`}
       </span>
-      <span className="status-cell mono">
-        study: {activeEntry ? shortFingerprint(activeEntry.fingerprint) : "—"}
+      <span className="status-cell status-study" title={study.name}>
+        study: {study.name}
+        <span className="mono">
+          {activeEntry ? ` \u00b7 ${shortFingerprint(activeEntry.fingerprint)}` : " \u00b7 draft"}
+        </span>
       </span>
       <RunClock status={runStatus} startedAt={startedAt} finishedAt={finishedAt} />
       <div className="status-spacer" />

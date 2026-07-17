@@ -1,12 +1,10 @@
-"""Generate a valid demo inline screening request for the workbench.
+"""Generate the real case-0016 validation preview used by the workbench.
 
-The real MRST-derived preset payloads are not materialized locally (preset
-readiness is BLOCKED), so the demo path uses an *inline* request. This builds a
-small but genuinely valid request — uniform-field geology, real Jatibarang-area
-coordinates, 3 candidate wells, 4 carbon prices, 2 schedules — that the real
-backend can screen end to end. The uniform geology means the plume renders flat;
-that is honest for a dev/demo fixture and is replaced by real MRST fields when
-Feature 007 lands.
+The promoted 200/3,240-scenario banks are not materialized yet, so the offline
+startup path remains an inline request. Unlike the old uniform gray fixture,
+this request uses the declared Figure-3 median-error validation case: its actual
+MRST-derived static geology, eight-frame MRST warm start, and exact operating
+schedule. It is a local proxy at W01, not a surveyed field orientation.
 
 Run from the repo root:
 
@@ -33,22 +31,14 @@ from jatibarang_ccus.screening.schemas import (  # noqa: E402
     ScreeningCandidate,
 )
 from jatibarang_ccus.surrogate.preprocessing import schedule_fingerprint  # noqa: E402
-from tests.screening.helpers import (  # noqa: E402
-    economic_dimensions,
-    geology,
-    schedule,
-    seed,
-)
+from jatibarang_ccus.surrogate.validation import load_validation_case  # noqa: E402
+from tests.screening.helpers import economic_dimensions  # noqa: E402
 
 # A tightly clustered well group (~200-300 m spacing) around an on-field source,
 # so short pipeline segments have a chance of being economic. The default wide
 # spacing plus a distant source makes every pipeline uneconomic at this
 # in-envelope throughput.
-WELLS = [
-    ("W01", -6.4830, 108.3110),
-    ("W02", -6.4825, 108.3145),
-    ("W03", -6.4848, 108.3160),
-]
+WELL = ("W01", -6.4830, 108.3110)
 
 # An on-field CO2 source co-located with the well cluster (< ~1.5 km) so the
 # optimizer can build a short, viable pipeline network. The default fixture
@@ -68,47 +58,43 @@ def demo_source() -> CO2Source:
 
 
 def build_request() -> InlineScreenRequest:
-    # The operational grid below sweeps injection rate only (fixed cycles), so it
-    # expands to exactly these two schedules — one seed each, full coverage.
-    schedules = [schedule(rate=9000.0, cycles=3), schedule(rate=6000.0, cycles=3)]
+    # The exact Figure-3 case schedule keeps the MRST warm start and surrogate
+    # rollout scientifically aligned; this is not a synthetic operating sweep.
+    validation, _targets = load_validation_case("case_0016")
+    active_schedule = validation.schedule
     carbon_prices, fiscal_cases, assumptions = economic_dimensions()
 
-    fingerprints = [schedule_fingerprint(item) for item in schedules]
+    fingerprint = schedule_fingerprint(active_schedule)
     provenance = fiscal_cases[0].provenance[0]
-
-    candidates = [
-        ScreeningCandidate(
-            candidate_id=well_id,
-            location=Coordinate(latitude=lat, longitude=lon),
-            geology_id="G",
-            seed_by_schedule_fingerprint={
-                fingerprints[idx]: f"S{idx}" for idx in range(len(schedules))
-            },
-            produced_co2=ProducedCO2Assumption(mole_fraction=0.65, provenance=provenance),
-        )
-        for well_id, lat, lon in WELLS
-    ]
+    well_id, lat, lon = WELL
+    candidate = ScreeningCandidate(
+        candidate_id=well_id,
+        location=Coordinate(latitude=lat, longitude=lon),
+        geology_id="case_0016",
+        seed_by_schedule_fingerprint={fingerprint: "case_0016_seed"},
+        produced_co2=ProducedCO2Assumption(mole_fraction=0.65, provenance=provenance),
+    )
 
     return InlineScreenRequest(
         mode="inline",
-        geologies={"G": geology()},
-        seeds={f"S{idx}": seed(item) for idx, item in enumerate(schedules)},
-        candidates=candidates,
+        geologies={"case_0016": validation.geology},
+        seeds={"case_0016_seed": validation.seed},
+        candidates=[candidate],
         sources=[demo_source()],
         operational_grid=OperationalGrid(
-            injection_rate_m3_day=[9000.0, 6000.0],
-            injection_duration_days=[45.0],
-            soak_duration_days=[30.0],
-            production_duration_days=[190.0],
-            production_bhp_psi=[675.0],
-            cycles=[3],
+            injection_rate_m3_day=[active_schedule.injection_rate_m3_day],
+            injection_duration_days=[active_schedule.injection_duration_days],
+            soak_duration_days=[active_schedule.soak_duration_days],
+            production_duration_days=[active_schedule.production_duration_days],
+            production_bhp_psi=[active_schedule.production_bhp_psi],
+            cycles=[active_schedule.cycles],
         ),
         annual_co2_budget_tonnes=320_000.0,
         carbon_prices=carbon_prices,
         fiscal_cases=fiscal_cases,
         economic_assumptions=assumptions,
         shortlist_top_k=5,
-        detailed_top_k=3,
+        detailed_top_k=1,
     )
 
 

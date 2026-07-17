@@ -104,6 +104,13 @@
   background: var(--bg-hover);
   color: var(--text);
 }
+.tool-button-active,
+.tool-button[aria-pressed="true"] {
+  color: #f2f6f7;
+  background: #293840;
+  border-color: #42606c;
+  box-shadow: inset 0 -2px 0 #5bb9c8;
+}
 .toolbar-field {
   display: flex;
   align-items: center;
@@ -186,6 +193,11 @@
 }
 .status-spacer {
   flex: 1;
+}
+.status-study {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .status-health {
   display: flex;

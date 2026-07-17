@@ -1,0 +1,28 @@
+{
+  "constraints": {
+    "active_segment_count": 6,
+    "allocated_lifecycle_cost_usd": 28313463.930968642,
+    "allocation_relative_residual": 0.0,
+    "annual_budget_limit_tonnes": 320000.0,
+    "annual_budget_used_tonnes": 1530.7078014315216,
+    "annual_mass_balance_relative_residual": 9.352024572223186e-10,
+    "connectivity_passed": true,
+    "mass_balance_relative_tolerance": 1e-06,
+    "max_constraint_violation": 6.3399999959690145e-06,
+    "passed": true,
+    "peak_mass_balance_relative_residual": 1.4112061834362028e-09,
+    "selected_well_count": 1,
+    "solver_feasibility_tolerance": 0.0001,
+    "transport_lifecycle_cost_usd": 28313463.930968642
+  },
+  "hydraulics": {
+    "continuous_step_m": 100.0,
+    "failure_count": 0,
+    "failures": [],
+    "maximum_pwl_error_bar": 1.222798008182508,
+    "passed": true,
+    "pressure_tolerance_bar": 1.0,
+    "refinement_attempts": 1,
+    "relative_tolerance": 0.05
+  }
+}

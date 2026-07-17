@@ -1,9 +1,8 @@
 # Feature 006 Frontend — Screening Workbench Design
 
 - **Date:** 2026-07-16
-- **Status:** Approved shape; supersedes the layout described in the original
-  `specs/006-frontend/spec.md` demo-panel sketch. The feature spec has been
-  amended to point here.
+- **Status:** Approved historical shape; the 2026-07-17 implementation addendum in
+  Section 12 supersedes its conflicting reservoir, pane, and API details.
 - **Role:** A working engineering tool first, with the stage demo served by a
   preset plus a canned offline fallback — not a separate demo app.
 
@@ -368,3 +367,62 @@ step 4 is the flagship surface, not a dependency.
 - Running DWSIM live (the PFD panel is static with bound numbers).
 - Paper-figure generation (Feature 007 owns scientific promotion; the study
   memo is the hand-off).
+
+## 12. Implementation addendum - 2026-07-17
+
+This addendum records the implemented Feature 007 hand-off and supersedes the
+conflicting details in Sections 4-6, 8-9, and 11. The original text remains above as
+the design history.
+
+### Workspace regions
+
+The regions remain fixed in role and are not dockable, but they are no longer fixed
+in size. The left pane defaults to 248 px and is constrained to 180-420 px; the right
+defaults to 320 px and is constrained to 260-520 px; the bottom defaults to 340 px and
+is constrained from 180 px to 70% of center height. Handles support pointer capture,
+keyboard adjustment, double-click reset, and collapse/restore with session-local
+sizes. Nothing is persisted in browser storage.
+
+The project tree also exposes an **APECX Paper Results** study with Figures 1-8, and
+the dashboard includes a Paper Results tab. Bundle ID, freeze basis, actual scenario
+count, provenance, and ready/blocked/unavailable state remain visible.
+
+### Reservoir renderer
+
+The SECARB extrusion is retained only as an optional legacy response-column layer.
+The primary reservoir is a simulator-style 64 x 64 x 1 grid preserving the 900 x 600
+m footprint and constant 6 m thickness. Cell-centered structure is reconstructed to
+65 x 65 nodes and rendered as bounded warped hexahedral geometry. Default color is
+log10 permeability in mD, with porosity and discrete facies alternatives. Reservoir
+vertical exaggeration is separate from terrain, defaults to 8x, and ranges 1-20x.
+
+Independent layers cover terrain; wells; labels; routes; boosters; structural cells
+and edges; permeability; facies, barriers, and fractures; dynamic response; and legacy
+SECARB columns. Pressure is delta-P from the final warm-start frame, oil is baseline
+depletion, and gas saturation/`z_co2` are thresholded translucent occupancy. One
+dynamic scalar is active, with opacity and threshold controls. Missing fields are
+disabled and never replaced by another scalar or a demonstration plume.
+
+The reservoir coordinate system is explicitly a selected-well local proxy, not a
+surveyed orientation or true subsea model. Wells and completions use simulator-style
+trajectories and markers.
+
+### API and paper-result boundary
+
+The statement that API routes are untouched is superseded. Screening logic remains
+in the backend, while typed `detailed_reservoirs`, paper bundle/index contracts, and
+read-only `/paper/results` routes were added. The frontend still performs no physics,
+routing, facility, or economic calculation.
+
+The real Figure 3 median validation case (`case_0016`) replaces the uniform canned
+plume. Canonical paper cases can provide synchronized MRST, surrogate, and residual
+views with a shared timeline, probe, and physical limits; the current linked dynamic
+comparison exposes gas saturation only.
+
+### Evidence boundary
+
+The Feature 007 `working` bundle verifies the hashes of present artifacts but remains
+partial and unfrozen: scenario count zero, mechanical `BLOCKED`, scientific
+`NOT_RUN`. Figures 1, 2, 3, and 6 are ready; Figures 4, 5, 7, and 8 are blocked. No
+`submitted` or `full_3240` bundle exists. The implemented Paper Results UI must show
+those states and cannot be treated as scientific completion.

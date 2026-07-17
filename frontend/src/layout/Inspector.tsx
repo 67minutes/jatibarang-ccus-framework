@@ -10,6 +10,8 @@ import type {
   CarbonPricePlan,
   WellStrategyResult,
 } from "../api/types";
+import { useComposeStore } from "../compose/compose.store";
+import { useStudyStore } from "../state/study.store";
 
 /**
  * The inspector (right region): properties, results, and confidence flags for
@@ -20,12 +22,20 @@ export function Inspector() {
   const activeEntry = useLedgerStore((s) => s.entryById(s.activeEntryId));
   const selection = useSelectionStore((s) => s.selection);
   const carbonPriceId = useSelectionStore((s) => s.carbonPriceId);
+  const draft = useComposeStore((s) => s.draft);
+  const study = useStudyStore((s) => s.study);
 
   const plan = activeEntry ? selectPlan(activeEntry.result, carbonPriceId) : null;
 
   return (
     <Panel title="Inspector">
-      {!activeEntry ? (
+      {!activeEntry && draft ? (
+        <div className="study-draft-inspector">
+          <h3>{study.name}</h3>
+          <p>{draft.candidates.length} candidate wells {"\u00b7"} draft ready to screen</p>
+          {study.analyst && <p>Analyst: {study.analyst}</p>}
+        </div>
+      ) : !activeEntry ? (
         <p className="empty-hint">No study loaded.</p>
       ) : selection.kind === "none" || !selection.id ? (
         <p className="empty-hint">

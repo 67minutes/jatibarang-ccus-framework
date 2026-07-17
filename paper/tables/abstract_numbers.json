@@ -1,0 +1,1538 @@
+{
+  "abstract_number_keys": [
+    "geological_realization_count",
+    "porosity_min",
+    "porosity_max",
+    "matrix_permeability_min_md",
+    "matrix_permeability_max_md",
+    "one_step_pressure_r2",
+    "one_step_gas_plume_iou",
+    "cumulative_production_error_pct",
+    "end_sequence_co2_mass_error_pct",
+    "integrated_scenario_count",
+    "screening_runtime_minutes",
+    "equivalent_compositional_coverage_weeks",
+    "current_carbon_price_npv_usd",
+    "jcm_bilateral_price_npv_usd",
+    "changed_priority_candidate_count",
+    "total_candidate_count",
+    "break_even_carbon_price_usd_per_tonne"
+  ],
+  "entries": [
+    {
+      "key": "geological_realization_count",
+      "value": 177,
+      "units": "count",
+      "source": "boreyes2026 promoted split + final manifest",
+      "method": "Count accepted train/validation/test realizations used by the promoted checkpoint.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "porosity_min",
+      "value": 0.17,
+      "units": "fraction",
+      "source": "boreyes2026 final manifest",
+      "method": "Minimum poro_mean across accepted promoted-split realizations.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "porosity_max",
+      "value": 0.22,
+      "units": "fraction",
+      "source": "boreyes2026 final manifest",
+      "method": "Maximum poro_mean across accepted promoted-split realizations.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "matrix_permeability_min_md",
+      "value": 10.0,
+      "units": "mD",
+      "source": "data/jatibarang/case_study_assumptions.json",
+      "method": "Literature-anchored matrix permeability lower bound before fracture multiplier.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "matrix_permeability_max_md",
+      "value": 114.0,
+      "units": "mD",
+      "source": "data/jatibarang/case_study_assumptions.json",
+      "method": "Literature-anchored matrix permeability upper bound before fracture multiplier.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "one_step_pressure_r2",
+      "value": 0.9999,
+      "units": "R2",
+      "source": "C:\\Users\\mauli\\Documents\\boreyes2026\\outputs\\model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0_metrics.json",
+      "method": "Read promoted production_v2 one-step metric and round for abstract reporting.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "one_step_gas_plume_iou",
+      "value": 0.9756,
+      "units": "IoU",
+      "source": "C:\\Users\\mauli\\Documents\\boreyes2026\\outputs\\model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0_metrics.json",
+      "method": "Read promoted production_v2 one-step gas saturation plume IoU.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "cumulative_production_error_pct",
+      "value": 1.84,
+      "units": "percent",
+      "source": "C:\\Users\\mauli\\Documents\\boreyes2026\\outputs\\model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0_metrics.json",
+      "method": "Use last-rollout cumulative raw oil relative MAE as the abstract production error bound.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "end_sequence_co2_mass_error_pct",
+      "value": 3.35,
+      "units": "percent",
+      "source": "C:\\Users\\mauli\\Documents\\boreyes2026\\outputs\\model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0_metrics.json",
+      "method": "Use last-rollout z_co2 mass error from the promoted metrics.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "integrated_scenario_count",
+      "value": 3240,
+      "units": "count",
+      "source": "data/jatibarang/case_study_assumptions.json",
+      "method": "Candidate count multiplied by operational-grid combinations.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "screening_runtime_minutes",
+      "value": 0.6351,
+      "units": "minutes",
+      "source": "Phase 1 screening CLI",
+      "method": "Measured wall-clock time for A* route build, CoolProp precompute/facility, Pyomo/CBC MILP, and economics.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "equivalent_compositional_coverage_weeks",
+      "value": 2.38,
+      "units": "weeks",
+      "source": "C:\\Users\\mauli\\Documents\\boreyes2026\\exports_hnp_expressive\\final\\manifest.json",
+      "method": "Scenario count multiplied by mean MRST manifest runtime; Phase 1 runs only curated validation subset.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "current_carbon_price_npv_usd",
+      "value": -8299986.64,
+      "units": "USD",
+      "source": "Phase 1 real infrastructure economics model",
+      "method": "Final portfolio NPV using A* routes, CoolProp facility costs, Pyomo/CBC well selection, and delivered costs.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "jcm_bilateral_price_npv_usd",
+      "value": -2617155.56,
+      "units": "USD",
+      "source": "Phase 1 real infrastructure economics model",
+      "method": "Final portfolio NPV using A* routes, CoolProp facility costs, Pyomo/CBC well selection, and delivered costs.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "changed_priority_candidate_count",
+      "value": 18,
+      "units": "count",
+      "source": "Phase 1 MILP/economics ranking comparison",
+      "method": "Count candidates whose integrated MILP/economics ranking shifts by at least the configured rank-delta threshold.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "total_candidate_count",
+      "value": 20,
+      "units": "count",
+      "source": "data/jatibarang/case_study_assumptions.json",
+      "method": "Candidate well count in the Phase 1 case-study assumptions.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    },
+    {
+      "key": "break_even_carbon_price_usd_per_tonne",
+      "value": 54.52,
+      "units": "USD/tonne CO2",
+      "source": "Phase 1 real infrastructure economics model",
+      "method": "Carbon price required to bring the current-price Pyomo/CBC-selected portfolio to zero NPV before carbon revenue.",
+      "timestamp": "2026-06-06T17:10:39+00:00"
+    }
+  ],
+  "screening_summary": {
+    "scenario_count": 3240,
+    "screening_runtime_minutes": 0.6350531983333592,
+    "equivalent_mrst_weeks": 2.382295988459716,
+    "route_provenance": {
+      "terrain_path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\terrain\\12. DEM SRTM 30m Provinsi Jawa Barat\\DEM SRTM 30M JAWA BARAT.tif",
+      "terrain_sha256": "AA9CC7AD4BD0CB390A80CB8B2CE06061745CFCFE2B010D39F808CF74C506826E",
+      "terrain_crs": "EPSG:4326",
+      "downsample_factor": 10,
+      "route_method": "A* on downsampled SRTM terrain",
+      "target_cell_size_m": 300.0,
+      "candidate_node_count": 20
+    },
+    "by_price": {
+      "current_idx": {
+        "carbon_price": 3.0,
+        "portfolio_npv_usd": -8299986.640324505,
+        "portfolio_npv_low_usd": -8681320.103978757,
+        "portfolio_npv_high_usd": -7918653.176670253,
+        "portfolio_npv_without_carbon_usd": -8783271.597629987,
+        "portfolio_storage_tonnes": 189523.51266881666,
+        "selected_wells": [
+          "W01",
+          "W02",
+          "W03",
+          "W04",
+          "W05",
+          "W06"
+        ],
+        "ranking": [
+          "W01",
+          "W02",
+          "W03",
+          "W05",
+          "W04",
+          "W06",
+          "W07",
+          "W08",
+          "W09",
+          "W10",
+          "W11",
+          "W12",
+          "W13",
+          "W14",
+          "W15",
+          "W16",
+          "W17",
+          "W18",
+          "W19",
+          "W20"
+        ],
+        "best_by_candidate": {
+          "W01": {
+            "candidate_id": "W01",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 50946.26653658036,
+            "stored_co2_tonnes": 12742.809114011137,
+            "injected_co2_tonnes": 20889.851006575635,
+            "preliminary_npv_usd": 2308448.248540003,
+            "npv_without_carbon_usd": 2275954.0852992744,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 7294.736842105264,
+            "produced_co2_fraction": 0.5950000000000001
+          },
+          "W02": {
+            "candidate_id": "W02",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 49073.24203155903,
+            "stored_co2_tonnes": 21662.775493818936,
+            "injected_co2_tonnes": 35512.74671117858,
+            "preliminary_npv_usd": 1999914.4130834872,
+            "npv_without_carbon_usd": 1944674.3355742488,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 7294.736842105264,
+            "produced_co2_fraction": 0.6055
+          },
+          "W03": {
+            "candidate_id": "W03",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 47200.217526537686,
+            "stored_co2_tonnes": 30582.741873626732,
+            "injected_co2_tonnes": 50135.64241578153,
+            "preliminary_npv_usd": 1691380.577626971,
+            "npv_without_carbon_usd": 1613394.585849223,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 7294.736842105264,
+            "produced_co2_fraction": 0.6160000000000001
+          },
+          "W04": {
+            "candidate_id": "W04",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 45327.19302151635,
+            "stored_co2_tonnes": 39502.708253434525,
+            "injected_co2_tonnes": 64758.538120384466,
+            "preliminary_npv_usd": 1382846.7421704556,
+            "npv_without_carbon_usd": 1282114.8361241976,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 7294.736842105264,
+            "produced_co2_fraction": 0.6265000000000001
+          },
+          "W05": {
+            "candidate_id": "W05",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 40535.992618665565,
+            "stored_co2_tonnes": 39612.272901246346,
+            "injected_co2_tonnes": 64938.15229712516,
+            "preliminary_npv_usd": 1116806.3325666604,
+            "npv_without_carbon_usd": 1015795.0366684822,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5835.789473684211,
+            "produced_co2_fraction": 0.637
+          },
+          "W06": {
+            "candidate_id": "W06",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 38803.68524179951,
+            "stored_co2_tonnes": 46909.27054094962,
+            "injected_co2_tonnes": 76900.44350975347,
+            "preliminary_npv_usd": 853405.4049911432,
+            "npv_without_carbon_usd": 733786.7651117216,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5835.789473684211,
+            "produced_co2_fraction": 0.6475000000000001
+          },
+          "W07": {
+            "candidate_id": "W07",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 37417.83934030667,
+            "stored_co2_tonnes": 54206.26818065289,
+            "injected_co2_tonnes": 88862.73472238179,
+            "preliminary_npv_usd": 609059.8585611521,
+            "npv_without_carbon_usd": 470833.87470048724,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5835.789473684211,
+            "produced_co2_fraction": 0.658
+          },
+          "W08": {
+            "candidate_id": "W08",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 36031.99343881383,
+            "stored_co2_tonnes": 61503.265820356166,
+            "injected_co2_tonnes": 100825.02593501011,
+            "preliminary_npv_usd": 364714.3121311608,
+            "npv_without_carbon_usd": 207880.9842892526,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5835.789473684211,
+            "produced_co2_fraction": 0.6685000000000001
+          },
+          "W09": {
+            "candidate_id": "W09",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 34992.6090126942,
+            "stored_co2_tonnes": 68800.26346005945,
+            "injected_co2_tonnes": 112787.31714763845,
+            "preliminary_npv_usd": 139424.1468466964,
+            "npv_without_carbon_usd": -36016.52497645517,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5835.789473684211,
+            "produced_co2_fraction": 0.679
+          },
+          "W10": {
+            "candidate_id": "W10",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 3
+            },
+            "oil_bbl": 25464.91843993093,
+            "stored_co2_tonnes": 57072.94582482203,
+            "injected_co2_tonnes": 93562.20627020005,
+            "preliminary_npv_usd": -64399.51382832552,
+            "npv_without_carbon_usd": -209935.52568162172,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5592.631578947368,
+            "produced_co2_fraction": 0.6195
+          },
+          "W11": {
+            "candidate_id": "W11",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 3
+            },
+            "oil_bbl": 24685.380120341208,
+            "stored_co2_tonnes": 62545.69405459949,
+            "injected_co2_tonnes": 102533.9246796713,
+            "preliminary_npv_usd": -233367.13779167368,
+            "npv_without_carbon_usd": -392858.65763090237,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5592.631578947368,
+            "produced_co2_fraction": 0.63
+          },
+          "W12": {
+            "candidate_id": "W12",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 3
+            },
+            "oil_bbl": 24165.68790728139,
+            "stored_co2_tonnes": 68018.44228437694,
+            "injected_co2_tonnes": 111505.64308914253,
+            "preliminary_npv_usd": -388043.225895877,
+            "npv_without_carbon_usd": -561490.2537210382,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5592.631578947368,
+            "produced_co2_fraction": 0.6405
+          },
+          "W13": {
+            "candidate_id": "W13",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 3
+            },
+            "oil_bbl": 23645.995694221572,
+            "stored_co2_tonnes": 73491.1905141544,
+            "injected_co2_tonnes": 120477.36149861377,
+            "preliminary_npv_usd": -542719.3140000806,
+            "npv_without_carbon_usd": -730121.8498111743,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5592.631578947368,
+            "produced_co2_fraction": 0.651
+          },
+          "W14": {
+            "candidate_id": "W14",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 3
+            },
+            "oil_bbl": 23126.30348116176,
+            "stored_co2_tonnes": 78963.93874393187,
+            "injected_co2_tonnes": 129449.07990808503,
+            "preliminary_npv_usd": -697395.4021042839,
+            "npv_without_carbon_usd": -898753.4459013102,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5592.631578947368,
+            "produced_co2_fraction": 0.6615
+          },
+          "W15": {
+            "candidate_id": "W15",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 3
+            },
+            "oil_bbl": 22606.611268101948,
+            "stored_co2_tonnes": 84436.68697370931,
+            "injected_co2_tonnes": 138420.79831755624,
+            "preliminary_npv_usd": -852071.490208487,
+            "npv_without_carbon_usd": -1067385.0419914457,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5592.631578947368,
+            "produced_co2_fraction": 0.672
+          },
+          "W16": {
+            "candidate_id": "W16",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 3
+            },
+            "oil_bbl": 22086.919055042134,
+            "stored_co2_tonnes": 89909.43520348676,
+            "injected_co2_tonnes": 147392.51672702748,
+            "preliminary_npv_usd": -1006747.5783126906,
+            "npv_without_carbon_usd": -1236016.6380815818,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5592.631578947368,
+            "produced_co2_fraction": 0.6825
+          },
+          "W17": {
+            "candidate_id": "W17",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 25.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 3
+            },
+            "oil_bbl": 19949.684828833644,
+            "stored_co2_tonnes": 86650.30722343556,
+            "injected_co2_tonnes": 149397.0814197165,
+            "preliminary_npv_usd": -1159415.579513572,
+            "npv_without_carbon_usd": -1380373.8629333326,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5592.631578947368,
+            "produced_co2_fraction": 0.6930000000000001
+          },
+          "W18": {
+            "candidate_id": "W18",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 25.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 3
+            },
+            "oil_bbl": 19468.969531753315,
+            "stored_co2_tonnes": 91622.04616248515,
+            "injected_co2_tonnes": 157969.04510773302,
+            "preliminary_npv_usd": -1306728.180817711,
+            "npv_without_carbon_usd": -1540364.398532048,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5592.631578947368,
+            "produced_co2_fraction": 0.7035
+          },
+          "W19": {
+            "candidate_id": "W19",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 25.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 3
+            },
+            "oil_bbl": 18988.254234672986,
+            "stored_co2_tonnes": 96593.78510153473,
+            "injected_co2_tonnes": 166541.00879574954,
+            "preliminary_npv_usd": -1454040.7821218504,
+            "npv_without_carbon_usd": -1700354.9341307639,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5592.631578947368,
+            "produced_co2_fraction": 0.714
+          },
+          "W20": {
+            "candidate_id": "W20",
+            "parameters": {
+              "injection_rate_m3_day": 8000.0,
+              "soak_days": 25.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 3
+            },
+            "oil_bbl": 18507.538937592657,
+            "stored_co2_tonnes": 101565.52404058432,
+            "injected_co2_tonnes": 175112.9724837661,
+            "preliminary_npv_usd": -1601353.3834259892,
+            "npv_without_carbon_usd": -1860345.4697294792,
+            "carbon_price_usd_per_tonne": 3.0,
+            "peak_produced_gas_m3_day": 5592.631578947368,
+            "produced_co2_fraction": 0.7245
+          }
+        },
+        "economic_results": {
+          "W01": {
+            "candidate_id": "W01",
+            "carbon_price_usd_per_tonne": 3.0,
+            "npv_usd": -581797.3112203698,
+            "npv_low_usd": -651300.0949234498,
+            "npv_high_usd": -512294.5275172898,
+            "npv_without_carbon_usd": -614041.6422879851,
+            "net_stored_co2_tonnes": 12644.835712790298,
+            "oil_revenue_usd": 3719077.4571703663,
+            "carbon_revenue_usd": 32244.331067615258,
+            "delivered_co2_cost_usd": 258640.46199699483,
+            "facility_capex_usd": 2523010.8506702716,
+            "facility_opex_usd": 330268.49947545846,
+            "network_allocated_cost_usd": 91521.65394438972,
+            "irr": null,
+            "payback_years": null,
+            "break_even_oil_price_usd_per_bbl": 66.41982231028898,
+            "provenance": {
+              "engine": "NumPy discounted cash-flow components",
+              "uncertainty": "surrogate production and CO2 mass errors propagated to NPV band"
+            }
+          },
+          "W02": {
+            "candidate_id": "W02",
+            "carbon_price_usd_per_tonne": 3.0,
+            "npv_usd": -985734.4987540402,
+            "npv_low_usd": -1053477.0720328372,
+            "npv_high_usd": -917991.9254752431,
+            "npv_without_carbon_usd": -1040547.9598613998,
+            "net_stored_co2_tonnes": 21495.474944062575,
+            "oil_revenue_usd": 3582346.668303809,
+            "carbon_revenue_usd": 54813.461107359566,
+            "delivered_co2_cost_usd": 439688.7853948912,
+            "facility_capex_usd": 2578012.2339022276,
+            "facility_opex_usd": 344792.9656505025,
+            "network_allocated_cost_usd": 155586.81170546252,
+            "irr": null,
+            "payback_years": null,
+            "break_even_oil_price_usd_per_bbl": 75.0870058293706,
+            "provenance": {
+              "engine": "NumPy discounted cash-flow components",
+              "uncertainty": "surrogate production and CO2 mass errors propagated to NPV band"
+            }
+          },
+          "W03": {
+            "candidate_id": "W03",
+            "carbon_price_usd_per_tonne": 3.0,
+            "npv_usd": -1346187.2977712818,
+            "npv_low_usd": -1412169.6082097983,
+            "npv_high_usd": -1280204.9873327652,
+            "npv_without_carbon_usd": -1423568.3228062557,
+            "net_stored_co2_tonnes": 30345.500013715253,
+            "oil_revenue_usd": 3445615.879437251,
+            "carbon_revenue_usd": 77381.02503497389,
+            "delivered_co2_cost_usd": 620737.1087927877,
+            "facility_capex_usd": 2598629.120243948,
+            "facility_opex_usd": 350216.58824884245,
+            "network_allocated_cost_usd": 219651.96946653535,
+            "irr": null,
+            "payback_years": null,
+            "break_even_oil_price_usd_per_bbl": 83.52078588439568,
+            "provenance": {
+              "engine": "NumPy discounted cash-flow components",
+              "uncertainty": "surrogate production and CO2 mass errors propagated to NPV band"
+            }
+          },
+          "W04": {
+            "candidate_id": "W04",
+            "carbon_price_usd_per_tonne": 3.0,
+            "npv_usd": -1743484.4619408106,
+            "npv_low_usd": -1807706.457123049,
+            "npv_high_usd": -1679262.466758572,
+            "npv_without_carbon_usd": -1843431.4847912688,
+            "net_stored_co2_tonnes": 39194.910921748335,
+            "oil_revenue_usd": 3308885.090570694,
+            "carbon_revenue_usd": 99947.02285045825,
+            "delivered_co2_cost_usd": 801785.4321906839,
+            "facility_capex_usd": 2648557.5525549296,
+            "facility_opex_usd": 363172.07807969814,
+            "network_allocated_cost_usd": 283717.1272276081,
+            "irr": null,
+            "payback_years": null,
+            "break_even_oil_price_usd_per_bbl": 93.46442600390445,
+            "provenance": {
+              "engine": "NumPy discounted cash-flow components",
+              "uncertainty": "surrogate production and CO2 mass errors propagated to NPV band"
+            }
+          },
+          "W05": {
+            "candidate_id": "W05",
+            "carbon_price_usd_per_tonne": 3.0,
+            "npv_usd": -1665379.4073185138,
+            "npv_low_usd": -1723175.7217985769,
+            "npv_high_usd": -1607583.0928384508,
+            "npv_without_carbon_usd": -1765600.1656320724,
+            "net_stored_co2_tonnes": 39302.25816217987,
+            "oil_revenue_usd": 2959127.461162586,
+            "carbon_revenue_usd": 100220.75831355865,
+            "delivered_co2_cost_usd": 804009.262970463,
+            "facility_capex_usd": 2360662.287340097,
+            "facility_opex_usd": 306601.90659247676,
+            "network_allocated_cost_usd": 284504.04459346173,
+            "irr": null,
+            "payback_years": null,
+            "break_even_oil_price_usd_per_bbl": 96.08396759850548,
+            "provenance": {
+              "engine": "NumPy discounted cash-flow components",
+              "uncertainty": "surrogate production and CO2 mass errors propagated to NPV band"
+            }
+          },
+          "W06": {
+            "candidate_id": "W06",
+            "carbon_price_usd_per_tonne": 3.0,
+            "npv_usd": -1977403.663319489,
+            "npv_low_usd": -2033491.1498910454,
+            "npv_high_usd": -1921316.1767479326,
+            "npv_without_carbon_usd": -2096082.0222510058,
+            "net_stored_co2_tonnes": 46540.53291432035,
+            "oil_revenue_usd": 2832669.022651364,
+            "carbon_revenue_usd": 118678.35893151688,
+            "delivered_co2_cost_usd": 952116.232465022,
+            "facility_capex_usd": 2382846.6654587826,
+            "facility_opex_usd": 311868.5953248597,
+            "network_allocated_cost_usd": 336912.6843869941,
+            "irr": null,
+            "payback_years": null,
+            "break_even_oil_price_usd_per_bbl": 105.95917181570735,
+            "provenance": {
+              "engine": "NumPy discounted cash-flow components",
+              "uncertainty": "surrogate production and CO2 mass errors propagated to NPV band"
+            }
+          }
+        },
+        "facility_results": {
+          "W01": {
+            "candidate_id": "W01",
+            "compression_power_kw": 869.7262893897007,
+            "pump_power_kw": 773.3337161680911,
+            "total_power_kw": 1643.0600055577918,
+            "separator_capacity_m3_day": 43768.42105263159,
+            "capex_usd": 2523010.8506702716,
+            "annual_opex_usd": 495254.83536068094,
+            "surface_loss_fraction": 0.004690000000000001,
+            "dwsim_validation_status": "postponed",
+            "provenance": {
+              "thermo": "CoolProp real-gas CO2 enthalpy/density",
+              "dwsim_validation": "postponed",
+              "compression_stages": 3
+            }
+          },
+          "W02": {
+            "candidate_id": "W02",
+            "compression_power_kw": 918.0760940443835,
+            "pump_power_kw": 806.5678240740738,
+            "total_power_kw": 1724.6439181184573,
+            "separator_capacity_m3_day": 43768.42105263159,
+            "capex_usd": 2578012.2339022276,
+            "annual_opex_usd": 517035.02970451885,
+            "surface_loss_fraction": 0.004711000000000001,
+            "dwsim_validation_status": "postponed",
+            "provenance": {
+              "thermo": "CoolProp real-gas CO2 enthalpy/density",
+              "dwsim_validation": "postponed",
+              "compression_stages": 3
+            }
+          },
+          "W03": {
+            "candidate_id": "W03",
+            "compression_power_kw": 937.448777777029,
+            "pump_power_kw": 817.6465129392211,
+            "total_power_kw": 1755.09529071625,
+            "separator_capacity_m3_day": 43768.42105263159,
+            "capex_usd": 2598629.120243948,
+            "annual_opex_usd": 525168.034581658,
+            "surface_loss_fraction": 0.004732000000000001,
+            "dwsim_validation_status": "postponed",
+            "provenance": {
+              "thermo": "CoolProp real-gas CO2 enthalpy/density",
+              "dwsim_validation": "postponed",
+              "compression_stages": 3
+            }
+          },
+          "W04": {
+            "candidate_id": "W04",
+            "compression_power_kw": 988.8558126866781,
+            "pump_power_kw": 838.8657080959163,
+            "total_power_kw": 1827.7215207825943,
+            "separator_capacity_m3_day": 43768.42105263159,
+            "capex_usd": 2648557.5525549296,
+            "annual_opex_usd": 544595.4670900198,
+            "surface_loss_fraction": 0.004753,
+            "dwsim_validation_status": "postponed",
+            "provenance": {
+              "thermo": "CoolProp real-gas CO2 enthalpy/density",
+              "dwsim_validation": "postponed",
+              "compression_stages": 3
+            }
+          },
+          "W05": {
+            "candidate_id": "W05",
+            "compression_power_kw": 839.6139494409267,
+            "pump_power_kw": 682.6321082621082,
+            "total_power_kw": 1522.246057703035,
+            "separator_capacity_m3_day": 35014.73684210527,
+            "capex_usd": 2360662.287340097,
+            "annual_opex_usd": 459765.54534233233,
+            "surface_loss_fraction": 0.0047740000000000005,
+            "dwsim_validation_status": "postponed",
+            "provenance": {
+              "thermo": "CoolProp real-gas CO2 enthalpy/density",
+              "dwsim_validation": "postponed",
+              "compression_stages": 3
+            }
+          },
+          "W06": {
+            "candidate_id": "W06",
+            "compression_power_kw": 864.1913239952357,
+            "pump_power_kw": 687.2643138651471,
+            "total_power_kw": 1551.455637860383,
+            "separator_capacity_m3_day": 35014.73684210527,
+            "capex_usd": 2382846.6654587826,
+            "annual_opex_usd": 467663.21970484324,
+            "surface_loss_fraction": 0.004795000000000001,
+            "dwsim_validation_status": "postponed",
+            "provenance": {
+              "thermo": "CoolProp real-gas CO2 enthalpy/density",
+              "dwsim_validation": "postponed",
+              "compression_stages": 3
+            }
+          }
+        },
+        "pipeline": {
+          "solver": "cbc",
+          "status": "ok",
+          "termination_condition": "optimal",
+          "selected_wells": [
+            "W01",
+            "W02",
+            "W03",
+            "W04",
+            "W05",
+            "W06"
+          ],
+          "built_segments": [
+            {
+              "segment_id": "SUBANG_W01",
+              "from_node": "SUBANG",
+              "to_node": "W01",
+              "diameter_in": 8.0,
+              "length_km": 65.26687297309513,
+              "flow_tonnes_per_year": 313135.37,
+              "inlet_pressure_bar": 120.0,
+              "outlet_pressure_bar": 85.77864,
+              "pressure_drop_bar": 34.221359172691514,
+              "dense_phase_ok": true
+            },
+            {
+              "segment_id": "W01_W02",
+              "from_node": "W01",
+              "to_node": "W02",
+              "diameter_in": 6.0,
+              "length_km": 1.7830037695478986,
+              "flow_tonnes_per_year": 292245.52,
+              "inlet_pressure_bar": 85.77864,
+              "outlet_pressure_bar": 83.538927,
+              "pressure_drop_bar": 2.239713232943709,
+              "dense_phase_ok": true
+            },
+            {
+              "segment_id": "W02_W03",
+              "from_node": "W02",
+              "to_node": "W03",
+              "diameter_in": 16.0,
+              "length_km": 1.782992361379543,
+              "flow_tonnes_per_year": 256732.78,
+              "inlet_pressure_bar": 83.538927,
+              "outlet_pressure_bar": 82.792312,
+              "pressure_drop_bar": 0.08721707222199522,
+              "dense_phase_ok": true
+            },
+            {
+              "segment_id": "W03_W04",
+              "from_node": "W03",
+              "to_node": "W04",
+              "diameter_in": 6.0,
+              "length_km": 1.601618301209325,
+              "flow_tonnes_per_year": 206597.13,
+              "inlet_pressure_bar": 82.792312,
+              "outlet_pressure_bar": 81.362308,
+              "pressure_drop_bar": 1.4300039587542095,
+              "dense_phase_ok": true
+            },
+            {
+              "segment_id": "W04_W05",
+              "from_node": "W04",
+              "to_node": "W05",
+              "diameter_in": 6.0,
+              "length_km": 1.601604281999668,
+              "flow_tonnes_per_year": 141838.6,
+              "inlet_pressure_bar": 81.362308,
+              "outlet_pressure_bar": 80.390217,
+              "pressure_drop_bar": 0.9720909328068766,
+              "dense_phase_ok": true
+            },
+            {
+              "segment_id": "W05_W06",
+              "from_node": "W05",
+              "to_node": "W06",
+              "diameter_in": 6.0,
+              "length_km": 1.169898525036311,
+              "flow_tonnes_per_year": 76900.444,
+              "inlet_pressure_bar": 80.390217,
+              "outlet_pressure_bar": 80.0,
+              "pressure_drop_bar": 0.39021672388569556,
+              "dense_phase_ok": true
+            }
+          ],
+          "booster_nodes": [],
+          "node_pressures_bar": {
+            "SUBANG": 120.0,
+            "W01": 85.77864,
+            "W02": 83.538927,
+            "W03": 82.792312,
+            "W04": 81.362308,
+            "W05": 80.390217,
+            "W06": 80.0,
+            "W07": 80.0,
+            "W08": 80.0,
+            "W09": 80.0,
+            "W10": 80.0,
+            "W11": 80.0,
+            "W12": 80.0
+          },
+          "delivered_cost_usd_per_tonne": {
+            "W01": 12.381153983127064,
+            "W02": 12.381153983127064,
+            "W03": 12.381153983127064,
+            "W04": 12.381153983127064,
+            "W05": 12.381153983127064,
+            "W06": 12.381153983127064
+          },
+          "pipeline_capex_usd": 1106366.3639713319,
+          "booster_capex_usd": 0.0,
+          "annual_opex_usd": 33190.99091913996,
+          "total_network_cost_usd": 1371894.2913244516,
+          "solve_time_seconds": 2.6197680999976,
+          "route_provenance": {
+            "active_edge_count": 6,
+            "candidate_edge_count": 36,
+            "hydraulic_method": "CoolProp Darcy-Weisbach linearized at diameter capacity",
+            "solver": "cbc"
+          }
+        },
+        "milp_candidate_limit": 12
+      },
+      "jcm_bilateral": {
+        "carbon_price": 40.0,
+        "portfolio_npv_usd": -2617155.562527681,
+        "portfolio_npv_low_usd": -2965848.09503469,
+        "portfolio_npv_high_usd": -2268463.0300206714,
+        "portfolio_npv_without_carbon_usd": -10023492.863916624,
+        "portfolio_storage_tonnes": 217833.45004085128,
+        "selected_wells": [
+          "W01",
+          "W19"
+        ],
+        "ranking": [
+          "W01",
+          "W19",
+          "W20",
+          "W18",
+          "W17",
+          "W16",
+          "W15",
+          "W14",
+          "W13",
+          "W12",
+          "W11",
+          "W10",
+          "W02",
+          "W09",
+          "W03",
+          "W04",
+          "W05",
+          "W06",
+          "W08",
+          "W07"
+        ],
+        "best_by_candidate": {
+          "W01": {
+            "candidate_id": "W01",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 50946.26653658036,
+            "stored_co2_tonnes": 12742.809114011137,
+            "injected_co2_tonnes": 20889.851006575635,
+            "preliminary_npv_usd": 2709209.595175653,
+            "npv_without_carbon_usd": 2275954.0852992744,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 7294.736842105264,
+            "produced_co2_fraction": 0.5950000000000001
+          },
+          "W02": {
+            "candidate_id": "W02",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 49073.24203155903,
+            "stored_co2_tonnes": 21662.775493818936,
+            "injected_co2_tonnes": 35512.74671117858,
+            "preliminary_npv_usd": 2681208.7023640927,
+            "npv_without_carbon_usd": 1944674.3355742488,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 7294.736842105264,
+            "produced_co2_fraction": 0.6055
+          },
+          "W03": {
+            "candidate_id": "W03",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 47200.217526537686,
+            "stored_co2_tonnes": 30582.741873626732,
+            "injected_co2_tonnes": 50135.64241578153,
+            "preliminary_npv_usd": 2653207.8095525317,
+            "npv_without_carbon_usd": 1613394.585849223,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 7294.736842105264,
+            "produced_co2_fraction": 0.6160000000000001
+          },
+          "W04": {
+            "candidate_id": "W04",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 45327.19302151635,
+            "stored_co2_tonnes": 39502.708253434525,
+            "injected_co2_tonnes": 64758.538120384466,
+            "preliminary_npv_usd": 2625206.9167409716,
+            "npv_without_carbon_usd": 1282114.8361241976,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 7294.736842105264,
+            "produced_co2_fraction": 0.6265000000000001
+          },
+          "W05": {
+            "candidate_id": "W05",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 43828.77341749929,
+            "stored_co2_tonnes": 48422.67463324232,
+            "injected_co2_tonnes": 79381.43382498741,
+            "preliminary_npv_usd": 2617809.293484646,
+            "npv_without_carbon_usd": 971438.3559544072,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 7294.736842105264,
+            "produced_co2_fraction": 0.637
+          },
+          "W06": {
+            "candidate_id": "W06",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 41955.748912477946,
+            "stored_co2_tonnes": 57342.641013050124,
+            "injected_co2_tonnes": 94004.32952959037,
+            "preliminary_npv_usd": 2589808.4006730854,
+            "npv_without_carbon_usd": 640158.6062293813,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 7294.736842105264,
+            "produced_co2_fraction": 0.6475000000000001
+          },
+          "W07": {
+            "candidate_id": "W07",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 30.0,
+              "production_days": 210.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 40457.329308460874,
+            "stored_co2_tonnes": 66262.60739285791,
+            "injected_co2_tonnes": 108627.2252341933,
+            "preliminary_npv_usd": 2582410.777416759,
+            "npv_without_carbon_usd": 329482.1260595905,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 7294.736842105264,
+            "produced_co2_fraction": 0.658
+          },
+          "W08": {
+            "candidate_id": "W08",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 31745.80198696749,
+            "stored_co2_tonnes": 89664.82217545915,
+            "injected_co2_tonnes": 128092.60310779877,
+            "preliminary_npv_usd": 2583569.194456382,
+            "npv_without_carbon_usd": -465034.75950922875,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.6685000000000001
+          },
+          "W09": {
+            "candidate_id": "W09",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 30830.05769888189,
+            "stored_co2_tonnes": 100303.02141661532,
+            "injected_co2_tonnes": 143290.03059516472,
+            "preliminary_npv_usd": 2656302.421259339,
+            "npv_without_carbon_usd": -754000.3069055822,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.679
+          },
+          "W10": {
+            "candidate_id": "W10",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 29914.31341079629,
+            "stored_co2_tonnes": 110941.22065777148,
+            "injected_co2_tonnes": 158487.45808253068,
+            "preliminary_npv_usd": 2729035.6480622943,
+            "npv_without_carbon_usd": -1042965.8543019358,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.6895000000000001
+          },
+          "W11": {
+            "candidate_id": "W11",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 28998.569122710684,
+            "stored_co2_tonnes": 121579.41989892763,
+            "injected_co2_tonnes": 173684.8855698966,
+            "preliminary_npv_usd": 2801768.8748652497,
+            "npv_without_carbon_usd": -1331931.4016982892,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.7000000000000001
+          },
+          "W12": {
+            "candidate_id": "W12",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 28388.072930653623,
+            "stored_co2_tonnes": 132217.61914008384,
+            "injected_co2_tonnes": 188882.31305726263,
+            "preliminary_npv_usd": 2891290.7469497765,
+            "npv_without_carbon_usd": -1604108.3038130742,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.7105
+          },
+          "W13": {
+            "candidate_id": "W13",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 27777.576738596556,
+            "stored_co2_tonnes": 142855.81838124,
+            "injected_co2_tonnes": 204079.74054462856,
+            "preliminary_npv_usd": 2980812.6190343024,
+            "npv_without_carbon_usd": -1876285.2059278581,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.7210000000000001
+          },
+          "W14": {
+            "candidate_id": "W14",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 27167.080546539488,
+            "stored_co2_tonnes": 153494.01762239615,
+            "injected_co2_tonnes": 219277.1680319945,
+            "preliminary_npv_usd": 3070334.491118827,
+            "npv_without_carbon_usd": -2148462.1080426415,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.7315
+          },
+          "W15": {
+            "candidate_id": "W15",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 26556.58435448242,
+            "stored_co2_tonnes": 164132.21686355234,
+            "injected_co2_tonnes": 234474.59551936048,
+            "preliminary_npv_usd": 3159856.3632033532,
+            "npv_without_carbon_usd": -2420639.010157426,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.7420000000000001
+          },
+          "W16": {
+            "candidate_id": "W16",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 25946.088162425352,
+            "stored_co2_tonnes": 174770.41610470848,
+            "injected_co2_tonnes": 249672.02300672638,
+            "preliminary_npv_usd": 3249378.235287878,
+            "npv_without_carbon_usd": -2692815.91227221,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.7525000000000001
+          },
+          "W17": {
+            "candidate_id": "W17",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 25335.591970368285,
+            "stored_co2_tonnes": 185408.61534586467,
+            "injected_co2_tonnes": 264869.45049409237,
+            "preliminary_npv_usd": 3338900.107372404,
+            "npv_without_carbon_usd": -2964992.8143869946,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.7630000000000001
+          },
+          "W18": {
+            "candidate_id": "W18",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 24725.095778311217,
+            "stored_co2_tonnes": 196046.81458702084,
+            "injected_co2_tonnes": 280066.8779814583,
+            "preliminary_npv_usd": 3428421.979456929,
+            "npv_without_carbon_usd": -3237169.7165017794,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.7735000000000001
+          },
+          "W19": {
+            "candidate_id": "W19",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 24114.599586254153,
+            "stored_co2_tonnes": 206685.013828177,
+            "injected_co2_tonnes": 295264.3054688243,
+            "preliminary_npv_usd": 3517943.851541456,
+            "npv_without_carbon_usd": -3509346.6186165623,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.784
+          },
+          "W20": {
+            "candidate_id": "W20",
+            "parameters": {
+              "injection_rate_m3_day": 10000.0,
+              "soak_days": 35.0,
+              "production_days": 170.0,
+              "production_bhp_psi": 675.0,
+              "cycles": 4
+            },
+            "oil_bbl": 23504.103394197085,
+            "stored_co2_tonnes": 217323.21306933314,
+            "injected_co2_tonnes": 310461.7329561902,
+            "preliminary_npv_usd": 3607465.72362598,
+            "npv_without_carbon_usd": -3781523.520731346,
+            "carbon_price_usd_per_tonne": 40.0,
+            "peak_produced_gas_m3_day": 5905.263157894737,
+            "produced_co2_fraction": 0.7945000000000001
+          }
+        },
+        "economic_results": {
+          "W01": {
+            "candidate_id": "W01",
+            "carbon_price_usd_per_tonne": 40.0,
+            "npv_usd": -264296.4349817885,
+            "npv_low_usd": -347109.1202377609,
+            "npv_high_usd": -181483.74972581613,
+            "npv_without_carbon_usd": -694220.8492166586,
+            "net_stored_co2_tonnes": 12644.835712790298,
+            "oil_revenue_usd": 3719077.4571703663,
+            "carbon_revenue_usd": 429924.4142348701,
+            "delivered_co2_cost_usd": 350545.196046736,
+            "facility_capex_usd": 2375889.318361752,
+            "facility_opex_usd": 373759.770613169,
+            "network_allocated_cost_usd": 183426.38799413093,
+            "irr": null,
+            "payback_years": null,
+            "break_even_oil_price_usd_per_bbl": 60.18774883714038,
+            "provenance": {
+              "engine": "NumPy discounted cash-flow components",
+              "uncertainty": "surrogate production and CO2 mass errors propagated to NPV band"
+            }
+          },
+          "W19": {
+            "candidate_id": "W19",
+            "carbon_price_usd_per_tonne": 40.0,
+            "npv_usd": -2352859.1275458923,
+            "npv_low_usd": -2618738.9747969294,
+            "npv_high_usd": -2086979.2802948551,
+            "npv_without_carbon_usd": -9329272.014699966,
+            "net_stored_co2_tonnes": 205188.614328061,
+            "oil_revenue_usd": 1760365.769796553,
+            "carbon_revenue_usd": 6976412.887154073,
+            "delivered_co2_cost_usd": 4954725.805061601,
+            "facility_capex_usd": 2330500.179169004,
+            "facility_opex_usd": 372549.03207427077,
+            "network_allocated_cost_usd": 2592611.361311007,
+            "irr": null,
+            "payback_years": null,
+            "break_even_oil_price_usd_per_bbl": 152.56990237926544,
+            "provenance": {
+              "engine": "NumPy discounted cash-flow components",
+              "uncertainty": "surrogate production and CO2 mass errors propagated to NPV band"
+            }
+          }
+        },
+        "facility_results": {
+          "W01": {
+            "candidate_id": "W01",
+            "compression_power_kw": 1080.2391549940444,
+            "pump_power_kw": 859.0803923314338,
+            "total_power_kw": 1939.3195473254782,
+            "separator_capacity_m3_day": 14589.473684210529,
+            "capex_usd": 2375889.318361752,
+            "annual_opex_usd": 560472.264092585,
+            "surface_loss_fraction": 0.004690000000000001,
+            "dwsim_validation_status": "postponed",
+            "provenance": {
+              "thermo": "CoolProp real-gas CO2 enthalpy/density",
+              "dwsim_validation": "postponed",
+              "compression_stages": 3
+            }
+          },
+          "W19": {
+            "candidate_id": "W19",
+            "compression_power_kw": 1080.2391549940444,
+            "pump_power_kw": 859.0803923314338,
+            "total_power_kw": 1939.3195473254782,
+            "separator_capacity_m3_day": 11810.526315789473,
+            "capex_usd": 2330500.179169004,
+            "annual_opex_usd": 558656.698524875,
+            "surface_loss_fraction": 0.0050680000000000005,
+            "dwsim_validation_status": "postponed",
+            "provenance": {
+              "thermo": "CoolProp real-gas CO2 enthalpy/density",
+              "dwsim_validation": "postponed",
+              "compression_stages": 3
+            }
+          }
+        },
+        "pipeline": {
+          "solver": "cbc",
+          "status": "aborted",
+          "termination_condition": "maxTimeLimit",
+          "selected_wells": [
+            "W01",
+            "W19"
+          ],
+          "built_segments": [
+            {
+              "segment_id": "SUBANG_W01",
+              "from_node": "SUBANG",
+              "to_node": "W01",
+              "diameter_in": 6.0,
+              "length_km": 65.26687297309513,
+              "flow_tonnes_per_year": 20889.851,
+              "inlet_pressure_bar": 120.0,
+              "outlet_pressure_bar": 80.0,
+              "pressure_drop_bar": 5.772333173082049,
+              "dense_phase_ok": true
+            },
+            {
+              "segment_id": "SUBANG_W13",
+              "from_node": "SUBANG",
+              "to_node": "W13",
+              "diameter_in": 10.0,
+              "length_km": 74.25046710081095,
+              "flow_tonnes_per_year": 295264.31,
+              "inlet_pressure_bar": 120.0,
+              "outlet_pressure_bar": 102.08321,
+              "pressure_drop_bar": 17.91679316723449,
+              "dense_phase_ok": true
+            },
+            {
+              "segment_id": "W13_W14",
+              "from_node": "W13",
+              "to_node": "W14",
+              "diameter_in": 8.0,
+              "length_km": 1.2949934716709304,
+              "flow_tonnes_per_year": 295264.31,
+              "inlet_pressure_bar": 102.08321,
+              "outlet_pressure_bar": 101.45582,
+              "pressure_drop_bar": 0.6273850759731544,
+              "dense_phase_ok": true
+            },
+            {
+              "segment_id": "W14_W15",
+              "from_node": "W14",
+              "to_node": "W15",
+              "diameter_in": 10.0,
+              "length_km": 1.1697991237075764,
+              "flow_tonnes_per_year": 295264.31,
+              "inlet_pressure_bar": 101.45582,
+              "outlet_pressure_bar": 85.394623,
+              "pressure_drop_bar": 0.28729603433531137,
+              "dense_phase_ok": true
+            },
+            {
+              "segment_id": "W15_W16",
+              "from_node": "W15",
+              "to_node": "W16",
+              "diameter_in": 8.0,
+              "length_km": 1.2949754649837808,
+              "flow_tonnes_per_year": 295264.31,
+              "inlet_pressure_bar": 85.394623,
+              "outlet_pressure_bar": 84.750271,
+              "pressure_drop_bar": 0.644352282186338,
+              "dense_phase_ok": true
+            },
+            {
+              "segment_id": "W16_W18",
+              "from_node": "W16",
+              "to_node": "W18",
+              "diameter_in": 6.0,
+              "length_km": 2.589918450750078,
+              "flow_tonnes_per_year": 295264.31,
+              "inlet_pressure_bar": 84.750271,
+              "outlet_pressure_bar": 81.488022,
+              "pressure_drop_bar": 3.262248797570762,
+              "dense_phase_ok": true
+            },
+            {
+              "segment_id": "W18_W19",
+              "from_node": "W18",
+              "to_node": "W19",
+              "diameter_in": 6.0,
+              "length_km": 1.1697557035650834,
+              "flow_tonnes_per_year": 295264.31,
+              "inlet_pressure_bar": 81.488022,
+              "outlet_pressure_bar": 80.0,
+              "pressure_drop_bar": 1.4880223145051417,
+              "dense_phase_ok": true
+            }
+          ],
+          "booster_nodes": [],
+          "node_pressures_bar": {
+            "SUBANG": 120.0,
+            "W01": 80.0,
+            "W10": 80.0,
+            "W11": 80.0,
+            "W12": 80.0,
+            "W13": 102.08321,
+            "W14": 101.45582,
+            "W15": 85.394623,
+            "W16": 84.750271,
+            "W17": 80.0,
+            "W18": 81.488022,
+            "W19": 80.0,
+            "W20": 160.0
+          },
+          "delivered_cost_usd_per_tonne": {
+            "W01": 16.78064606283657,
+            "W19": 16.78064606283657
+          },
+          "pipeline_capex_usd": 2238740.120407369,
+          "booster_capex_usd": 0.0,
+          "annual_opex_usd": 67162.20361222107,
+          "total_network_cost_usd": 2776037.7493051374,
+          "solve_time_seconds": 29.964633399999002,
+          "route_provenance": {
+            "active_edge_count": 7,
+            "candidate_edge_count": 31,
+            "hydraulic_method": "CoolProp Darcy-Weisbach linearized at diameter capacity",
+            "solver": "cbc"
+          }
+        },
+        "milp_candidate_limit": 12
+      }
+    },
+    "changed_priority_count": 18,
+    "candidate_count": 20,
+    "break_even_carbon_price_usd_per_tonne": 54.5223152398562,
+    "method": "A* SRTM routing + CoolProp hydraulics/facility + Pyomo/CBC MILP + NumPy economics"
+  },
+  "filled_excerpt": "Applied to a Jatibarang-anchored case study with 177 geological realizations spanning porosity 0.17 to 0.22 and matrix permeability 10.0 to 114.0 mD, the surrogate achieves one-step pressure R2 of 0.9999, gas plume IoU of 0.9756, and cumulative production error below 1.84%, with end-of-sequence CO2 mass error of 3.35%. The framework screens 3240 integrated scenarios in 0.6351 minutes versus 2.38 weeks for equivalent compositional coverage. Under current carbon pricing the optimal plan yields NPV of $-8.30 million; under JCM bilateral pricing NPV rises to $-2.62 million and well selection shifts, with 18 of 20 candidates changing priority. The break-even carbon price is $54.52 per tonne. These results demonstrate that surrogate-enabled integrated screening materially improves CO2 HnP-CCUS planning and that Indonesian carbon pricing, even at nascent levels, alters which development strategies are optimal."
+}

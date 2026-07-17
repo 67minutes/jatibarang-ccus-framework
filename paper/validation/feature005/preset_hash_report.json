@@ -1,0 +1,36 @@
+{
+  "preset_id": "jatibarang_demo_v1",
+  "logical_scenarios": 200,
+  "geology_count": 20,
+  "schedule_count": 10,
+  "ready": false,
+  "manifest_path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\screening_presets\\jatibarang_demo_v1\\manifest.json",
+  "payload_sha256": "",
+  "reason": "manifest is missing",
+  "component_catalog": {
+    "geology": {
+      "preset_id": "jatibarang_proxy_geologies_v1",
+      "count": 20,
+      "design_sha256": "701ECAE3F475D81F37A8DDE2D374D56289383A989EB423095BA4B11E0CD4D144",
+      "ready": true
+    },
+    "terrain": {
+      "preset_id": "jatibarang_srtm_v1",
+      "path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\terrain\\12. DEM SRTM 30m Provinsi Jawa Barat\\DEM SRTM 30M JAWA BARAT.tif",
+      "expected_sha256": "AA9CC7AD4BD0CB390A80CB8B2CE06061745CFCFE2B010D39F808CF74C506826E",
+      "ready": true
+    },
+    "supply": {
+      "preset_id": "subang_supply_v1",
+      "source_id": "SUBANG",
+      "sha256": "AAA5675D6F155CE856F457396AA23A05389CDE7472499DDB197DB1F86D6AB204",
+      "ready": true
+    },
+    "well_locations": {
+      "preset_id": "jatibarang_w01_w20_v1",
+      "count": 20,
+      "sha256": "7891C65D2F5C99C19450BDC11E63299FF5FB744A5BB0F11192C1E83BCA768897",
+      "ready": true
+    }
+  }
+}

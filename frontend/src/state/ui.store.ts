@@ -9,7 +9,8 @@ export type ModalKind =
   | "find"
   | "compare"
   | "preferences"
-  | "validate";
+  | "validate"
+  | "newStudy";
 
 export interface Banner {
   id: string;

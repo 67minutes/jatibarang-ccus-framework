@@ -73,6 +73,11 @@ from .schemas import (
     PresetInfo,
     PresetScreenRequest,
     ProgressEvent,
+    ReservoirBaselineState,
+    ReservoirFieldMetadata,
+    ReservoirGridGeometry,
+    ReservoirStaticFields,
+    ReservoirVisualization,
     RunTimings,
     ScreenFlag,
     ScreenRequest,
@@ -106,10 +111,13 @@ class ScreeningServices:
 class _ScenarioRecord:
     scenario_id: str
     candidate_id: str
+    geology_id: str
     location: Any
     produced_co2: Any
     schedule: Any
     input_fingerprint: str
+    seed_source_class: str
+    seed_source_id: str
 
 
 def _chunks(values: list[Any], size: int) -> Iterable[list[Any]]:
@@ -146,9 +154,10 @@ class _DetailedFieldStore:
         self.enabled = enabled
         self._temporary = tempfile.TemporaryDirectory(prefix="jatibarang-feature005-") if enabled else None
 
-    def save(self, fingerprint: str, compiled: Any, prediction: Any) -> None:
+    def save(self, fingerprint: str, compiled: Any, prediction: Any, materialized: MaterializedScenario) -> None:
         if not self.enabled or self._temporary is None:
             return
+        geology = materialized.predict_request.geology
         np.savez(
             Path(self._temporary.name) / f"{fingerprint}.npz",
             seed_pressure=np.asarray(compiled.seed_pressure_bar, dtype=np.float32),
@@ -158,6 +167,27 @@ class _DetailedFieldStore:
             forecast_gas=np.asarray(prediction.pred_normalized[:, 1], dtype=np.float32),
             forecast_z=np.asarray(prediction.pred_normalized[:, 2], dtype=np.float32),
             forecast_oil=np.asarray(prediction.pred_normalized[:, 3], dtype=np.float32),
+            permeability_md=geology.permeability_md.as_array(),
+            porosity_fraction=geology.porosity_fraction.as_array(),
+            structure_m=geology.structure_m.as_array(),
+            fracture_proxy=geology.fracture_proxy.as_array(),
+            barrier=geology.barrier.as_array(),
+            facies=geology.facies.as_array(),
+            well_mask=geology.well_mask.as_array(),
+            completion_mask=geology.completion_mask.as_array(),
+            # Dynamic display deltas are referenced to the final warm-start
+            # frame (t=7), exactly where the free surrogate rollout begins.
+            # The request initial state is still carried by the prediction
+            # contract, but it is not the relevant comparison datum here.
+            baseline_pressure_bar=np.asarray(compiled.seed_pressure_bar[-1], dtype=np.float32),
+            baseline_gas_saturation=np.asarray(
+                compiled.seed_gas_saturation[-1], dtype=np.float32
+            ),
+            baseline_z_co2=np.asarray(compiled.seed_z_co2[-1], dtype=np.float32),
+            geometry=np.asarray(
+                [geology.length_x_m, geology.length_y_m, geology.thickness_m],
+                dtype=np.float64,
+            ),
         )
 
     def attach(self, fingerprint: str, compact: Any, *, scenario_id: str) -> Any:
@@ -188,6 +218,115 @@ class _DetailedFieldStore:
                 for index in range(len(arrays["forecast_pressure"]))
             )
         return compact.model_copy(update={"scenario_id": scenario_id, "fields": fields})
+
+    def reservoir(
+        self,
+        fingerprint: str,
+        *,
+        scenario_id: str,
+        geology_id: str,
+        seed_source_class: str,
+        seed_source_id: str,
+    ) -> ReservoirVisualization:
+        if not self.enabled or self._temporary is None:
+            raise RuntimeError("detailed reservoir fields were not retained")
+        path = Path(self._temporary.name) / f"{fingerprint}.npz"
+        with np.load(path, allow_pickle=False) as arrays:
+            static_arrays = {
+                name: np.asarray(arrays[name], dtype=np.float32)
+                for name in (
+                    "permeability_md",
+                    "porosity_fraction",
+                    "structure_m",
+                    "fracture_proxy",
+                    "barrier",
+                    "facies",
+                    "well_mask",
+                    "completion_mask",
+                )
+            }
+            baseline_arrays = {
+                "pressure_bar": np.asarray(arrays["baseline_pressure_bar"], dtype=np.float32),
+                "gas_saturation": np.asarray(
+                    arrays["baseline_gas_saturation"], dtype=np.float32
+                ),
+                "z_co2": np.asarray(arrays["baseline_z_co2"], dtype=np.float32),
+            }
+            display_arrays = {
+                "pressure_bar": np.concatenate(
+                    (arrays["seed_pressure"], arrays["forecast_pressure"]), axis=0
+                ).astype(np.float32)
+                - baseline_arrays["pressure_bar"][None, :, :],
+                "gas_saturation": np.concatenate(
+                    (arrays["seed_gas"], arrays["forecast_gas"]), axis=0
+                ).astype(np.float32),
+                "z_co2": np.concatenate(
+                    (arrays["seed_z"], arrays["forecast_z"]), axis=0
+                ).astype(np.float32),
+            }
+            length_x_m, length_y_m, thickness_m = arrays["geometry"].astype(float).tolist()
+
+        static_source = (
+            "mrst_derived_geology"
+            if seed_source_class == "mrst_ground_truth"
+            else "surrogate_input_proxy"
+        )
+        metadata_specs = {
+            "permeability_md": ("Permeability", "mD", "log10", static_source),
+            "porosity_fraction": ("Porosity", "fraction", "linear", static_source),
+            "structure_m": ("Relative structure", "m", "linear", static_source),
+            "fracture_proxy": ("Fracture proxy", "fraction", "linear", static_source),
+            "barrier": ("Barrier", "fraction", "binary", static_source),
+            "facies": ("Facies", "code", "categorical", static_source),
+            "well_mask": ("Well mask", "fraction", "binary", static_source),
+            "completion_mask": ("Completion mask", "fraction", "binary", static_source),
+            "pressure_bar": ("Pressure change from final warm start", "bar", "linear", "seed_and_surrogate_prediction"),
+            "gas_saturation": ("Gas saturation", "fraction", "linear", "seed_and_surrogate_prediction"),
+            "z_co2": ("CO2 composition", "fraction", "linear", "seed_and_surrogate_prediction"),
+        }
+        all_arrays = {**static_arrays, **display_arrays}
+        field_metadata = {
+            name: ReservoirFieldMetadata(
+                label=label,
+                unit=unit,
+                minimum=float(np.min(all_arrays[name])),
+                maximum=float(np.max(all_arrays[name])),
+                scale=scale,
+                source_class=source_class,
+            )
+            for name, (label, unit, scale, source_class) in metadata_specs.items()
+        }
+        return ReservoirVisualization(
+            scenario_id=scenario_id,
+            geology_id=geology_id,
+            grid=ReservoirGridGeometry(
+                length_x_m=length_x_m,
+                length_y_m=length_y_m,
+                thickness_m=thickness_m,
+            ),
+            static_fields=ReservoirStaticFields(
+                **{
+                    name: Grid2D.from_array(values)
+                    for name, values in static_arrays.items()
+                }
+            ),
+            baseline_state=ReservoirBaselineState(
+                pressure_bar=Grid2D.from_array(baseline_arrays["pressure_bar"]),
+                gas_saturation=Grid2D.from_array(baseline_arrays["gas_saturation"]),
+                z_co2=Grid2D.from_array(baseline_arrays["z_co2"]),
+            ),
+            field_metadata=field_metadata,
+            provenance={
+                "coordinate_reference": "local_proxy_grid",
+                "geometry_source_class": static_source,
+                "baseline_source_class": seed_source_class,
+                "baseline_source_id": seed_source_id,
+                "baseline_frame_index": 7,
+                "baseline_semantics": "final_warm_start_frame",
+                "vertical_layers": 1,
+                "surveyed_orientation": False,
+            },
+        )
 
     def cleanup(self) -> None:
         if self._temporary is not None:
@@ -469,10 +608,13 @@ class ScreeningOrchestrator:
                         _ScenarioRecord(
                             scenario_id=item.scenario_id,
                             candidate_id=item.candidate_id,
+                            geology_id=item.geology_id,
                             location=item.location,
                             produced_co2=item.produced_co2,
                             schedule=item.schedule,
                             input_fingerprint=item.input_fingerprint,
+                            seed_source_class=item.predict_request.seed.source_class,
+                            seed_source_id=item.predict_request.seed.source_id,
                         )
                     )
                 new_items = [
@@ -491,7 +633,7 @@ class ScreeningOrchestrator:
                     compact_by_fingerprint[fingerprint] = build_prediction_result(
                         compiled_item, prediction, self.runner, include_fields=False
                     )
-                    field_store.save(fingerprint, compiled_item, prediction)
+                    field_store.save(fingerprint, compiled_item, prediction, _scenario)
                 for item in materialized_chunk:
                     prediction_by_scenario[item.scenario_id] = compact_by_fingerprint[
                         item.input_fingerprint
@@ -521,7 +663,7 @@ class ScreeningOrchestrator:
                     compact_by_fingerprint[fingerprint] = build_prediction_result(
                         compiled_item, prediction, self.runner, include_fields=False
                     )
-                    field_store.save(fingerprint, compiled_item, prediction)
+                    field_store.save(fingerprint, compiled_item, prediction, _scenario)
                 completed += len(chunk)
                 yield event("progress", "surrogate", completed=completed, total=len(unique_items))
                 cancelled()
@@ -535,10 +677,13 @@ class ScreeningOrchestrator:
                 _ScenarioRecord(
                     scenario_id=item.scenario_id,
                     candidate_id=item.candidate_id,
+                    geology_id=item.geology_id,
                     location=item.location,
                     produced_co2=item.produced_co2,
                     schedule=item.schedule,
                     input_fingerprint=item.input_fingerprint,
+                    seed_source_class=item.predict_request.seed.source_class,
+                    seed_source_id=item.predict_request.seed.source_id,
                 )
                 for item in materialized
             ]
@@ -1139,13 +1284,46 @@ class ScreeningOrchestrator:
             detail_ids.extend(
                 sorted(selected_scenarios - set(detail_ids))[: request.detailed_top_k - len(detail_ids)]
             )
+        # A rational no-development result has no selected wells, but it still
+        # needs inspectable reservoir evidence. Fill any remaining detail slots
+        # from the real pre-logistics ranking; do not substitute a demo plume or
+        # relabel another field in the frontend.
+        if len(detail_ids) < request.detailed_top_k:
+            preliminary_detail: dict[str, tuple[float, str]] = {}
+            for plan in plans:
+                for strategy in plan.well_strategies:
+                    value = (
+                        float(strategy.preliminary_npv_usd)
+                        if strategy.preliminary_npv_usd is not None
+                        else float("-inf")
+                    )
+                    previous = preliminary_detail.get(strategy.scenario_id)
+                    if previous is None or value > previous[0]:
+                        preliminary_detail[strategy.scenario_id] = (value, strategy.candidate_id)
+            fallback_ids = sorted(
+                (scenario_id for scenario_id in preliminary_detail if scenario_id not in detail_ids),
+                key=lambda scenario_id: (
+                    -preliminary_detail[scenario_id][0],
+                    preliminary_detail[scenario_id][1],
+                    scenario_id,
+                ),
+            )
+            detail_ids.extend(fallback_ids[: request.detailed_top_k - len(detail_ids)])
         detailed = {}
+        detailed_reservoirs = {}
         for scenario_id in detail_ids:
             scenario = scenario_by_id[scenario_id]
             detailed[scenario_id] = field_store.attach(
                 scenario.input_fingerprint,
                 compact_by_fingerprint[scenario.input_fingerprint],
                 scenario_id=scenario_id,
+            )
+            detailed_reservoirs[scenario_id] = field_store.reservoir(
+                scenario.input_fingerprint,
+                scenario_id=scenario_id,
+                geology_id=scenario.geology_id,
+                seed_source_class=scenario.seed_source_class,
+                seed_source_id=scenario.seed_source_id,
             )
         field_store.cleanup()
 
@@ -1166,6 +1344,7 @@ class ScreeningOrchestrator:
             cross_price_comparison=cross_price,
             shortlist=shortlist,
             detailed_predictions=detailed,
+            detailed_reservoirs=detailed_reservoirs,
             timings=RunTimings(
                 total_seconds=perf_counter() - overall_started,
                 stages_seconds=stages,

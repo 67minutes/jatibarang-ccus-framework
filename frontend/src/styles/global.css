@@ -112,7 +112,8 @@ select:focus-visible {
 }
 
 input,
-select {
+select,
+textarea {
   font-family: inherit;
   font-size: var(--fs-sm);
   color: var(--text);
@@ -120,6 +121,11 @@ select {
   border: 1px solid var(--border);
   border-radius: 2px;
   padding: 3px 6px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 58px;
 }
 
 code,

@@ -12,3 +12,8 @@ Current local checkpoint:
 
 Do not substitute another checkpoint unless the user explicitly changes the
 promoted model.
+
+The service verifies the hash before deserializing the checkpoint. A small tracked
+derivative of the promoted one-step/T+5/T+10/T+11/T+24 accuracy metadata lives at
+`models/metadata/production_v2_accuracy.json`; it contains no model weights or raw
+training cases and is returned through `GET /model/info`.

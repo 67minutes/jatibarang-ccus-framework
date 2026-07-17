@@ -1,0 +1,29 @@
+{
+  "base": {
+    "objective_bound_usd": 28384598.985338543,
+    "objective_value_usd": 28384598.985338543,
+    "optimality_gap": 0.0,
+    "solve_time_seconds": 1.0437218000879511,
+    "solver": "cbc",
+    "solver_status": "ok",
+    "termination_condition": "optimal"
+  },
+  "high": {
+    "objective_bound_usd": 60620951.71315341,
+    "objective_value_usd": 60620951.71315341,
+    "optimality_gap": 0.0,
+    "solve_time_seconds": 1.620197599986568,
+    "solver": "cbc",
+    "solver_status": "ok",
+    "termination_condition": "optimal"
+  },
+  "low": {
+    "objective_bound_usd": 21303927.882120483,
+    "objective_value_usd": 21303927.882120483,
+    "optimality_gap": 0.0,
+    "solve_time_seconds": 2.259634199901484,
+    "solver": "cbc",
+    "solver_status": "ok",
+    "termination_condition": "optimal"
+  }
+}

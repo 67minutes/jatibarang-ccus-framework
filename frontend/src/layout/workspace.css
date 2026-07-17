@@ -56,6 +56,124 @@
   min-height: 0;
 }
 
+/* ---- Accessible split panes ------------------------------------------- */
+.workspace-splitter-shell {
+  position: relative;
+  z-index: 20;
+  flex: 0 0 6px;
+  background: var(--bg-chrome);
+}
+
+.workspace-splitter-shell.vertical {
+  width: 6px;
+  min-width: 6px;
+}
+
+.workspace-splitter-shell.horizontal {
+  width: 100%;
+  height: 6px;
+  min-height: 6px;
+}
+
+.workspace-splitter-shell.collapsed.vertical {
+  flex-basis: 8px;
+  width: 8px;
+  min-width: 8px;
+}
+
+.workspace-splitter-shell.collapsed.horizontal {
+  flex-basis: 8px;
+  height: 8px;
+  min-height: 8px;
+}
+
+.workspace-splitter-grip {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.workspace-splitter-shell.vertical .workspace-splitter-grip {
+  cursor: col-resize;
+}
+
+.workspace-splitter-shell.horizontal .workspace-splitter-grip {
+  cursor: row-resize;
+}
+
+.workspace-splitter-grip::after {
+  position: absolute;
+  content: "";
+  background: var(--border-strong);
+  transition: background-color 100ms ease;
+}
+
+.workspace-splitter-shell.vertical .workspace-splitter-grip::after {
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 1px;
+}
+
+.workspace-splitter-shell.horizontal .workspace-splitter-grip::after {
+  right: 0;
+  bottom: 2px;
+  left: 0;
+  height: 1px;
+}
+
+.workspace-splitter-grip:hover::after,
+.workspace-splitter-grip:focus-visible::after {
+  background: var(--accent);
+}
+
+.workspace-splitter-grip:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.workspace-splitter-toggle {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--bg-panel-alt);
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.workspace-splitter-shell.vertical .workspace-splitter-toggle {
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+}
+
+.workspace-splitter-shell.horizontal .workspace-splitter-toggle {
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+}
+
+.workspace-splitter-toggle:hover,
+.workspace-splitter-toggle:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.workspace-resizing,
+.workspace-resizing * {
+  cursor: inherit !important;
+  user-select: none !important;
+}
+
 /* ---- Panels ------------------------------------------------------------ */
 .panel {
   display: flex;
@@ -163,6 +281,35 @@
 .tree-node-dim {
   color: var(--text-dim);
 }
+.study-draft-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px 12px;
+  border-left: 2px solid #4f9dac;
+}
+.study-draft-summary .tree-group-label {
+  padding: 0;
+  color: #6cc0cd;
+}
+.study-draft-summary strong {
+  font-size: var(--fs-sm);
+}
+.study-draft-summary span:not(.tree-group-label) {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+.study-draft-inspector {
+  padding: 12px;
+}
+.study-draft-inspector h3 {
+  font-size: var(--fs-lg);
+}
+.study-draft-inspector p {
+  margin: 6px 0 0;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
 
 /* ---- Modals ------------------------------------------------------------ */
 .modal-scrim {
@@ -181,6 +328,9 @@
   border: 1px solid var(--border-strong);
   border-radius: 4px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+.modal-wide {
+  width: min(720px, 94vw);
 }
 .modal-head {
   display: flex;
@@ -203,6 +353,75 @@
 }
 .modal-close:hover {
   background: var(--bg-hover);
+}
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.dialog-intro {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.dialog-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+.dialog-field-wide {
+  grid-column: 1 / -1;
+}
+.dialog-field input,
+.dialog-field select,
+.dialog-field textarea {
+  width: 100%;
+}
+.dialog-field input[readonly] {
+  color: var(--text-faint);
+  background: #181b20;
+}
+.dialog-field small,
+.dialog-check small {
+  display: block;
+  color: var(--text-faint);
+  line-height: 1.4;
+}
+.dialog-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 20px;
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+.dialog-check input {
+  margin-top: 2px;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 700px) {
+  .dialog-grid {
+    grid-template-columns: 1fr;
+  }
+  .dialog-field-wide {
+    grid-column: auto;
+  }
 }
 
 .kv {

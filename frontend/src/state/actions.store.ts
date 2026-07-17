@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { NewStudyOptions } from "./study.store";
 
 /**
  * Registry of imperative actions that live in feature components (Phase 3+).
@@ -10,7 +11,7 @@ import { create } from "zustand";
  */
 
 export interface WorkbenchActions {
-  newStudy?: () => void;
+  createNewStudy?: (options: NewStudyOptions) => void;
   openStudy?: () => void;
   saveStudy?: () => void;
   saveStudyAs?: () => void;

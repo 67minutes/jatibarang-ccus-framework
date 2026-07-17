@@ -1,5 +1,8 @@
 import { getActions } from "../state/actions.store";
 import { useUiStore } from "../state/ui.store";
+import { useSelectionStore } from "../state/selection.store";
+import { useLedgerStore } from "../state/ledger.store";
+import { availablePredictionFields } from "../viewport/fieldAvailability";
 import {
   EXAGGERATION_MAX,
   EXAGGERATION_MIN,
@@ -55,6 +58,23 @@ function ws() {
   return useWorkspaceStore.getState();
 }
 
+function selectedFieldIsAvailable(field: CellField): boolean {
+  const ledger = useLedgerStore.getState();
+  const entry = ledger.entryById(ledger.activeEntryId);
+  const selection = useSelectionStore.getState().selection;
+  const scenarioId = selection.scenarioId
+    ?? (selection.kind === "well" && selection.id
+      ? Object.keys(entry?.result.detailed_predictions ?? {}).find(
+          (id) => id === selection.id || id.startsWith(`${selection.id}--`),
+        )
+      : null);
+  if (!entry || !scenarioId) return false;
+  const prediction = entry.result.detailed_predictions[scenarioId];
+  const reservoir = entry.result.detailed_reservoirs?.[scenarioId];
+  if (!prediction || !reservoir) return false;
+  return availablePredictionFields(prediction, reservoir.baseline_state).has(field);
+}
+
 export const commands: Command[] = [
   // ---- File -------------------------------------------------------------
   {
@@ -63,8 +83,7 @@ export const commands: Command[] = [
     shortcut: "Ctrl+N",
     toolbar: true,
     icon: "🗋",
-    run: () => getActions().newStudy?.(),
-    isEnabled: () => Boolean(getActions().newStudy),
+    run: () => useUiStore.getState().openModal("newStudy"),
   },
   {
     id: "file.open",
@@ -102,6 +121,12 @@ export const commands: Command[] = [
     label: "Export Scene Snapshot PNG",
     run: () => getActions().exportSnapshot?.(),
     isEnabled: () => Boolean(getActions().exportSnapshot),
+  },
+  {
+    id: "file.exportMemo",
+    label: "Export Study Memo JSON",
+    run: () => getActions().saveStudyAs?.(),
+    isEnabled: () => Boolean(getActions().saveStudyAs && getActions().hasActiveResult?.()),
   },
 
   // ---- Edit -------------------------------------------------------------
@@ -170,6 +195,11 @@ export const commands: Command[] = [
     label: "Show Dashboard",
     run: () => ws().togglePanel("dashboard"),
   },
+  ...(["routes", "boosters", "exclusions", "labels"] as const).map<Command>((layer) => ({
+    id: `view.layer.${layer}`,
+    label: `${layer[0].toUpperCase()}${layer.slice(1)}`,
+    run: () => ws().toggleLayer(layer),
+  })),
   {
     id: "view.exaggUp",
     label: "Increase Vertical Exaggeration",
@@ -182,17 +212,24 @@ export const commands: Command[] = [
     run: () => ws().setExaggeration(ws().verticalExaggeration - 1),
     isEnabled: () => ws().verticalExaggeration > EXAGGERATION_MIN,
   },
+  ...([1, 2, 5, 10] as const).map<Command>((value) => ({
+    id: `view.exagg.${value}`,
+    label: `${value}\u00d7 Vertical Exaggeration`,
+    run: () => ws().setExaggeration(value),
+  })),
   // Color-by commands (one per field, with 1–4 shortcuts).
   ...CELL_FIELDS.map<Command>(({ field, label, digit }) => ({
     id: `view.colorBy.${field}`,
     label: `Color By ${label}`,
     shortcut: digit,
     run: () => ws().setColorField(field),
+    isEnabled: () => selectedFieldIsAvailable(field),
   })),
   ...CELL_FIELDS.map<Command>(({ field, label }) => ({
     id: `view.heightBy.${field}`,
     label: `Height By ${label}`,
     run: () => ws().setHeightField(field),
+    isEnabled: () => selectedFieldIsAvailable(field),
   })),
 
   // ---- Study ------------------------------------------------------------
@@ -237,23 +274,57 @@ export const commands: Command[] = [
 
   // ---- Tools ------------------------------------------------------------
   {
+    id: "tools.select",
+    label: "Select",
+    toolbar: true,
+    icon: "\u2196",
+    run: () => ws().setActiveTool("select"),
+  },
+  {
+    id: "tools.orbit",
+    label: "Orbit / Pan",
+    toolbar: true,
+    icon: "\u25ce",
+    run: () => {
+      ws().setViewport("3d");
+      ws().setActiveTool("orbit");
+    },
+  },
+  {
     id: "tools.probe",
     label: "Grid Probe",
     toolbar: true,
     icon: "⌖",
-    run: () => window.dispatchEvent(new CustomEvent("tool:activate", { detail: "probe" })),
+    run: () => {
+      ws().setViewport("3d");
+      ws().setActiveTool("probe");
+    },
   },
   {
     id: "tools.measure",
     label: "Measure Distance",
     toolbar: true,
     icon: "📏",
-    run: () => window.dispatchEvent(new CustomEvent("tool:activate", { detail: "measure" })),
+    run: () => {
+      ws().setViewport("3d");
+      ws().setActiveTool("measure");
+    },
   },
   {
     id: "tools.elevationProfile",
     label: "Elevation Profile Along Route",
-    run: () => window.dispatchEvent(new CustomEvent("tool:activate", { detail: "elevation" })),
+    run: () => {
+      const selection = useSelectionStore.getState().selection;
+      ws().setActiveTool("elevation");
+      useUiStore.getState().pushBanner({
+        id: "elevation-tool",
+        severity: selection.kind === "route" ? "info" : "warning",
+        message:
+          selection.kind === "route"
+            ? "Elevation and pressure details are shown in the route inspector."
+            : "Select a pipeline route, then run Elevation Profile Along Route.",
+      });
+    },
   },
 
   // ---- Help -------------------------------------------------------------
@@ -308,6 +379,7 @@ export const menus: Menu[] = [
         items: [
           { kind: "command", commandId: "file.exportRanking" },
           { kind: "command", commandId: "file.exportSnapshot" },
+          { kind: "command", commandId: "file.exportMemo" },
         ],
       },
     ],
@@ -356,8 +428,21 @@ export const menus: Menu[] = [
       },
       {
         kind: "submenu",
+        label: "Layers",
+        items: (["routes", "boosters", "exclusions", "labels"] as const).map((layer) => ({
+          kind: "command" as const,
+          commandId: `view.layer.${layer}`,
+        })),
+      },
+      {
+        kind: "submenu",
         label: "Vertical Exaggeration",
         items: [
+          { kind: "command", commandId: "view.exagg.1" },
+          { kind: "command", commandId: "view.exagg.2" },
+          { kind: "command", commandId: "view.exagg.5" },
+          { kind: "command", commandId: "view.exagg.10" },
+          { kind: "separator" },
           { kind: "command", commandId: "view.exaggUp" },
           { kind: "command", commandId: "view.exaggDown" },
         ],
@@ -378,6 +463,8 @@ export const menus: Menu[] = [
   {
     label: "Tools",
     items: [
+      { kind: "command", commandId: "tools.select" },
+      { kind: "command", commandId: "tools.orbit" },
       { kind: "command", commandId: "tools.probe" },
       { kind: "command", commandId: "tools.measure" },
       { kind: "command", commandId: "tools.elevationProfile" },

@@ -1,0 +1,103 @@
+{
+  "artifacts": {
+    "README.md": {
+      "bytes": 866,
+      "sha256": "4AF85CE41188A208890B3A2238267176785704F1E58669376FA6E6CC48C32477"
+    },
+    "booster_duties.csv": {
+      "bytes": 320,
+      "sha256": "6E768B45E38FB8E7A87DFED46D6C1E5697FECFC7317C684E20CECD877EA99EA2"
+    },
+    "constraint_audit.json": {
+      "bytes": 960,
+      "sha256": "47226C013CF17BA909EC7AC82871E54DC89DEF1A0395464125F0977B1FF3F710"
+    },
+    "constraint_table.csv": {
+      "bytes": 986,
+      "sha256": "526C5CC229562695FE2FFEDB79F81795EA18EC797C19AC1B5C8F3EEDFFD5631F"
+    },
+    "continuous_pressure_profiles.csv": {
+      "bytes": 103438,
+      "sha256": "6E396C06C634818B3BBCA919443AAEB20F821B4DFA3E50DA480044CE8C1E882A"
+    },
+    "continuous_pressure_profiles.png": {
+      "bytes": 129136,
+      "sha256": "A9BB77F7E0D6BA0AD4ACEBF55B23B46C25CB66D756126878044944D621A9D1F5"
+    },
+    "cost_sensitivity.csv": {
+      "bytes": 453,
+      "sha256": "4DB84375543011FCCB4EA8C18A804D684C0C449D7BA255D1E8B491FFEED4AFEE"
+    },
+    "cost_sensitivity.png": {
+      "bytes": 56352,
+      "sha256": "F5662EA4DD6923DE3937D955FE16AEB901A756D95475ED24F2324BC8B8F305E0"
+    },
+    "exclusion_audit.json": {
+      "bytes": 4646,
+      "sha256": "81E12ED23CFA60E017000FFDE90055A068885ACBF50833D0134E646B9F36A22D"
+    },
+    "hydraulic_curve_comparison.csv": {
+      "bytes": 650,
+      "sha256": "7CC5877BE2F212395CB6657C8C6511A7A280F85347521FA0B961B7210F758DF5"
+    },
+    "hydraulic_curve_comparison.png": {
+      "bytes": 63364,
+      "sha256": "031C1A4E6CB3925FFD01311A541D7FB560B48E9E6878E50DDE0014E1880253E7"
+    },
+    "pipeline_design_base.json": {
+      "bytes": 257597,
+      "sha256": "620205A2406511C739B45891B3CAC45B58B35C55E7FA0214D91E2EF09F0F1E6E"
+    },
+    "rational_zero_selection.json": {
+      "bytes": 7694,
+      "sha256": "9FE6661CC88D8FE7F90326D5BA356D2E221577224C9751A6EC00870345F2D960"
+    },
+    "route_library.json": {
+      "bytes": 395779,
+      "sha256": "DC95590A408C12A289B78717B61BF5E6594C4929F90838A1FF340C8C87AB1E46"
+    },
+    "route_map.png": {
+      "bytes": 103394,
+      "sha256": "D88F83A6A7F53A90BCBFD6E6B492BFEC86E56C6576872A6457F514DB5F303C06"
+    },
+    "selected_rejected_wells.csv": {
+      "bytes": 572,
+      "sha256": "50406D75E84CD386BBE39FB89244F5DC39446FE88D3E68C55117D0D207A095DC"
+    },
+    "solver_report.json": {
+      "bytes": 838,
+      "sha256": "3763F5704184F870C4930D50274EF5AECB506F6DF8C4621F5C6F35B10187A7AE"
+    },
+    "supply_comparison_base.json": {
+      "bytes": 277742,
+      "sha256": "526E1D399E242874F157294C1A36367B8FE4A20265CDBF2B706C6744D548199E"
+    },
+    "supply_comparison_high.json": {
+      "bytes": 277736,
+      "sha256": "22EA3A83B58234D232F72306F8AA5665108F40808FF9E4F116C32614EA6EBE02"
+    },
+    "supply_comparison_low.json": {
+      "bytes": 277800,
+      "sha256": "4E2270EA1A8CA01545077882D01093A2EF780A9ACA0C74F46A8468B7ED75B25F"
+    }
+  },
+  "candidate_count": 20,
+  "candidate_prefiltering": false,
+  "default_net_value_status": "no_viable_network",
+  "feature": "002-pipeline-optimizer",
+  "inputs": {
+    "assumptions_path": "data\\jatibarang\\case_study_assumptions.json",
+    "assumptions_sha256": "14CCE30B43FC35FC8BB193E553D1D4630311C3216E84A2E616E3974DD15CE9B7",
+    "cost_basis_sha256": "1F99A982179061EB67830DF813E4AAA9F62C60487AAEEE22876807F5E842CD4E",
+    "exclusion_sha256": "9B12CDDB8C9793E478EB129051B92DE5754C97E7F8E8E10F297E5A681F918BE8",
+    "terrain_sha256": "AA9CC7AD4BD0CB390A80CB8B2CE06061745CFCFE2B010D39F808CF74C506826E"
+  },
+  "maximum_pwl_error_bar": 1.222798008182508,
+  "optimality_gap": 0.0,
+  "route_library_fingerprint": "75066B2555DD13F932398977746E5DA77C6BF66188C54211C368D67EC107E12C",
+  "screening_status": "screening_grade_not_feed_or_vendor_quote",
+  "selected_well_count": 1,
+  "solver_time_seconds": 1.0437218000879511,
+  "validated_design_status": "accepted",
+  "verdict": "pass"
+}

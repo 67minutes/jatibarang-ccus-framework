@@ -1,0 +1,27 @@
+{
+  "info_parity": true,
+  "expected_paths": [
+    "/health",
+    "/paper/results",
+    "/paper/results/{bundle_id}",
+    "/paper/results/{bundle_id}/reservoirs/{case_id}",
+    "/presets",
+    "/screen",
+    "/screen/runs/{run_id}",
+    "/screen/stream"
+  ],
+  "generated_paths": [
+    "/health",
+    "/model/info",
+    "/paper/results",
+    "/paper/results/{bundle_id}",
+    "/paper/results/{bundle_id}/reservoirs/{case_id}",
+    "/predict",
+    "/predict/batch",
+    "/presets",
+    "/screen",
+    "/screen/runs/{run_id}",
+    "/screen/stream"
+  ],
+  "feature005_path_parity": true
+}

@@ -1,0 +1,14 @@
+{
+  "description": "Curated MRST validation cases for Phase 1 paper validation. Phase 1 uses these 5 local cases and extrapolates equivalent full-compositional coverage from the boreyes2026 final manifest runtime.",
+  "source_repo": "C:\\Users\\mauli\\Documents\\boreyes2026",
+  "source_directory": "C:\\Users\\mauli\\Documents\\boreyes2026\\exports_hnp_expressive\\final",
+  "case_limit_for_phase1": 5,
+  "cases": [
+    {"case_id": "case_0016", "file": "case_0016.mat", "purpose": "fixture regression and validation plume case"},
+    {"case_id": "case_0115", "file": "case_0115.mat", "purpose": "fixture regression and validation plume case"},
+    {"case_id": "case_0176", "file": "case_0176.mat", "purpose": "held-out validation plume case"},
+    {"case_id": "case_0197", "file": "case_0197.mat", "purpose": "fixture regression and validation plume case"},
+    {"case_id": "case_0209", "file": "case_0209.mat", "purpose": "held-out validation plume case"}
+  ]
+}
+

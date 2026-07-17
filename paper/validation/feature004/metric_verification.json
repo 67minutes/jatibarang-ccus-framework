@@ -1,0 +1,16 @@
+{
+  "known_irr": {
+    "expected": 0.1306623863,
+    "actual": 0.1306623862918075,
+    "absolute_error": 8.192502232162724e-12,
+    "status": "computed"
+  },
+  "fractional_discounted_payback": {
+    "expected_years": 1.6666666667,
+    "actual_years": 1.6666666666666665
+  },
+  "multiple_root_status": "multiple_roots",
+  "no_root_status": "no_root",
+  "accounting_verdict": "PASS",
+  "passed": true
+}

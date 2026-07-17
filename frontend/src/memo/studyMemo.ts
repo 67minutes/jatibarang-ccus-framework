@@ -1,4 +1,5 @@
 import type { ScreenRequest, ScreenResult } from "../api/types";
+import type { StudyMetadata } from "../state/study.store";
 
 /**
  * A study memo is the workbench's unit of durable state (design §7.5).
@@ -11,7 +12,7 @@ import type { ScreenRequest, ScreenResult } from "../api/types";
  */
 
 export const STUDY_MEMO_KIND = "jatibarang.ccus.study-memo";
-export const STUDY_MEMO_VERSION = 1;
+export const STUDY_MEMO_VERSION = 2;
 
 export interface StudyMemo {
   kind: typeof STUDY_MEMO_KIND;
@@ -20,6 +21,7 @@ export interface StudyMemo {
   api_contract_version: string;
   saved_at: string;
   label: string;
+  study?: StudyMetadata;
   request: ScreenRequest;
   fingerprint: string;
   result: ScreenResult;
@@ -36,6 +38,7 @@ export interface LedgerEntry {
   result: ScreenResult;
   /** True when loaded from a canned/imported memo rather than a live run. */
   imported: boolean;
+  study?: StudyMetadata;
 }
 
 export function shortFingerprint(fingerprint: string): string {
@@ -62,6 +65,7 @@ export function memoToEntry(memo: StudyMemo, imported: boolean): LedgerEntry {
     request: memo.request,
     result: memo.result,
     imported,
+    study: memo.study,
   };
 }
 
@@ -77,6 +81,7 @@ export function entryToMemo(
     api_contract_version: apiContractVersion,
     saved_at: new Date().toISOString(),
     label: entry.label,
+    study: entry.study,
     request: entry.request,
     fingerprint: entry.fingerprint,
     result: entry.result,

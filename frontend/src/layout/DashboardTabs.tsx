@@ -22,7 +22,9 @@ export function DashboardTabs() {
     <Tabs.Root
       className="tabs-root"
       value={activeTab}
-      onValueChange={(v) => setActiveTab(v as DashboardTab)}
+      onValueChange={(v) => {
+        setActiveTab(v as DashboardTab);
+      }}
     >
       <Tabs.List className="tabs-list" aria-label="Workbench panels">
         <Trigger value="ranking" label="Ranking" />

@@ -13,6 +13,9 @@ import { validateDraft } from "../compose/validation";
 import { exportRankingCsv, exportStudyMemo } from "../memo/export";
 import { pickStudyMemo } from "../memo/import";
 import { carbonPriceAxis } from "../results/priceScrubber";
+import { useStudyStore } from "../state/study.store";
+import { exportViewportSnapshot } from "../viewport/snapshot";
+import { shortFingerprint } from "../memo/studyMemo";
 
 /** Watchdog: mark the run stalled if no event arrives within this window. */
 const STALL_TIMEOUT_MS = 20_000;
@@ -26,6 +29,7 @@ const STALL_TIMEOUT_MS = 20_000;
 export function useWorkbench(): void {
   const abortRef = useRef<AbortController | null>(null);
   const watchdogRef = useRef<number | null>(null);
+  const baseTemplateRef = useRef<InlineScreenRequest | null>(null);
 
   // Load the demo base request into the composer, and the cached demo result
   // into the ledger (paired with that request so its map renders), so the
@@ -37,6 +41,7 @@ export function useWorkbench(): void {
       .catch(() => null);
 
     requestP.then((draft) => {
+      if (draft) baseTemplateRef.current = draft;
       if (draft && !useComposeStore.getState().draft) useComposeStore.getState().loadBase(draft);
     });
 
@@ -78,7 +83,11 @@ export function useWorkbench(): void {
     }
 
     function onResult(request: ScreenRequest, result: ScreenResult) {
-      const entry = useLedgerStore.getState().recordRun(request, result);
+      const study = useStudyStore.getState().study;
+      const entry = useLedgerStore.getState().recordRun(request, result, {
+        label: `${study.name} \u00b7 ${shortFingerprint(result.request_fingerprint)}`,
+        study,
+      });
       useRunStore.getState().finish("completed");
       // Default the scrubber to the lowest carbon price and open the ranking.
       const axis = carbonPriceAxis(result);
@@ -182,16 +191,34 @@ export function useWorkbench(): void {
         return status === "running" || status === "stalled";
       },
       hasActiveResult: () => useLedgerStore.getState().activeEntryId != null,
-      newStudy: () => {
-        const draft = useComposeStore.getState().draft;
-        if (draft) useComposeStore.getState().loadBase({ ...draft, run_id: null });
-        useWorkspaceStore.getState().setActiveTab("compose");
+      createNewStudy: (options) => {
+        const current = useComposeStore.getState().draft;
+        const source = options.template === "current" ? current : baseTemplateRef.current ?? current;
+        if (!source) {
+          useUiStore.getState().pushBanner({
+            id: "new-study-unavailable",
+            severity: "warning",
+            message: "The study template is still loading. Try New Study again in a moment.",
+          });
+          return;
+        }
+        useStudyStore.getState().create(options);
+        useComposeStore.getState().loadBase({ ...source, run_id: null });
+        useLedgerStore.getState().setActive(null);
+        useSelectionStore.getState().clear();
+        const workspace = useWorkspaceStore.getState();
+        workspace.setViewport(options.startView);
+        workspace.setExaggeration(options.verticalExaggeration);
+        workspace.setActiveTool("select");
+        workspace.setActiveTab("compose");
+        useUiStore.getState().dismissBanner("new-study-unavailable");
       },
       openStudy: async () => {
         try {
           const memo = await pickStudyMemo();
           if (memo) {
             useLedgerStore.getState().importMemo(memo);
+            if (memo.study) useStudyStore.getState().load(memo.study);
             const axis = carbonPriceAxis(memo.result);
             if (axis.length > 0) useSelectionStore.getState().setCarbonPrice(axis[0].scenarioId);
             useWorkspaceStore.getState().setActiveTab("ranking");
@@ -215,6 +242,19 @@ export function useWorkbench(): void {
       exportRankingCsv: async () => {
         const entry = useLedgerStore.getState().activeEntry();
         if (entry) await exportRankingCsv(entry.result, entry.label);
+      },
+      exportSnapshot: async () => {
+        try {
+          const entry = useLedgerStore.getState().activeEntry();
+          const label = entry?.study?.name ?? entry?.label ?? useStudyStore.getState().study.name;
+          await exportViewportSnapshot(label);
+        } catch (err) {
+          useUiStore.getState().pushBanner({
+            id: "snapshot-failed",
+            severity: "danger",
+            message: err instanceof Error ? err.message : "Could not export the viewport snapshot.",
+          });
+        }
       },
       recomposeActive: () => {
         const entry = useLedgerStore.getState().activeEntry();

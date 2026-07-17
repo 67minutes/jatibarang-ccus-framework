@@ -1,0 +1,4 @@
+cost_case,pipeline_levelized_transport_usd_per_tonne,pipeline_levelized_delivered_usd_per_tonne,trucking_levelized_delivered_usd_per_tonne,cheaper_mode,accounting_basis
+low,2597.1439904713993,2604.1439904713993,16.5,trucking,raw_cashflows_levelized_display_only
+base,3467.1473064402185,3475.1473064402185,21.95,trucking,raw_cashflows_levelized_display_only
+high,7412.187078743726,7422.187078743726,31.8,trucking,raw_cashflows_levelized_display_only

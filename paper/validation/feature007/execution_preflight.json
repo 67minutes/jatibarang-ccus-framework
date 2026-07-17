@@ -1,0 +1,35 @@
+{
+  "schema_version": "feature007-execution-preflight-v1",
+  "captured_at": "2026-07-17T18:22:44.9877034+07:00",
+  "hardware": {
+    "cpu": "AMD Ryzen 9 8945HS w/ Radeon 780M Graphics",
+    "physical_cores": 8,
+    "logical_processors": 16,
+    "total_memory_bytes": 16422068224,
+    "total_memory_gib": 15.294
+  },
+  "memory_snapshot": {
+    "available_memory_bytes": 829091840,
+    "available_memory_gib": 0.772,
+    "required_reserve_bytes": 3221225472,
+    "required_reserve_gib": 3
+  },
+  "benchmark": {
+    "requested_runs": 3,
+    "completed_runs": 0,
+    "peak_worker_rss_bytes": null,
+    "status": "NOT_RUN",
+    "reason": "Available physical memory was already below the locked 3 GiB reserve; launching the benchmark would violate the run policy."
+  },
+  "concurrency": {
+    "formula": "min(4, floor((available RAM - 3 GiB) / peak worker RSS), floor(physical cores / 2))",
+    "memory_gate_workers": 0,
+    "core_gate_workers": 4,
+    "selected_workers": 0
+  },
+  "launch": {
+    "demo_200": "NOT_LAUNCHED",
+    "full_3240": "NOT_LAUNCHED",
+    "reason": "Preflight selected zero safe workers. No MRST shard or partial scenario result was created."
+  }
+}

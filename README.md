@@ -10,7 +10,9 @@ artifacts are consumed here; the 177-case MRST training corpus stays in
 
 ## Current Status
 
-Features 001, 002, 003, 004, and the Feature 005 integration service are implemented.
+Features 001-005 and the Feature 006 workbench are implemented. Feature 007 now has
+a deterministic canonical-bundle pipeline and a partial working evidence bundle; its
+scientific A/B/C execution is not yet complete.
 Feature 001 is the
 subsurface surrogate inference service. Feature 002 builds cached, exclusion-aware
 multi-source route libraries, optimizes pipeline topology and boosters with Pyomo/CBC,
@@ -36,8 +38,10 @@ proxy. The legacy Phase 1 abstract-number command remains available for provenan
 but `/screen` uses Features 001-004 through their stable typed contracts. The real
 `jatibarang_demo_v1` and `jatibarang_full_v1` MRST-derived payloads are not yet
 materialized locally, so preset promotion is explicitly **BLOCKED** while inline and
-synthetic integration evidence pass. Final A/B/C execution and paper-number promotion
-still belong to Feature 007. See
+synthetic integration evidence pass. A Feature 007 `working` bundle now verifies the
+hashes of the evidence that exists, but remains partial and unfrozen with scenario
+count zero, mechanical status `BLOCKED`, and scientific status `NOT_RUN`. Final A/B/C
+execution and paper-number promotion still belong to Feature 007. See
 [`ABSTRACT_STATE_TO_FULL_PAPER_IMPLEMENTATION_GAP.md`](ABSTRACT_STATE_TO_FULL_PAPER_IMPLEMENTATION_GAP.md)
 for the current closure sequence.
 
@@ -107,8 +111,8 @@ final-paper economics.
 
 ### Feature 005 evidence
 
-- Focused screening tests: **PASS**, 23 tests.
-- Complete repository regression: **PASS**, 140 tests.
+- Focused screening tests: **PASS**.
+- Complete repository regression: **PASS**.
 - Synthetic integration fixtures prove request-local deduplication, selected-well-only
   facility ownership, a carbon-price selection pivot, partial-failure responses, the
   non-convergent pass-1/pass-2 audit, SSE sequencing, cancellation, and 429/503 mapping.
@@ -121,6 +125,25 @@ final-paper economics.
   hash-verified dependency evidence is in
   [`paper/validation/feature005/`](paper/validation/feature005/).
 - Scientific/paper promotion: **DEFERRED TO FEATURE 007**.
+
+### Feature 007 evidence
+
+- Deterministic bundle build, verification, freeze guard, normalized-table registry,
+  and read-only paper-result API: **IMPLEMENTED**.
+- Working bundle hash verification: **PASS for present artifacts**; this is not a
+  scientific promotion verdict.
+- Working bundle state: **PARTIAL / UNFROZEN**, `scenario_count=0`, mechanical
+  `BLOCKED`, scientific `NOT_RUN`, and no fabricated result.
+- Figures 1, 2, 3, and 6 are bundle-driven where data apply, rendered, and
+  hash-registered. Figures 4, 5, 7, and 8 remain explicitly blocked.
+- The real declared median validation case, `case_0016`, supplies MRST truth,
+  frozen-surrogate output, residuals, static geology, and provenance to the paper API.
+- Arm B's deterministic design contains exactly 40 primary schedules over 20
+  geologies plus 3,200 replacements; accepted A/B/C results remain zero.
+- MRST bank execution: **NOT LAUNCHED**. Preflight yielded zero safe workers under
+  the locked RAM formula. No `submitted` or `full_3240` bundle exists.
+- Bundle status and commands:
+  [`paper/results/feature007/`](paper/results/feature007/).
 
 ## Install and Verify
 
@@ -144,16 +167,22 @@ The service endpoints are:
 - `POST /screen/stream`
 - `DELETE /screen/runs/{run_id}`
 - `GET /presets`
+- `GET /paper/results`
+- `GET /paper/results/{bundle_id}`
+- `GET /paper/results/{bundle_id}/reservoirs/{case_id}`
 - `GET /health`
 
 Interactive API documentation is available at `http://127.0.0.1:8000/docs`.
 
 ## Screening Workbench (Feature 006)
 
-The `frontend/` directory holds the screening workbench — a classical WIMP
-desktop-style single-page app (menu bar / toolbar / status bar / docked panels)
-with a field-twin 3D terrain viewport. Build it and the FastAPI app serves it at
-the site root:
+The `frontend/` directory holds the screening workbench: a classical WIMP
+desktop-style single-page app with menu bar, toolbar, status bar, accessible split
+panes, a field-twin terrain viewport, and an APECX Paper Results study. Its
+simulator-style reservoir renderer preserves the 64 x 64 x 1, 900 x 600 x 6 m local
+proxy geometry, defaults to log-permeability color, and independently layers static
+geology, dynamic response, wells, transport, terrain, and optional legacy SECARB
+columns. Build it and the FastAPI app serves it at the site root:
 
 ```powershell
 cd frontend
@@ -198,6 +227,7 @@ client, renderer, and client-side carbon-price pivot.
 6. `specs/006-frontend/` - screening workbench frontend
    (**implemented; served at `/` from a `frontend/dist` build**)
 7. `specs/007-paper-figures/` - paper and presentation figures
+   (**partial working bundle; Figures 1-3 and 6 ready, A/B/C execution pending**)
 
 ## Data Policy
 

@@ -1,157 +1,127 @@
-# Feature 006: Frontend (Screening Workbench)
+# Feature 006: Frontend Screening Workbench
 
 ## Purpose
 
-A working engineering tool first, presentation centerpiece second. A
-single-user, local-first workbench over the Feature 005 screening API: compose
-a screening study, run it with live SSE progress, explore ranked results
-spatially and economically, compare runs, and export reproducible study memos.
-The stage demo is served by the demo preset plus a canned offline fallback —
-not by a separate demo app.
+A single-user, local-first engineering workbench over the typed Feature 005
+screening API and read-only Feature 007 paper-result API. It composes and runs
+screening studies, explores ranked spatial and economic results, compares runs,
+exports study memos, and interactively inspects canonical paper evidence. Physics,
+routing, facility sizing, and economics stay in the backend.
 
-The approved design is
+The approved historical shape is documented in
 [`docs/superpowers/specs/2026-07-16-frontend-workbench-design.md`](../../docs/superpowers/specs/2026-07-16-frontend-workbench-design.md).
-This spec summarizes the requirements; the design doc governs on detail.
+Its dated implementation addendum governs the reservoir, split-pane, and Paper
+Results extensions.
 
-## Shape
+## Application shape
 
-A **screening workbench inside a field-twin canvas**, not a case-centric
-simulator UI. Precedents deliberately borrowed: FieldTwin's scene-as-index
-interaction grammar, tNavigator AHM / Petrel U&O ensemble-study character,
-SimCCS's source–sink–transport domain, and the SECARB extruded-cell
-storage-cost visualization for the reservoir encoding.
+The interface is a screening workbench inside a field-twin canvas, using a classical
+desktop WIMP contract:
 
-### Classical WIMP chrome (required)
+- the menu bar is the complete command inventory;
+- the toolbar duplicates frequent commands but adds no hidden capability;
+- the status bar shows coordinates, selection, study/run state, and backend health;
+- one shared selection drives the project tree, viewport, inspector, and dashboards;
+- left, right, and bottom regions are constrained accessible split panes; and
+- there is no browser persistence, floating window, or docking framework.
 
-The interface follows the traditional desktop application idiom shared by
-Photoshop, tNavigator, OpendTect, and ECLIPSE Office — this is a functional
-requirement, not styling:
-
-- **Menu bar** (`File · Edit · View · Study · Tools · Help`) as the complete
-  command inventory: every capability has a menu entry; nothing hides behind
-  hamburgers or hover-reveals. Shortcuts listed right-aligned in the menus.
-- **Toolbar** as the frequency layer: dense icon duplicates of menu commands
-  (select, orbit, probe, measure, 2D/3D, layers, encoding dropdowns,
-  exaggeration, Screen/Cancel). No unique capabilities.
-- **Status bar** as ambient truth: cursor grid + geographic coordinates +
-  elevation, selection, active study fingerprint, run wall-clock, `/health`
-  dot.
-- **Panels hold state, not navigation**: no pages; a persistent workspace with
-  project tree + run ledger (left), 3D viewport (center), inspector (right),
-  and a dashboard tab strip (Ranking, Economics, Production, Run console,
-  Compose) at the bottom. Fixed regions with collapse/tabs; no docking
-  framework.
-- Undo/redo scoped to study-definition (composer) edits.
-- Dark, dense, quiet chrome; desaturated context; color reserved for binned
-  data plus one interaction accent (Formation Red per Intelligent Geologics
-  branding).
-
-### 3D viewport
-
-Read-only spatial index, never an editor. Monochrome low-poly SRTM terrain
-with adjustable vertical exaggeration (default 5x); the 64x64 grid as
-SECARB-style extruded prisms (height = per-cell CO2 inventory, color =
-switchable field in discrete legend bins) animated across inject → soak →
-produce; pipelines as solid terrain-hugging tubes vs trucking as dashed lines;
-boosters, sources, exclusion zones as markers/patches. Portfolio zoom shows
-per-well extruded footprints that flatten/dim as the carbon-price scrubber
-drops them from the shortlist. Behind an error boundary with an automatic 2D
-map fallback; every panel works with the viewport dead.
+The left project tree contains study objects, the run ledger, and the APECX Paper
+Results study with Figures 1-8. The center contains the 3D/2D spatial view, the right
+contains the inspector, and the bottom tabs contain Ranking, Economics, Production,
+Run console, Compose, and Paper Results.
 
 ## Workflow
 
-Preflight (gates Screen on `/health` + `/presets` readiness, shown as-is
-including `NOT READY`/`BLOCKED`) → Compose (constrained composer mirroring
-`InlineScreenRequest`, trained-range amber flags, scenario-count preview,
-literal request-JSON drawer, **re-compose from any ledger entry**) → Run (SSE
-stage timeline via fetch/ReadableStream parser, heartbeat watchdog, inline
-warnings, dedup counter, cancel; sync `/screen` fallback) → Explore (ranking
-table anchors a global shared selection driving viewport, inspector, and
-economics; carbon-price scrubber pivots client-side over
-`cross_price_comparison` with zero API calls) → Compare (fingerprint-keyed
-ledger diff: request deltas, rank trajectories, NPV deltas) → Export (study
-memo JSON: request + fingerprint + result + flags + versions; also the
-persistence and Feature 007 hand-off mechanism).
+Preflight reads `/health` and `/presets` exactly as reported. Compose mirrors the
+typed screen request, surfaces training-range flags, previews scenario count, and
+shows request JSON. Run uses the shared SSE/synchronous workflow with progress,
+warnings, deduplication, cancellation, and error mapping. Explore and Compare use
+immutable results and a client-side carbon-price pivot. Export writes a study memo;
+no browser storage is used.
 
-Warnings tied to a (well x carbon-price) cell must attach to that cell in the
-results, not only appear in the console log.
+The Paper Results study reads immutable bundle metadata and figure/reservoir payloads.
+The active `bundle_id`, freeze basis, actual scenario count, source class, and
+pending/blocked status remain visible.
 
-## Demo moments (served by the workbench, preset-driven)
+## Simulator-style reservoir view
 
-1. **Speed** — run console fills its stage timeline; wall-clock vs
-   full-simulation annotation.
-2. **The plume** — extruded-cell animation across inject → soak → produce.
-3. **The pipeline** — route on real terrain with boosters; pressure profile
-   holding the dense-phase floor.
-4. **The slider** — carbon-price scrubber reshuffles ranking, updates NPV, and
-   visibly re-shapes the scene in real time.
-5. **The comparison** — A/B/C as a ledger diff with time and NPV deltas.
+The primary reservoir view is a 64 x 64 x 1 warped grid with a 900 x 600 m footprint
+and constant 6 m thickness. It reconstructs 65 x 65 node elevations from
+cell-centered structure and renders bounded geometry without one React component per
+cell. At 1x it remains physically proportional; the independent reservoir vertical
+exaggeration defaults to 8x and ranges from 1-20x.
 
-## DWSIM in the UI
+- Default fill: log10 permeability in mD.
+- Alternatives: porosity and discrete facies.
+- Wells: simulator-style trajectories and completion markers.
+- Coordinates: local proxy anchored to the selected well, not surveyed orientation
+  or true subsea depth.
 
-Do **not** run DWSIM live. A static PFD panel in the inspector binds Feature
-003 numbers (compression power, separator capacity, facility CAPEX/OPEX) for
-the selected plan.
+Independent layer controls cover terrain; wells; labels; routes; boosters; structural
+grid and edges; permeability fill; facies, barriers, and fractures; dynamic response;
+and optional legacy SECARB response columns.
 
-## Behavior rules
+Pressure is displayed as delta-P from the final warm-start frame. Oil is displayed as
+`So,baseline - So,t`. Gas saturation and `z_co2` are thresholded translucent
+occupancy. Only one dynamic scalar is active, with opacity and threshold controls so
+permeability remains legible. A field is disabled when absent. The frontend never
+relabels another scalar or loads a uniform demo plume for an unrelated result.
 
-- All data comes from the Feature 005 API. No physics or economics in the
-  frontend. The only backend change is a `StaticFiles` mount (packaging).
-- No browser storage APIs; session state in React state, durable state in
-  exported study-memo files.
-- HTTP errors map to specific UI (422 → composer fields, 429 → active-run
-  conflict card, 503 → dependency banner). Error boundaries per region; no
-  blank-screen failure modes.
-- Confidence chrome everywhere: extended-horizon, out-of-trained-range,
-  screening-grade cost-basis flags rendered wherever affected numbers appear,
-  worded to be quotable.
-- A canned Jatibarang demo result is bundled into the static build so the core
-  demo runs without a live backend.
+Paper validation cases may show synchronized MRST, surrogate, and residual panes with
+one timeline, probe, camera context, and physical limits. The currently bundled
+`case_0016` linked comparison exposes gas saturation; other selectors remain disabled
+unless their canonical payload exists.
 
-## Dependencies
+## Split-pane contract
 
-- Vite + React + TypeScript SPA in `frontend/`, built static, served by the
-  existing FastAPI app (one process, no CORS, no Node in production).
-- Types generated from `specs/005-screening-api/contracts/openapi.yaml`
-  (`openapi-typescript`) as a build gate.
-- react-three-fiber/three (viewport), Recharts (charts), Zustand + TanStack
-  Query (state/data), Radix UI or react-aria (menubar/menus/tabs).
+- Left: 248 px default, constrained to 180-420 px.
+- Right: 320 px default, constrained to 260-520 px.
+- Bottom: 340 px default, constrained from 180 px to 70% of center height.
 
-## Done Criteria
+Handles use pointer capture, keyboard adjustment, double-click reset, and
+collapse/restore while preserving the last session-local size. Sizes are not written
+to browser storage.
 
-- [x] Full flow works against the live Feature 005 API on an inline demo study
-      (Playwright smoke). The MRST preset payloads remain BLOCKED (Feature 007),
-      so the demo uses inline mode, as designed.
-- [x] WIMP chrome complete: menu bar as full command inventory, toolbar,
-      status bar, keyboard layer (undo/redo, open/save, find, timeline keys).
-- [x] Extruded-grid reservoir plume renders from real surrogate fields and
-      animates across the timeline (bundled demo plume; unit-tested encoding).
-- [x] Pipeline vs trucking rendered distinctly on real 3D terrain; boosters and
-      the dense-phase pressure profile render for a viable network. (The demo's
-      HnP volumes are honestly `no_viable_network`, so it shows the trucking
-      supply; a pipeline network draws when one is economic.)
-- [x] Carbon-price scrubber re-pivots ranking, NPV, and scene with **zero** API
-      calls while dragging (Playwright-verified).
-- [x] Run console reflects real SSE progress (real stage names), stall watchdog,
-      inline warnings, dedup counter, and working cancel.
-- [x] Ledger diff (A/B/C) shows request deltas, rank trajectories, NPV deltas.
-- [x] Study memo export/import round-trips; re-compose hydrates the composer.
-- [x] Out-of-range inputs and low-confidence results visibly flagged; preset
-      readiness shown as reported (`NOT READY`/`BLOCKED` surfaced honestly).
-- [x] Viewport failure degrades automatically to the 2D map with all panels
-      functional; no browser storage; no blank-screen failure modes
-      (Playwright offline + error-mapping tests).
+## Data and API boundaries
 
-## Implementation notes
+All screening data comes from Feature 005 contracts. Canonical paper data comes from:
 
-- The backend selects wells only via an economically viable pipeline. At
-  Huff-and-Puff CO₂ volumes no pipeline is economic, so the honest screening
-  result is `no_viable_network` with an empty shortlist. The workbench surfaces
-  this transparently and falls back to a pre-logistics well ranking, per-well
-  predictions, and trucking as the indicated supply. This is the documented
-  default-proxy outcome, not a defect.
-- The only backend change is a guarded `StaticFiles` mount serving
-  `frontend/dist`; no API or screening logic was modified.
-- See [`frontend/README.md`](../../frontend/README.md) and the design doc for
-  the full architecture, and `frontend/public/assets/README.md` for the demo
-  fixtures.
+- `GET /paper/results`;
+- `GET /paper/results/{bundle_id}`; and
+- `GET /paper/results/{bundle_id}/reservoirs/{case_id}`.
+
+Backend additions are limited to typed `detailed_reservoirs`, paper bundle/index
+contracts, read-only routes, and the guarded static build mount. No physical or
+economic calculation is duplicated in TypeScript.
+
+The offline study uses Figure 3's declared median validation case, `case_0016`: real
+MRST-derived static geology and warm history with a frozen-checkpoint screen result.
+Its local W01 position is a proxy. Missing paper or dynamic fields remain explicitly
+unavailable; there is no synthetic substitution.
+
+## Robustness and accessibility
+
+- HTTP 422, 429, and 503 responses map to specific UI states.
+- Region-level error boundaries prevent blank-screen failure.
+- The 3D viewport degrades to the 2D map while all dashboards remain usable.
+- Confidence, extrapolation, screening-cost, and provenance qualifications render
+  beside affected values.
+- Keyboard commands, split handles, menus, tabs, and dialogs remain operable without
+  pointer-only interaction.
+- DWSIM and MRST are never called live from the workbench.
+
+## Implementation and validation record
+
+- [x] Vite + React + TypeScript static application served by FastAPI.
+- [x] Generated OpenAPI types, live screening/SSE workflow, cancellation, and errors.
+- [x] Ranking, economic pivot, production, compare, inspector, and study-memo flow.
+- [x] Real `case_0016` offline request/result rather than a uniform demo plume.
+- [x] Physical reservoir geometry, property/dynamic layers, probes, wells, and legend.
+- [x] Pointer/keyboard split panes with reset and collapse/restore.
+- [x] APECX Paper Results study with honest ready/blocked/unavailable states.
+- [x] 2D failure fallback and no browser storage.
+- [ ] Load and rehearse the immutable submitted paper bundle after scientific freeze.
+
+The current Feature 007 `working` bundle is partial and unfrozen, with scenario count
+zero, mechanical `BLOCKED`, and scientific `NOT_RUN`. The workbench must preserve that
+state; implemented UI is not evidence that the A/B/C paper experiment has run.

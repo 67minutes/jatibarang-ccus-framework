@@ -50,6 +50,53 @@ export interface Grid2D {
   values: number[];
 }
 
+export interface ReservoirGridGeometry {
+  nx: 64;
+  ny: 64;
+  nz: 1;
+  length_x_m: number;
+  length_y_m: number;
+  thickness_m: number;
+}
+
+export interface ReservoirStaticFields {
+  permeability_md: Grid2D;
+  porosity_fraction: Grid2D;
+  structure_m: Grid2D;
+  fracture_proxy: Grid2D;
+  barrier: Grid2D;
+  facies: Grid2D;
+  well_mask: Grid2D;
+  completion_mask: Grid2D;
+}
+
+export interface ReservoirBaselineState {
+  pressure_bar: Grid2D;
+  gas_saturation: Grid2D;
+  z_co2: Grid2D;
+  oil_saturation: Grid2D | null;
+}
+
+export interface ReservoirFieldMetadata {
+  label: string;
+  unit: string;
+  minimum: number;
+  maximum: number;
+  scale: "linear" | "log10" | "categorical" | "binary";
+  source_class: string;
+}
+
+/** Static simulator-style geometry aligned with one detailed prediction. */
+export interface ReservoirVisualization {
+  scenario_id: string;
+  geology_id: string;
+  grid: ReservoirGridGeometry;
+  static_fields: ReservoirStaticFields;
+  baseline_state: ReservoirBaselineState | null;
+  field_metadata: Record<string, ReservoirFieldMetadata>;
+  provenance: Record<string, unknown>;
+}
+
 export type PlumeStage = "inject" | "soak" | "produce";
 export type FrameOrigin = "seed" | "surrogate";
 
@@ -491,6 +538,7 @@ export interface ScreenResult {
   cross_price_comparison: CrossPriceComparison;
   shortlist: ValidationShortlistItem[];
   detailed_predictions: Record<string, PredictionResult>;
+  detailed_reservoirs: Record<string, ReservoirVisualization>;
   timings: RunTimings;
   warnings: string[];
   provenance_catalog: Record<string, unknown>;

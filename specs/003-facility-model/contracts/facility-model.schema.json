@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "facility-model.schema.json",
+  "title": "Feature 003 facility portfolio contracts",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "required": ["source_class", "source_id"],
+      "properties": {
+        "source_class": {
+          "enum": ["field_fact", "literature_proxy", "surrogate_prediction", "pipeline_result", "engineering_assumption", "engineering_correlation", "dwsim_reference"]
+        },
+        "source_id": {"type": "string", "minLength": 1},
+        "notes": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "wellLoad": {
+      "type": "object",
+      "required": [
+        "candidate_id",
+        "injection_rate_std_m3_day",
+        "injection_reference_pressure_bar",
+        "injection_reference_temperature_c",
+        "fresh_co2_peak_mass_flow_kg_s",
+        "annual_injected_co2_tonnes",
+        "delivery_pressure_bar",
+        "delivery_temperature_c",
+        "wellhead_injection_pressure_bar",
+        "peak_produced_gas_std_m3_day",
+        "produced_gas_reference_pressure_bar",
+        "produced_gas_reference_temperature_c",
+        "produced_co2_mole_fraction",
+        "peak_produced_liquid_m3_day",
+        "water_cut_fraction",
+        "separator_pressure_bar",
+        "separator_temperature_c",
+        "injection_operating_hours_per_year",
+        "production_operating_hours_per_year",
+        "recycle_enabled",
+        "recycle_recovery_fraction",
+        "provenance"
+      ],
+      "properties": {
+        "candidate_id": {"type": "string", "minLength": 1},
+        "injection_rate_std_m3_day": {"type": "number", "exclusiveMinimum": 0},
+        "injection_reference_pressure_bar": {"type": "number", "exclusiveMinimum": 0},
+        "injection_reference_temperature_c": {"type": "number", "exclusiveMinimum": -273.15},
+        "fresh_co2_peak_mass_flow_kg_s": {"type": "number", "exclusiveMinimum": 0},
+        "annual_injected_co2_tonnes": {"type": "number", "minimum": 0},
+        "delivery_pressure_bar": {"type": "number", "minimum": 80},
+        "delivery_temperature_c": {"type": "number", "exclusiveMinimum": -273.15},
+        "wellhead_injection_pressure_bar": {"type": "number", "minimum": 80, "maximum": 137.895146},
+        "peak_produced_gas_std_m3_day": {"type": "number", "minimum": 0},
+        "produced_gas_reference_pressure_bar": {"type": "number", "exclusiveMinimum": 0},
+        "produced_gas_reference_temperature_c": {"type": "number", "exclusiveMinimum": -273.15},
+        "produced_co2_mole_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "peak_produced_liquid_m3_day": {"type": "number", "minimum": 0},
+        "water_cut_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "separator_pressure_bar": {"type": "number", "exclusiveMinimum": 0},
+        "separator_temperature_c": {"type": "number", "exclusiveMinimum": -273.15},
+        "injection_operating_hours_per_year": {"type": "number", "minimum": 0, "maximum": 8760},
+        "production_operating_hours_per_year": {"type": "number", "minimum": 0, "maximum": 8760},
+        "recycle_enabled": {"type": "boolean"},
+        "recycle_recovery_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "provenance": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/provenance"}}
+      },
+      "additionalProperties": false
+    },
+    "equipmentItem": {
+      "type": "object",
+      "required": ["equipment_id", "candidate_id", "equipment_type", "ownership_scope", "duty_value", "duty_unit", "duty_train_count", "installed_train_count", "capex_usd", "annual_opex_usd"],
+      "properties": {
+        "equipment_id": {"type": "string", "minLength": 1},
+        "candidate_id": {"type": "string", "minLength": 1},
+        "equipment_type": {"enum": ["injection_pump", "recycle_compressor", "intercooler", "dehydration", "three_phase_separator", "balance_of_plant"]},
+        "ownership_scope": {"const": "dedicated_well_pad"},
+        "duty_value": {"type": "number", "minimum": 0},
+        "duty_unit": {"type": "string", "minLength": 1},
+        "power_kw": {"type": "number", "minimum": 0},
+        "heat_duty_kw": {"type": "number", "minimum": 0},
+        "duty_train_count": {"type": "integer", "minimum": 0},
+        "installed_train_count": {"type": "integer", "minimum": 0},
+        "capex_usd": {"type": "number", "minimum": 0},
+        "annual_opex_usd": {"type": "number", "minimum": 0},
+        "calculation_method": {"type": "string"},
+        "provenance": {"type": "array", "items": {"$ref": "#/$defs/provenance"}}
+      },
+      "additionalProperties": true
+    },
+    "wellResult": {
+      "type": "object",
+      "required": ["candidate_id", "equipment", "capex_usd", "annual_opex_usd", "surface_loss_tonnes_per_year", "surface_loss_fraction", "reconciliation_passed"],
+      "properties": {
+        "candidate_id": {"type": "string", "minLength": 1},
+        "equipment": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/equipmentItem"}},
+        "capex_usd": {"type": "number", "minimum": 0},
+        "annual_opex_usd": {"type": "number", "minimum": 0},
+        "surface_loss_tonnes_per_year": {"type": "number", "minimum": 0},
+        "surface_loss_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "produced_back_co2_tonnes_per_year": {"type": "number", "minimum": 0},
+        "reconciliation_passed": {"const": true},
+        "calibration_status": {"enum": ["validated", "outside_calibration_envelope", "unvalidated"]}
+      },
+      "additionalProperties": true
+    },
+    "request": {
+      "type": "object",
+      "required": ["contract_type", "portfolio_id", "ownership_basis", "cost_case", "design_basis_version", "cost_basis_version", "wells", "provenance"],
+      "properties": {
+        "contract_type": {"const": "facility_portfolio_request"},
+        "portfolio_id": {"type": "string", "minLength": 1},
+        "ownership_basis": {"const": "dedicated_well_pad_skids"},
+        "cost_case": {"enum": ["low", "base", "high"]},
+        "design_basis_version": {"type": "string", "minLength": 1},
+        "cost_basis_version": {"type": "string", "minLength": 1},
+        "wells": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/wellLoad"}},
+        "provenance": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/provenance"}}
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": ["contract_type", "portfolio_id", "ownership_basis", "design_basis_version", "cost_basis_version", "calibration_version", "validation_status", "well_results", "total_capex_usd", "total_annual_opex_usd", "total_surface_loss_tonnes_per_year", "reconciliation_passed", "provenance"],
+      "properties": {
+        "contract_type": {"const": "facility_portfolio_result"},
+        "portfolio_id": {"type": "string", "minLength": 1},
+        "ownership_basis": {"const": "dedicated_well_pad_skids"},
+        "design_basis_version": {"type": "string", "minLength": 1},
+        "cost_basis_version": {"type": "string", "minLength": 1},
+        "calibration_version": {"type": "string", "minLength": 1},
+        "validation_status": {"enum": ["validated", "outside_calibration_envelope", "unvalidated"]},
+        "well_results": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/wellResult"}},
+        "total_capex_usd": {"type": "number", "minimum": 0},
+        "total_annual_opex_usd": {"type": "number", "minimum": 0},
+        "total_surface_loss_tonnes_per_year": {"type": "number", "minimum": 0},
+        "reconciliation_passed": {"const": true},
+        "evidence_manifest": {"type": "string"},
+        "provenance": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/provenance"}}
+      },
+      "additionalProperties": true
+    }
+  },
+  "oneOf": [
+    {"$ref": "#/$defs/request"},
+    {"$ref": "#/$defs/result"}
+  ]
+}

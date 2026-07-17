@@ -1,0 +1,63 @@
+{
+  "type": "FeatureCollection",
+  "name": "jatibarang_pipeline_screening_exclusions_v1",
+  "metadata": {
+    "source": "OpenStreetMap contributors",
+    "license": "ODbL 1.0",
+    "source_url": "https://www.openstreetmap.org/copyright",
+    "extracted_at": "2026-07-15T00:00:00+07:00",
+    "query_bounds_wgs84": [107.70, -6.65, 108.55, -6.40],
+    "cross_check": "Badan Informasi Geospasial Ina-Geoportal",
+    "status": "public_screening_proxy_not_field_survey"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "osm-residential-285583084",
+        "zone_class": "residential",
+        "routing_mode": "hard",
+        "buffer_m": 75.0,
+        "penalty_multiplier": 1.0,
+        "osm_type": "way",
+        "osm_id": 285583084
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[108.1426067,-6.5255082],[108.1437987,-6.5257620],[108.1435641,-6.5268758],[108.1431831,-6.5313648],[108.1425957,-6.5319255],[108.1417830,-6.5317737],[108.1421867,-6.5287662],[108.1421321,-6.5284627],[108.1421812,-6.5282189],[108.1423176,-6.5273789],[108.1426067,-6.5255082]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "osm-river-cimanuk-51393487",
+        "zone_class": "waterway",
+        "routing_mode": "penalty",
+        "buffer_m": 100.0,
+        "penalty_multiplier": 8.0,
+        "osm_type": "way",
+        "osm_id": 51393487
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[108.3356231,-6.5206956],[108.3230661,-6.5110019],[108.3129424,-6.4992740],[108.3058328,-6.4984011],[108.3033959,-6.4832178],[108.3016857,-6.4754891],[108.2972608,-6.4704917],[108.2903839,-6.4611528],[108.2920040,-6.4503897],[108.2966989,-6.4336667],[108.2939738,-6.4145229],[108.2888883,-6.3979992],[108.2920936,-6.3867501]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "osm-river-cipancuh-229497833",
+        "zone_class": "waterway",
+        "routing_mode": "penalty",
+        "buffer_m": 60.0,
+        "penalty_multiplier": 5.0,
+        "osm_type": "way",
+        "osm_id": 229497833
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[107.9551523,-6.4941221],[107.9561957,-6.4923125],[107.9554527,-6.4908627],[107.9546679,-6.4898784],[107.9533670,-6.4883833],[107.9528279,-6.4877890],[107.9523102,-6.4871494],[107.9517389,-6.4865098],[107.9511783,-6.4859555],[107.9507481,-6.4850476],[107.9500486,-6.4840721]]
+      }
+    }
+  ]
+}

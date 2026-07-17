@@ -15,6 +15,43 @@ export interface TerrainData {
   elevations: number[];
 }
 
+export type TerrainPalette = "geologic" | "monochrome";
+
+const GEOLOGIC_STOPS: Array<[number, [number, number, number]]> = [
+  [0, [0.075, 0.15, 0.16]],
+  [0.22, [0.12, 0.24, 0.21]],
+  [0.5, [0.24, 0.32, 0.23]],
+  [0.74, [0.42, 0.38, 0.27]],
+  [1, [0.66, 0.65, 0.56]],
+];
+
+const MONOCHROME_STOPS: Array<[number, [number, number, number]]> = [
+  [0, [0.11, 0.13, 0.15]],
+  [0.5, [0.31, 0.34, 0.37]],
+  [1, [0.66, 0.68, 0.69]],
+];
+
+/** Restrained terrain color with enough hue contrast to make relief legible. */
+export function terrainColor(
+  normalizedElevation: number,
+  palette: TerrainPalette,
+): [number, number, number] {
+  const t = Math.max(0, Math.min(1, normalizedElevation));
+  const stops = palette === "geologic" ? GEOLOGIC_STOPS : MONOCHROME_STOPS;
+  for (let index = 1; index < stops.length; index++) {
+    const [upperT, upper] = stops[index];
+    if (t > upperT) continue;
+    const [lowerT, lower] = stops[index - 1];
+    const local = (t - lowerT) / Math.max(1e-6, upperT - lowerT);
+    return [
+      lower[0] + (upper[0] - lower[0]) * local,
+      lower[1] + (upper[1] - lower[1]) * local,
+      lower[2] + (upper[2] - lower[2]) * local,
+    ];
+  }
+  return stops[stops.length - 1][1];
+}
+
 let cache: Promise<TerrainData> | null = null;
 
 export function loadTerrain(): Promise<TerrainData> {
@@ -37,6 +74,8 @@ export interface TerrainProjector {
   elevationAt: (c: Coordinate) => number;
   /** Scene-unit height for an elevation, given the vertical exaggeration. */
   heightOf: (elevationMetres: number, exaggeration: number) => number;
+  /** Uniform local scale used by reservoir geometry and other metric objects. */
+  metresPerSceneUnit: number;
   data: TerrainData;
 }
 
@@ -73,5 +112,5 @@ export function makeProjector(data: TerrainData): TerrainProjector {
   const heightOf = (elevationMetres: number, exaggeration: number): number =>
     (elevationMetres / metresPerSceneUnit) * exaggeration;
 
-  return { toXZ, elevationAt, heightOf, data };
+  return { toXZ, elevationAt, heightOf, metresPerSceneUnit, data };
 }

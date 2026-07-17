@@ -7,6 +7,11 @@ import {
   menus,
   runCommand,
 } from "./commands";
+import { useActionsStore } from "../state/actions.store";
+import { useComposeStore } from "../compose/compose.store";
+import { useLedgerStore } from "../state/ledger.store";
+import { useRunStore } from "../state/run.store";
+import { useWorkspaceStore } from "../state/workspace.store";
 import "./chrome.css";
 
 /**
@@ -14,6 +19,12 @@ import "./chrome.css";
  * entirely from the command registry, so it is provably complete.
  */
 export function MenuBar() {
+  useActionsStore((s) => s.actions);
+  useComposeStore((s) => s.past.length);
+  useComposeStore((s) => s.future.length);
+  useLedgerStore((s) => s.activeEntryId);
+  useRunStore((s) => s.status);
+  useWorkspaceStore((s) => s.verticalExaggeration);
   return (
     <Menubar.Root className="menubar">
       {menus.map((menu) => (

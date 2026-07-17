@@ -100,12 +100,12 @@ Model at two levels:
 
 ## Done Criteria
 
-- [ ] NPV, IRR, payback, break-even carbon price, break-even oil price all computed.
-- [ ] Net CO₂ stored computed via mass balance with the production-stream cross-check
+- [x] NPV, IRR, payback, break-even carbon price, break-even oil price all computed.
+- [x] Net CO₂ stored computed via mass balance with the production-stream cross-check
       and divergence reported.
-- [ ] Surrogate uncertainty propagated into an NPV band (not a bare point estimate).
-- [ ] All four carbon-price scenarios evaluated; ranking can differ across them.
-- [ ] Fiscal regime adjustable (take %, PSC mode); pre-tax and post-fiscal both
+- [x] Surrogate uncertainty propagated into an NPV band (not a bare point estimate).
+- [x] All four carbon-price scenarios evaluated; ranking can differ across them.
+- [x] Fiscal regime adjustable (take %, PSC mode); pre-tax and post-fiscal both
       available.
-- [ ] Cost/revenue breakdown matches the sum of components (internal consistency test).
-- [ ] Batch evaluation of ≥200 scenarios × 4 carbon scenarios is effectively instant.
+- [x] Cost/revenue breakdown matches the sum of components (internal consistency test).
+- [x] Batch evaluation of ≥200 scenarios × 4 carbon scenarios is effectively instant.

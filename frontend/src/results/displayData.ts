@@ -8,9 +8,10 @@ import { planForPrice } from "./priceScrubber";
 /**
  * Display adapters that make the workbench useful even when no pipeline network
  * is economic (the correct HnP outcome at pilot CO₂ volumes) — the backend then
- * returns an empty shortlist and no detailed predictions, but every candidate's
- * `well_strategies` entry still carries a full prediction, pre-logistics value,
- * and flags. These helpers fall back to that per-well data.
+ * may return an empty development shortlist. New results retain requested
+ * detail slots from the pre-logistics ranking; older/imported results can still
+ * omit them, while each `well_strategies` entry carries a compact prediction.
+ * These helpers preserve that backward-compatible fallback.
  */
 
 export interface DisplayPrediction {

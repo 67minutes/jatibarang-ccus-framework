@@ -1,0 +1,32 @@
+{
+  "case_count": 8,
+  "engineering_validation_verdict": "PASS",
+  "errors": {
+    "maximum_dwsim_mass_balance_residual_fraction": 0.0,
+    "maximum_power_error_pct": 1.9846462726567383e-05,
+    "power_mape_pct": {
+      "compressor": 1.6516748743779924e-05,
+      "pump": 7.380738657009921e-09,
+      "total": 1.4748431088298486e-05
+    }
+  },
+  "feature": "003-facility-model",
+  "gates": {
+    "dwsim_mass_balance_residual_at_most_0_1_pct": true,
+    "exact_portfolio_reconciliation": true,
+    "finite_nonnegative_runtime": true,
+    "max_power_error_at_most_10_pct": true,
+    "monotonic_power_capex_opex_separator_and_loss": true,
+    "power_mape_at_most_5_pct": true
+  },
+  "interpretation": "DWSIM comparison verdict is governed by the pinned error and mass-balance gates.",
+  "mechanical_verdict": "PASS",
+  "mode": "compare",
+  "reference": {
+    "dwsim_version": "10.0.9650.13551",
+    "model_sha256": "c9e966f194d3178905a11b9ffc65ed158902006bca8d80b5817c2ad743abfdb0",
+    "property_package": "CoolProp",
+    "reference_sha256": "44ffcb561e920233cc128f5529bb859ee2c0b2caad14b81f48a01342f1784a04"
+  },
+  "schema_version": "1.0"
+}

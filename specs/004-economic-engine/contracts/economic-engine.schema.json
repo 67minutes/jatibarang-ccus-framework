@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jatibarang-ccus.local/contracts/economic-engine.schema.json",
+  "title": "Feature 004 Economic Engine Batch Contracts",
+  "description": "Schema boundary for screening-grade economic batch requests and results.",
+  "oneOf": [
+    {"$ref": "#/$defs/EconomicBatchRequest"},
+    {"$ref": "#/$defs/EconomicBatchResult"}
+  ],
+  "$defs": {
+    "Provenance": {
+      "type": "object",
+      "required": ["source_class", "source_id"],
+      "properties": {
+        "source_class": {"type": "string"},
+        "source_id": {"type": "string", "minLength": 1},
+        "url": {"type": "string"},
+        "notes": {"type": "string"},
+        "metadata": {"type": "object"}
+      }
+    },
+    "AnnualEconomicPeriod": {
+      "type": "object",
+      "required": [
+        "year",
+        "oil_produced_m3",
+        "gross_gas_produced_std_m3",
+        "produced_co2_fraction",
+        "co2_standard_density_kg_m3",
+        "injected_co2_tonnes",
+        "surface_loss_co2_tonnes"
+      ],
+      "properties": {
+        "year": {"type": "integer", "minimum": 1, "maximum": 50},
+        "injection_hours": {"type": "number", "minimum": 0},
+        "production_hours": {"type": "number", "minimum": 0},
+        "oil_produced_m3": {"type": "number", "minimum": 0},
+        "gross_gas_produced_std_m3": {"type": "number", "minimum": 0},
+        "produced_co2_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "co2_standard_density_kg_m3": {"type": "number", "exclusiveMinimum": 0},
+        "injected_co2_tonnes": {"type": "number", "minimum": 0},
+        "inventory_produced_back_co2_tonnes": {"type": ["number", "null"], "minimum": 0},
+        "surface_loss_co2_tonnes": {"type": "number", "minimum": 0},
+        "workover_count": {"type": "integer", "minimum": 0},
+        "taxable_emissions_tonnes": {"type": "number", "minimum": 0}
+      }
+    },
+    "FlatDelivered": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "delivered_cost_usd_per_tonne", "provenance"],
+      "properties": {
+        "kind": {"const": "flat_delivered"},
+        "delivered_cost_usd_per_tonne": {"type": "number", "minimum": 0},
+        "provenance": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Provenance"}}
+      }
+    },
+    "PipelineRaw": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "pipeline_capex_usd",
+        "booster_capex_usd",
+        "annual_maintenance_usd",
+        "annual_booster_energy_usd",
+        "commodity_supply_usd_per_tonne",
+        "provenance"
+      ],
+      "properties": {
+        "kind": {"const": "pipeline_raw"},
+        "pipeline_capex_usd": {"type": "number", "minimum": 0},
+        "booster_capex_usd": {"type": "number", "minimum": 0},
+        "annual_maintenance_usd": {"type": "array", "items": {"type": "number", "minimum": 0}},
+        "annual_booster_energy_usd": {"type": "array", "items": {"type": "number", "minimum": 0}},
+        "commodity_supply_usd_per_tonne": {"type": "number", "minimum": 0},
+        "provenance": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Provenance"}}
+      }
+    },
+    "TruckingRaw": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "loading_usd_per_tonne",
+        "liquefaction_usd_per_tonne",
+        "reconditioning_usd_per_tonne",
+        "distance_transport_usd_per_tonne",
+        "commodity_supply_usd_per_tonne",
+        "provenance"
+      ],
+      "properties": {
+        "kind": {"const": "trucking_raw"},
+        "loading_usd_per_tonne": {"type": "number", "minimum": 0},
+        "liquefaction_usd_per_tonne": {"type": "number", "minimum": 0},
+        "reconditioning_usd_per_tonne": {"type": "number", "minimum": 0},
+        "distance_transport_usd_per_tonne": {"type": "number", "minimum": 0},
+        "commodity_supply_usd_per_tonne": {"type": "number", "minimum": 0},
+        "provenance": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Provenance"}}
+      }
+    },
+    "Portfolio": {
+      "type": "object",
+      "required": [
+        "portfolio_id",
+        "evaluation_stage",
+        "project_life_years",
+        "periods",
+        "supply",
+        "facility",
+        "uncertainty",
+        "provenance"
+      ],
+      "properties": {
+        "portfolio_id": {"type": "string", "minLength": 1},
+        "evaluation_stage": {"enum": ["preliminary", "final"]},
+        "project_life_years": {"type": "integer", "minimum": 1, "maximum": 50},
+        "periods": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/AnnualEconomicPeriod"}},
+        "supply": {
+          "oneOf": [
+            {"$ref": "#/$defs/FlatDelivered"},
+            {"$ref": "#/$defs/PipelineRaw"},
+            {"$ref": "#/$defs/TruckingRaw"}
+          ]
+        },
+        "facility": {"type": "object", "required": ["capex_usd", "annual_opex_usd", "provenance"]},
+        "uncertainty": {"type": "object", "required": ["periods", "extended_horizon", "provenance"]},
+        "terminal_cashflow_usd": {"type": "number"},
+        "provenance": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Provenance"}}
+      }
+    },
+    "EconomicBatchRequest": {
+      "type": "object",
+      "required": ["portfolios", "carbon_prices", "fiscal_cases", "assumptions", "provenance"],
+      "properties": {
+        "portfolios": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/Portfolio"}},
+        "carbon_prices": {"type": "array", "minItems": 4, "items": {"type": "object", "required": ["scenario_id", "carbon_price_usd_per_tonne", "source_type", "provenance"]}},
+        "fiscal_cases": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["case_id", "mode", "provenance"]}},
+        "assumptions": {"type": "object", "required": ["version", "currency_basis", "discount_rate"]},
+        "provenance": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Provenance"}}
+      }
+    },
+    "EconomicBatchResult": {
+      "type": "object",
+      "required": [
+        "economic_basis_version",
+        "currency_basis",
+        "scenario_count",
+        "results",
+        "rankings",
+        "elapsed_seconds",
+        "accounting_verdict",
+        "qualification",
+        "provenance"
+      ],
+      "properties": {
+        "economic_basis_version": {"type": "string"},
+        "currency_basis": {"type": "string"},
+        "scenario_count": {"type": "integer", "minimum": 1},
+        "results": {"type": "array", "minItems": 1},
+        "rankings": {"type": "array", "minItems": 1},
+        "elapsed_seconds": {"type": "number", "minimum": 0},
+        "accounting_verdict": {"enum": ["PASS", "FAIL"]},
+        "qualification": {"const": "screening_grade_parametric_fiscal_sensitivity"},
+        "provenance": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Provenance"}}
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "portfolio_count": 200,
+  "carbon_price_count": 4,
+  "fiscal_mode_count": 3,
+  "scenario_count": 2400,
+  "project_life_years": 3,
+  "distinct_cashflow_vectors": 200,
+  "terminal_cashflow_usd": 0.0,
+  "warmed_runs_seconds": [
+    0.8432846000650898,
+    0.8124131000367925,
+    0.7064646000508219,
+    0.8181308000348508,
+    0.8036894999677315,
+    0.799823599983938,
+    0.8131085999775678
+  ],
+  "mean_seconds": 0.7995592571595418,
+  "p95_seconds": 0.835738460056018,
+  "threshold_seconds": 1.0,
+  "passed": true,
+  "machine_scope": "presentation_machine_local_run"
+}

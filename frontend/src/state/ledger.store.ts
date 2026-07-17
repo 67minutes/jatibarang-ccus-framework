@@ -6,6 +6,7 @@ import {
   shortFingerprint,
   type StudyMemo,
 } from "../memo/studyMemo";
+import type { StudyMetadata } from "./study.store";
 
 /**
  * The run ledger: this session's completed runs, keyed by request fingerprint
@@ -21,7 +22,7 @@ interface LedgerState {
   recordRun: (
     request: ScreenRequest,
     result: ScreenResult,
-    opts?: { label?: string; imported?: boolean },
+    opts?: { label?: string; imported?: boolean; study?: StudyMetadata },
   ) => LedgerEntry;
   importMemo: (memo: StudyMemo) => LedgerEntry;
   setActive: (entryId: string | null) => void;
@@ -49,6 +50,7 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
       request,
       result,
       imported: opts?.imported ?? false,
+      study: opts?.study,
     };
     set((s) => ({ entries: [entry, ...s.entries], activeEntryId: entry.entryId }));
     return entry;

@@ -1,0 +1,24 @@
+{
+  "artifacts": {
+    "correlation_error_summary.json": "7b89ddac6d71ab60c4a9cb8ebabc5db2fd882244934a1d9c1c7128d1ffb72b2f",
+    "dwsim_reference.csv": "44ffcb561e920233cc128f5529bb859ee2c0b2caad14b81f48a01342f1784a04",
+    "equipment_cost_curve.csv": "1275a02d632690b3ce6e8e5b25013f85b0383896cb8a9cbaac9255e13d2ec81f",
+    "facility_cost_curve.png": "bcd478073f53520f872277d185becc709bf366d16d594191ae8dd5263bb72de8",
+    "facility_validation.png": "a3930cd7c5396f21618f1bdb628b60967546e14e55074c7b081df1aff2eb1e8b",
+    "process_mass_balance.csv": "70a575f23a9c984d2b164513711d9370e138f3697760e5b8846f3b06f5a5586c",
+    "runtime_comparison.csv": "e4e36d332cef9d5aeed3c291d0de10e330f9088ce9fb95c72f5a7f55f041431d"
+  },
+  "engineering_validation_verdict": "PASS",
+  "feature": "003-facility-model",
+  "inputs": {
+    "cases_sha256": "844dae67837181b293eb07563936118dfb98f0f9dcd0a6fb96ff91ba2cf25eca",
+    "cost_basis_sha256": "68E8B9E18934EBEA9D4EE7BDCB7A7B4501920DEB9CB9C7EE5CECB8BA1F1E3861",
+    "design_basis_sha256": "536A8B2A06945846B63DBA933B54C7CAB349E29BF171A7BAEB49CE892F456C95",
+    "dwsim_version": "10.0.9650.13551",
+    "model_sha256": "c9e966f194d3178905a11b9ffc65ed158902006bca8d80b5817c2ad743abfdb0",
+    "property_package": "CoolProp",
+    "reference_sha256": "44ffcb561e920233cc128f5529bb859ee2c0b2caad14b81f48a01342f1784a04"
+  },
+  "mechanical_verdict": "PASS",
+  "schema_version": "1.0"
+}

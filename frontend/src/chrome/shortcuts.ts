@@ -38,7 +38,7 @@ export function useGlobalShortcuts(): void {
 
       // Escape is a global cancel/close and fires even while typing.
       if (e.key === "Escape") {
-        window.dispatchEvent(new CustomEvent("tool:activate", { detail: "select" }));
+        useWorkspaceStore.getState().setActiveTool("select");
         return dispatch(e, "study.cancel");
       }
 

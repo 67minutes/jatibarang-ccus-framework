@@ -45,7 +45,7 @@ async function saveBlob(blob: Blob, suggestedName: string, mime: string): Promis
 export async function exportStudyMemo(entry: LedgerEntry): Promise<void> {
   const memo = entryToMemo(entry, APP_VERSION, API_CONTRACT_VERSION);
   const blob = new Blob([JSON.stringify(memo, null, 2)], { type: "application/json" });
-  const name = `${sanitize(entry.label)}.study.json`;
+  const name = entry.study?.memo_file_name || `${sanitize(entry.label)}.study.json`;
   await saveBlob(blob, name, "application/json");
 }
 

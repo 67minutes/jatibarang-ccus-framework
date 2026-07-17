@@ -1,0 +1,119 @@
+{
+  "status": "ready",
+  "surrogate_loaded": true,
+  "solver_available": true,
+  "active_runs": 0,
+  "presets": [
+    {
+      "preset_id": "jatibarang_demo_v1",
+      "logical_scenarios": 200,
+      "geology_count": 20,
+      "schedule_count": 10,
+      "ready": false,
+      "manifest_path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\screening_presets\\jatibarang_demo_v1\\manifest.json",
+      "payload_sha256": "",
+      "reason": "manifest is missing",
+      "component_catalog": {
+        "geology": {
+          "preset_id": "jatibarang_proxy_geologies_v1",
+          "count": 20,
+          "design_sha256": "701ECAE3F475D81F37A8DDE2D374D56289383A989EB423095BA4B11E0CD4D144",
+          "ready": true
+        },
+        "terrain": {
+          "preset_id": "jatibarang_srtm_v1",
+          "path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\terrain\\12. DEM SRTM 30m Provinsi Jawa Barat\\DEM SRTM 30M JAWA BARAT.tif",
+          "expected_sha256": "AA9CC7AD4BD0CB390A80CB8B2CE06061745CFCFE2B010D39F808CF74C506826E",
+          "ready": true
+        },
+        "supply": {
+          "preset_id": "subang_supply_v1",
+          "source_id": "SUBANG",
+          "sha256": "AAA5675D6F155CE856F457396AA23A05389CDE7472499DDB197DB1F86D6AB204",
+          "ready": true
+        },
+        "well_locations": {
+          "preset_id": "jatibarang_w01_w20_v1",
+          "count": 20,
+          "sha256": "7891C65D2F5C99C19450BDC11E63299FF5FB744A5BB0F11192C1E83BCA768897",
+          "ready": true
+        }
+      }
+    },
+    {
+      "preset_id": "jatibarang_full_v1",
+      "logical_scenarios": 3240,
+      "geology_count": 20,
+      "schedule_count": 162,
+      "ready": false,
+      "manifest_path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\screening_presets\\jatibarang_full_v1\\manifest.json",
+      "payload_sha256": "",
+      "reason": "manifest is missing",
+      "component_catalog": {
+        "geology": {
+          "preset_id": "jatibarang_proxy_geologies_v1",
+          "count": 20,
+          "design_sha256": "701ECAE3F475D81F37A8DDE2D374D56289383A989EB423095BA4B11E0CD4D144",
+          "ready": true
+        },
+        "terrain": {
+          "preset_id": "jatibarang_srtm_v1",
+          "path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\terrain\\12. DEM SRTM 30m Provinsi Jawa Barat\\DEM SRTM 30M JAWA BARAT.tif",
+          "expected_sha256": "AA9CC7AD4BD0CB390A80CB8B2CE06061745CFCFE2B010D39F808CF74C506826E",
+          "ready": true
+        },
+        "supply": {
+          "preset_id": "subang_supply_v1",
+          "source_id": "SUBANG",
+          "sha256": "AAA5675D6F155CE856F457396AA23A05389CDE7472499DDB197DB1F86D6AB204",
+          "ready": true
+        },
+        "well_locations": {
+          "preset_id": "jatibarang_w01_w20_v1",
+          "count": 20,
+          "sha256": "7891C65D2F5C99C19450BDC11E63299FF5FB744A5BB0F11192C1E83BCA768897",
+          "ready": true
+        }
+      }
+    }
+  ],
+  "details": {
+    "solver": "cbc",
+    "solver_reason": "",
+    "terrain_path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\terrain\\12. DEM SRTM 30m Provinsi Jawa Barat\\DEM SRTM 30M JAWA BARAT.tif",
+    "terrain_ready": true,
+    "terrain_sha256": "AA9CC7AD4BD0CB390A80CB8B2CE06061745CFCFE2B010D39F808CF74C506826E",
+    "expected_terrain_sha256": "AA9CC7AD4BD0CB390A80CB8B2CE06061745CFCFE2B010D39F808CF74C506826E",
+    "facility_design_basis": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\jatibarang\\facility_design_basis.json",
+    "facility_cost_basis": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\jatibarang\\facility_cost_basis.json",
+    "economic_basis": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\jatibarang\\economic_basis.json",
+    "basis_sha256": {
+      "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\jatibarang\\facility_design_basis.json": "684259E8791E41A4EB6C4C8B90A404E4DE3362934446CE5FFA60CBBCD0D7E172",
+      "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\jatibarang\\facility_cost_basis.json": "9F864C0C9943C40616E22986409C87E3AA8A79885DB53838ABD6E954DBF6B3EC",
+      "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\data\\jatibarang\\economic_basis.json": "41A84C2938C09E15426FAA3E1D4C79B0A019C75BD0A78DA4899C686C2A113628"
+    },
+    "bases_ready": true,
+    "economic_basis_version": "1.0.0",
+    "checkpoint": {
+      "checkpoint_path": "C:\\Users\\mauli\\Documents\\jatibarang-ccus-framework\\models\\checkpoints\\model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0.pt",
+      "checkpoint_sha256": "7A685C7EDB99BF00F6075D6DE4AA55EF2F4A7D8CC7F93ABB7B37A6359885566B",
+      "checkpoint_run_name": "hnp_prod_v2_boundary_replay_k3_polish_v1",
+      "output_contract": "production_v2",
+      "tin": 8,
+      "stored_dynamic_channels": 20,
+      "forward_dynamic_channels": 13,
+      "static_channels": 12,
+      "model_kwargs": {
+        "use_film": false,
+        "split_heads": false,
+        "use_stage_progress_features": true,
+        "use_transition_features": false,
+        "use_transition_refine": false,
+        "output_contract": "production_v2",
+        "use_stage_experts": true,
+        "stage_expert_scale": 0.1,
+        "use_transition_gas_fraction": true
+      }
+    }
+  }
+}

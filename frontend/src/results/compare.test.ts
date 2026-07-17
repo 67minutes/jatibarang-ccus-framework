@@ -32,6 +32,7 @@ function resultWith(shortlist: ScreenResult["shortlist"]): ScreenResult {
     cross_price_comparison: { selection_by_carbon_price: {}, transitions: [], pivot_observed: false },
     shortlist,
     detailed_predictions: {},
+    detailed_reservoirs: {},
     timings: { total_seconds: 1, stages_seconds: {}, milp_solve_seconds: 0 },
     warnings: [],
     provenance_catalog: {},

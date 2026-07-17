@@ -1,0 +1,6 @@
+{
+  "schema": "specs/004-economic-engine/contracts/economic-engine.schema.json",
+  "draft": "2020-12",
+  "request_valid": true,
+  "result_valid": true
+}

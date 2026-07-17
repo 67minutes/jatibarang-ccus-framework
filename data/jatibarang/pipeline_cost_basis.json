@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "currency": "USD",
+  "cost_year": 2025,
+  "status": "screening_proxy_not_indonesian_vendor_quote",
+  "pipeline_source": {
+    "title": "FECM/NETL CO2_T_COM Transport Cost Model, 2025 update",
+    "url": "https://www.netl.doe.gov/node/14899",
+    "release_date": "2025-07-09",
+    "source_year": 2025,
+    "source_currency": "USD",
+    "coefficient_reference_year": 2018,
+    "method": "screening low/base/high inch-mile correlation transcription converted to inch-metre and escalated from 2018 to 2025 USD; no Excel runtime dependency",
+    "escalation_factor_2018_to_2025": 1.28
+  },
+  "trucking_source": {
+    "title": "IEAGHG CO2 Transport and Storage Cost Review",
+    "url": "https://ieaghg.org/publications/co2-transport-and-storage-cost-review/",
+    "citation": "IEAGHG 2025-08, October 2025, DOI 10.62849/2025-08",
+    "source_year": 2025,
+    "source_currency": "multiple literature bases normalized here to USD screening assumptions",
+    "method": "bounded low/base/high loading, liquefaction, reconditioning, and distance assumptions informed by the review's cost-driver framework; not a direct tariff transcription"
+  },
+  "equations": {
+    "pipeline_capex_usd": "pipe_usd_per_inch_m * diameter_in * length_km * 1000",
+    "annual_pipeline_maintenance_usd": "pipeline_capex_usd * pipeline_maintenance_fraction",
+    "booster_capex_usd": "booster_fixed_capex_usd + booster_variable_capex_usd_per_kw * power_kw",
+    "annual_booster_energy_usd": "power_kw * operating_hours_per_year * electricity_usd_per_kwh",
+    "trucking_transport_usd_per_tonne": "trucking_usd_per_tonne_km * one_way_distance_km",
+    "trucking_delivered_usd_per_tonne": "loading + liquefaction + reconditioning + distance_transport + co2_supply",
+    "present_value_factor": "(1 - (1 + discount_rate)^(-project_life_years)) / discount_rate",
+    "levelized_transport_usd_per_tonne": "transport_lifecycle_present_value / (annual_tonnes * present_value_factor)"
+  },
+  "citations": [
+    {
+      "organization": "NETL",
+      "title": "NETL Releases Updated Version of CO2_T_COM Transport Cost Model",
+      "date": "2025-07-09",
+      "url": "https://www.netl.doe.gov/node/14899"
+    },
+    {
+      "organization": "IEAGHG",
+      "title": "CO2 Transport and Storage Cost Review",
+      "report_number": "2025-08",
+      "date": "2025-10-09",
+      "doi": "10.62849/2025-08",
+      "url": "https://ieaghg.org/publications/co2-transport-and-storage-cost-review/"
+    }
+  ],
+  "cases": {
+    "low": {
+      "pipe_usd_per_inch_m": 29.66,
+      "booster_fixed_capex_usd": 180000.0,
+      "booster_variable_capex_usd_per_kw": 1500.0,
+      "pipeline_maintenance_fraction": 0.02,
+      "electricity_usd_per_kwh": 0.08,
+      "co2_supply_usd_per_tonne": 7.0,
+      "trucking_loading_usd_per_tonne": 2.0,
+      "trucking_liquefaction_usd_per_tonne": 3.0,
+      "trucking_reconditioning_usd_per_tonne": 1.0,
+      "trucking_usd_per_tonne_km": 0.05
+    },
+    "base": {
+      "pipe_usd_per_inch_m": 37.91,
+      "booster_fixed_capex_usd": 250000.0,
+      "booster_variable_capex_usd_per_kw": 1850.0,
+      "pipeline_maintenance_fraction": 0.03,
+      "electricity_usd_per_kwh": 0.1,
+      "co2_supply_usd_per_tonne": 8.0,
+      "trucking_loading_usd_per_tonne": 2.5,
+      "trucking_liquefaction_usd_per_tonne": 4.0,
+      "trucking_reconditioning_usd_per_tonne": 1.5,
+      "trucking_usd_per_tonne_km": 0.085
+    },
+    "high": {
+      "pipe_usd_per_inch_m": 77.68,
+      "booster_fixed_capex_usd": 350000.0,
+      "booster_variable_capex_usd_per_kw": 2400.0,
+      "pipeline_maintenance_fraction": 0.05,
+      "electricity_usd_per_kwh": 0.13,
+      "co2_supply_usd_per_tonne": 10.0,
+      "trucking_loading_usd_per_tonne": 3.5,
+      "trucking_liquefaction_usd_per_tonne": 6.0,
+      "trucking_reconditioning_usd_per_tonne": 2.5,
+      "trucking_usd_per_tonne_km": 0.14
+    }
+  }
+}

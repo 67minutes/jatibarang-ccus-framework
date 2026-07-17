@@ -43,4 +43,20 @@ describe("grid encoding", () => {
     for (let k = 0; k < inst.count; k++) xs.push(inst.positions[k * 3]);
     expect(Math.min(...xs)).toBeCloseTo(-Math.max(...xs), 5);
   });
+
+  it("preserves a rectangular physical footprint", () => {
+    const inst = gridToInstances(realFrame, {
+      heightField: "z_co2",
+      colorField: "z_co2",
+      footprintX: 900,
+      footprintZ: 600,
+    });
+    expect(inst.cellSizeX / inst.cellSizeZ).toBeCloseTo(1.5);
+  });
+
+  it("rejects missing fields instead of silently relabelling another field", () => {
+    const frame: PlumeFrame = { step_index: 1, z_co2: new Array(GRID_N * GRID_N).fill(0) };
+    expect(() => gridToInstances(frame, { heightField: "z_co2", colorField: "pressure_bar" }))
+      .toThrow(/pressure_bar is unavailable/);
+  });
 });

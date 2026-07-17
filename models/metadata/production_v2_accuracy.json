@@ -1,0 +1,60 @@
+{
+  "artifact_type": "derived_validation_metadata",
+  "checkpoint_run_name": "model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0",
+  "source": "boreyes2026/outputs/model_b_hnp_prod_v2_boundary_replay_k3_polish_v1_fold0_metrics.json",
+  "upstream_test_case_count": 36,
+  "upstream_validated_rollout_steps": 24,
+  "bands": {
+    "one_step": {
+      "name": "one_step",
+      "horizon_step": 1,
+      "pressure_r2": 0.9998572804,
+      "pressure_rmse_bar": 0.0904408655,
+      "gas_mass_error_pct": 3.7108225822,
+      "z_co2_mass_error_pct": 0.5480704904,
+      "gas_plume_iou": 0.9755870468,
+      "z_co2_plume_iou": 0.988251383
+    },
+    "t_plus_5": {
+      "name": "t_plus_5",
+      "horizon_step": 5,
+      "pressure_r2": 0.9823077586,
+      "pressure_rmse_bar": 0.1518362311,
+      "gas_mass_error_pct": 4.1655087471,
+      "z_co2_mass_error_pct": 2.6174573898,
+      "gas_plume_iou": 0.9618497154,
+      "z_co2_plume_iou": 0.9547607973
+    },
+    "t_plus_10": {
+      "name": "t_plus_10",
+      "horizon_step": 10,
+      "pressure_r2": 0.9753212388,
+      "pressure_rmse_bar": 0.2907034491,
+      "gas_mass_error_pct": 3.9456088543,
+      "z_co2_mass_error_pct": 3.7075221539,
+      "gas_plume_iou": 0.7661033114,
+      "z_co2_plume_iou": 0.9002219292
+    },
+    "t_plus_11": {
+      "name": "t_plus_11",
+      "horizon_step": 11,
+      "pressure_r2": 0.965215524,
+      "pressure_rmse_bar": 0.2383881658,
+      "gas_mass_error_pct": 3.2037212849,
+      "z_co2_mass_error_pct": 3.7687864304,
+      "gas_plume_iou": 0.9421373235,
+      "z_co2_plume_iou": 0.901765323
+    },
+    "last_24": {
+      "name": "last_24",
+      "horizon_step": 24,
+      "pressure_r2": 0.9699950537,
+      "pressure_rmse_bar": 0.1611671231,
+      "gas_mass_error_pct": 5.4767560959,
+      "z_co2_mass_error_pct": 3.3468866348,
+      "gas_plume_iou": 0.9089555285,
+      "z_co2_plume_iou": 0.8637465589
+    }
+  },
+  "caveat": "Gas and z_co2 mass errors are upstream unweighted spatial-sum metrics, not geometry-aware inventory errors."
+}

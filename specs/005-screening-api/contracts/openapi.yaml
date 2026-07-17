@@ -1,0 +1,160 @@
+openapi: 3.1.0
+info:
+  title: Jatibarang CCUS Surrogate API
+  version: 0.1.0
+paths:
+  /screen:
+    post:
+      summary: Run the integrated CCUS screening workflow synchronously
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - {$ref: '#/components/schemas/PresetScreenRequest'}
+                - {$ref: '#/components/schemas/InlineScreenRequest'}
+              discriminator:
+                propertyName: mode
+      responses:
+        '200':
+          description: Integrated screening result
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ScreenResult'}
+        '422': {description: Invalid request or missing seed coverage}
+        '429': {description: Another screening run is active}
+        '503': {description: A required runtime dependency is unavailable}
+  /screen/stream:
+    post:
+      summary: Stream the integrated CCUS screening workflow as SSE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - {$ref: '#/components/schemas/PresetScreenRequest'}
+                - {$ref: '#/components/schemas/InlineScreenRequest'}
+              discriminator:
+                propertyName: mode
+      responses:
+        '200':
+          description: Progress events ending in result, error, or cancelled
+          content:
+            text/event-stream:
+              schema: {type: string}
+        '422': {description: Invalid request or missing seed coverage}
+        '429': {description: Another screening run is active}
+        '503': {description: A required runtime dependency is unavailable}
+  /screen/runs/{run_id}:
+    delete:
+      summary: Request cooperative cancellation of an active screening run
+      parameters:
+        - in: path
+          name: run_id
+          required: true
+          schema: {type: string}
+      responses:
+        '202': {description: Cancellation requested}
+        '404': {description: Run is not active}
+  /presets:
+    get:
+      summary: List screening presets and local readiness
+      responses:
+        '200': {description: Preset metadata}
+  /health:
+    get:
+      summary: Report screening dependency readiness
+      responses:
+        '200': {description: Service health and dependency status}
+components:
+  schemas:
+    PresetScreenRequest:
+      type: object
+      required: [preset_id]
+      properties:
+        mode: {type: string, const: preset, default: preset}
+        preset_id:
+          type: string
+          enum: [jatibarang_demo_v1, jatibarang_full_v1]
+        run_id: {type: [string, 'null'], minLength: 1, maxLength: 128}
+    InlineScreenRequest:
+      type: object
+      required:
+        - geologies
+        - seeds
+        - candidates
+        - sources
+        - annual_co2_budget_tonnes
+        - carbon_prices
+        - fiscal_cases
+        - economic_assumptions
+      properties:
+        mode: {type: string, const: inline, default: inline}
+        geologies: {type: object, minProperties: 1}
+        seeds: {type: object, minProperties: 1}
+        candidates: {type: array, minItems: 1, maxItems: 20}
+        sources: {type: array, minItems: 1}
+        schedules: {type: [array, 'null']}
+        operational_grid: {oneOf: [{$ref: '#/components/schemas/OperationalGrid'}, {type: 'null'}]}
+        scenario_limit: {type: integer, minimum: 1, maximum: 4096, default: 4096}
+    OperationalGrid:
+      type: object
+      required:
+        - injection_rate_m3_day
+        - injection_duration_days
+        - soak_duration_days
+        - production_duration_days
+        - production_bhp_psi
+        - cycles
+    ScreenResult:
+      type: object
+      required:
+        - run_id
+        - request_fingerprint
+        - status
+        - logical_scenario_count
+        - unique_inference_count
+        - inference_cache_hits
+        - plans
+        - cross_price_comparison
+        - shortlist
+        - timings
+      properties:
+        detailed_predictions:
+          type: object
+          additionalProperties: {$ref: '#/components/schemas/PredictionResult'}
+        detailed_reservoirs:
+          type: object
+          additionalProperties: {$ref: '#/components/schemas/ReservoirVisualization'}
+    PredictionResult:
+      type: object
+    ReservoirVisualization:
+      type: object
+      required: [scenario_id, geology_id, grid, static_fields]
+      properties:
+        scenario_id: {type: string}
+        geology_id: {type: string}
+        grid: {$ref: '#/components/schemas/ReservoirGridGeometry'}
+        static_fields: {type: object}
+        baseline_state: {type: [object, 'null']}
+        field_metadata: {type: object}
+        provenance: {type: object}
+    ReservoirGridGeometry:
+      type: object
+      required: [nx, ny, nz, length_x_m, length_y_m, thickness_m]
+      properties:
+        nx: {type: integer, const: 64}
+        ny: {type: integer, const: 64}
+        nz: {type: integer, const: 1}
+        length_x_m: {type: number, exclusiveMinimum: 0}
+        length_y_m: {type: number, exclusiveMinimum: 0}
+        thickness_m: {type: number, exclusiveMinimum: 0}
+    ProgressEvent:
+      type: object
+      required: [run_id, sequence, event, stage]
+      properties:
+        event:
+          type: string
+          enum: [run_started, stage_started, progress, stage_completed, warning, result, error, cancelled, heartbeat]

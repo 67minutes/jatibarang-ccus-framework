@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "hash_algorithm": "SHA-256",
+  "artifacts": [
+    {
+      "path": "README.md",
+      "sha256": "6800261B16884742727F062B390383A43C2E4511678079E734D51F43196E0C58",
+      "bytes": 412
+    },
+    {
+      "path": "dependency_report.json",
+      "sha256": "CDAD9EB503A2AD18A30530C4DC640547B48C58867C95336369D050BEDE7CC6F2",
+      "bytes": 5441
+    },
+    {
+      "path": "preset_hash_report.json",
+      "sha256": "D38D30535F9D72AE446151602DBB816D9E29714001328B419C6CC589CACD7A75",
+      "bytes": 1325
+    },
+    {
+      "path": "schema_report.json",
+      "sha256": "C3A5550A7248BB7DF091D9139A1810F890E82AF07425028A29DF89275C2A8D5E",
+      "bytes": 613
+    },
+    {
+      "path": "upstream_exporter_smoke.json",
+      "sha256": "16C8A84A8EE61AA6210D77AB4F84F399ACBB43EBBEBCE4880184FB85C51B785C",
+      "bytes": 769
+    },
+    {
+      "path": "validation_summary.json",
+      "sha256": "4E6D2F7954DFB129849FA171632FE80E0EEB888669F725E4AA14C05B052984D0",
+      "bytes": 184
+    }
+  ]
+}

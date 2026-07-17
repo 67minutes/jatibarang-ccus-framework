@@ -1,0 +1,15 @@
+{
+  "economic_basis_version": "1.0.0",
+  "scenario_count": 36,
+  "accounting_verdict": "PASS",
+  "maximum_accounting_residual_usd": 1.1641532182693481e-10,
+  "maximum_storage_divergence_fraction": 0.002000000000000016,
+  "maximum_storage_mass_balance_residual_tonnes": 0.0,
+  "ranking_pivot_across_carbon_prices": true,
+  "uncertainty_ranking_instability_present": true,
+  "metric_checks_passed": true,
+  "schema_validation_passed": true,
+  "performance_passed": true,
+  "qualification": "screening_grade_parametric_fiscal_sensitivity",
+  "promotion_verdict": "PASS"
+}

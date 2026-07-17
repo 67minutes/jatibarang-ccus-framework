@@ -1,10 +1,12 @@
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useUiStore } from "../state/ui.store";
 import { commands } from "./commands";
 import { APP_VERSION, API_CONTRACT_VERSION } from "../version";
 import { FindDialog } from "../compose/FindDialog";
 import { CompareDialog } from "../results/CompareDialog";
 import { ValidateDialog } from "../compose/ValidateDialog";
+import { NewStudyDialog } from "./NewStudyDialog";
+import { PreferencesDialog } from "./PreferencesDialog";
 
 /** All modal dialogs, driven by the ui store. */
 export function Modals() {
@@ -13,6 +15,12 @@ export function Modals() {
   if (modal === null) return null;
 
   switch (modal) {
+    case "newStudy":
+      return (
+        <Shell title="New Study" onClose={close} wide>
+          <NewStudyDialog onDone={close} />
+        </Shell>
+      );
     case "shortcuts":
       return (
         <Shell title="Keyboard Shortcuts" onClose={close}>
@@ -46,10 +54,7 @@ export function Modals() {
     case "preferences":
       return (
         <Shell title="Preferences" onClose={close}>
-          <p className="empty-hint">
-            Units, default vertical exaggeration, and colormap bins are fixed to
-            sensible defaults in this build.
-          </p>
+          <PreferencesDialog />
         </Shell>
       );
     default:
@@ -61,14 +66,33 @@ function Shell({
   title,
   onClose,
   children,
+  wide = false,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  wide?: boolean;
 }) {
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", handleKey, true);
+    return () => window.removeEventListener("keydown", handleKey, true);
+  }, [onClose]);
+
   return (
     <div className="modal-scrim" onClick={onClose}>
-      <div className="modal" role="dialog" aria-label={title} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`modal${wide ? " modal-wide" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="modal-head">
           <h2>{title}</h2>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">

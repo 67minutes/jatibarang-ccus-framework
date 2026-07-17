@@ -20,6 +20,7 @@ from jatibarang_ccus.contracts import (
 )
 from jatibarang_ccus.surrogate.schemas import (
     GeologyInput,
+    Grid2D,
     OperatingSchedule,
     PredictRequest,
     PredictionResult,
@@ -178,6 +179,7 @@ ScreenRequest = Annotated[PresetScreenRequest | InlineScreenRequest, Field(discr
 class MaterializedScenario(BaseModel):
     scenario_id: str
     candidate_id: str
+    geology_id: str
     location: Coordinate
     produced_co2: ProducedCO2Assumption
     schedule: OperatingSchedule
@@ -285,6 +287,78 @@ class RunTimings(BaseModel):
     milp_solve_seconds: float = Field(default=0, ge=0)
 
 
+class ReservoirGridGeometry(BaseModel):
+    """Physical dimensions of the single-layer proxy grid shown in the workbench."""
+
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    nx: int = Field(default=64, ge=1)
+    ny: int = Field(default=64, ge=1)
+    nz: int = Field(default=1, ge=1)
+    length_x_m: float = Field(gt=0)
+    length_y_m: float = Field(gt=0)
+    thickness_m: float = Field(gt=0)
+
+    @model_validator(mode="after")
+    def _fixed_surrogate_grid(self) -> "ReservoirGridGeometry":
+        if (self.nx, self.ny, self.nz) != (64, 64, 1):
+            raise ValueError("reservoir visualization grid must be 64 x 64 x 1")
+        return self
+
+
+class ReservoirStaticFields(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    permeability_md: Grid2D
+    porosity_fraction: Grid2D
+    structure_m: Grid2D
+    fracture_proxy: Grid2D
+    barrier: Grid2D
+    facies: Grid2D
+    well_mask: Grid2D
+    completion_mask: Grid2D
+
+
+class ReservoirBaselineState(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    pressure_bar: Grid2D
+    gas_saturation: Grid2D
+    z_co2: Grid2D
+    oil_saturation: Grid2D | None = None
+
+
+class ReservoirFieldMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    label: str = Field(min_length=1)
+    unit: str
+    minimum: float
+    maximum: float
+    scale: Literal["linear", "log10", "categorical", "binary"]
+    source_class: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _ordered_limits(self) -> "ReservoirFieldMetadata":
+        if self.minimum > self.maximum:
+            raise ValueError("reservoir field minimum cannot exceed maximum")
+        return self
+
+
+class ReservoirVisualization(BaseModel):
+    """Static simulator-style geometry paired with one detailed prediction."""
+
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    scenario_id: str = Field(min_length=1)
+    geology_id: str = Field(min_length=1)
+    grid: ReservoirGridGeometry
+    static_fields: ReservoirStaticFields
+    baseline_state: ReservoirBaselineState | None = None
+    field_metadata: dict[str, ReservoirFieldMetadata] = Field(default_factory=dict)
+    provenance: dict[str, Any] = Field(default_factory=dict)
+
+
 class ScreenResult(BaseModel):
     run_id: str
     request_fingerprint: str
@@ -296,6 +370,7 @@ class ScreenResult(BaseModel):
     cross_price_comparison: CrossPriceComparison
     shortlist: list[ValidationShortlistItem]
     detailed_predictions: dict[str, PredictionResult] = Field(default_factory=dict)
+    detailed_reservoirs: dict[str, ReservoirVisualization] = Field(default_factory=dict)
     timings: RunTimings
     warnings: list[str] = Field(default_factory=list)
     provenance_catalog: dict[str, Any] = Field(default_factory=dict)

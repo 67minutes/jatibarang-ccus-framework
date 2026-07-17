@@ -7,14 +7,27 @@ import { readFixture } from "../test/fixture";
 const canned = JSON.parse(readFixture("public/assets/canned-demo.json")) as ScreenResult;
 
 describe("displayData fallbacks (no viable network)", () => {
-  it("falls back to per-well strategy predictions when no detailed set exists", () => {
-    expect(Object.keys(canned.detailed_predictions)).toHaveLength(0);
+  it("uses the aligned case-0016 detailed prediction when retained", () => {
+    expect(Object.keys(canned.detailed_predictions)).toHaveLength(1);
+    expect(Object.keys(canned.detailed_reservoirs)).toEqual(
+      Object.keys(canned.detailed_predictions),
+    );
     const preds = displayPredictions(canned, null);
-    expect(preds.length).toBeGreaterThan(0);
+    expect(preds).toHaveLength(1);
+    expect(canned.detailed_reservoirs[preds[0].scenarioId].geology_id).toBe("case_0016");
     for (const p of preds) {
       expect(p.prediction.production.cumulative_oil_m3.length).toBeGreaterThan(0);
       expect(p.candidateId).toBeTruthy();
     }
+  });
+
+  it("falls back to compact per-well predictions when detail was not retained", () => {
+    const compactOnly = {
+      ...canned,
+      detailed_predictions: {},
+      detailed_reservoirs: {},
+    } satisfies ScreenResult;
+    expect(displayPredictions(compactOnly, null).length).toBeGreaterThan(0);
   });
 
   it("produces a pre-logistics ranking sorted by preliminary NPV", () => {

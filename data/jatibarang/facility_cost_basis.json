@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "basis_type": "facility_cost_basis",
+  "version": "1.0.0",
+  "currency": "USD",
+  "cost_year": 2025,
+  "status": "screening_proxy_not_indonesian_vendor_quote",
+  "equation": "installed_capex = reference_cost * (duty_per_active_train / reference_duty)^exponent * installation_factor * installed_train_count",
+  "cases": {
+    "low": {
+      "electricity_usd_per_kwh": 0.08,
+      "maintenance_fraction": 0.03,
+      "balance_of_plant_fraction": 0.25,
+      "equipment": {
+        "injection_pump": {"reference_duty": 250.0, "duty_unit": "kW", "reference_cost_usd": 200000.0, "exponent": 0.60, "installation_factor": 1.25},
+        "recycle_compressor": {"reference_duty": 1000.0, "duty_unit": "kW", "reference_cost_usd": 720000.0, "exponent": 0.62, "installation_factor": 1.25},
+        "intercooler": {"reference_duty": 500.0, "duty_unit": "kW", "reference_cost_usd": 120000.0, "exponent": 0.65, "installation_factor": 1.20},
+        "dehydration": {"reference_duty": 1.0, "duty_unit": "kg/s recycle CO2", "reference_cost_usd": 120000.0, "exponent": 0.60, "installation_factor": 1.25},
+        "three_phase_separator": {"reference_duty": 50.0, "duty_unit": "m3 vessel volume", "reference_cost_usd": 250000.0, "exponent": 0.58, "installation_factor": 1.25}
+      }
+    },
+    "base": {
+      "electricity_usd_per_kwh": 0.10,
+      "maintenance_fraction": 0.04,
+      "balance_of_plant_fraction": 0.35,
+      "equipment": {
+        "injection_pump": {"reference_duty": 250.0, "duty_unit": "kW", "reference_cost_usd": 250000.0, "exponent": 0.60, "installation_factor": 1.35},
+        "recycle_compressor": {"reference_duty": 1000.0, "duty_unit": "kW", "reference_cost_usd": 900000.0, "exponent": 0.62, "installation_factor": 1.35},
+        "intercooler": {"reference_duty": 500.0, "duty_unit": "kW", "reference_cost_usd": 150000.0, "exponent": 0.65, "installation_factor": 1.30},
+        "dehydration": {"reference_duty": 1.0, "duty_unit": "kg/s recycle CO2", "reference_cost_usd": 150000.0, "exponent": 0.60, "installation_factor": 1.35},
+        "three_phase_separator": {"reference_duty": 50.0, "duty_unit": "m3 vessel volume", "reference_cost_usd": 350000.0, "exponent": 0.58, "installation_factor": 1.35}
+      }
+    },
+    "high": {
+      "electricity_usd_per_kwh": 0.13,
+      "maintenance_fraction": 0.05,
+      "balance_of_plant_fraction": 0.45,
+      "equipment": {
+        "injection_pump": {"reference_duty": 250.0, "duty_unit": "kW", "reference_cost_usd": 325000.0, "exponent": 0.60, "installation_factor": 1.50},
+        "recycle_compressor": {"reference_duty": 1000.0, "duty_unit": "kW", "reference_cost_usd": 1170000.0, "exponent": 0.62, "installation_factor": 1.50},
+        "intercooler": {"reference_duty": 500.0, "duty_unit": "kW", "reference_cost_usd": 195000.0, "exponent": 0.65, "installation_factor": 1.45},
+        "dehydration": {"reference_duty": 1.0, "duty_unit": "kg/s recycle CO2", "reference_cost_usd": 195000.0, "exponent": 0.60, "installation_factor": 1.50},
+        "three_phase_separator": {"reference_duty": 50.0, "duty_unit": "m3 vessel volume", "reference_cost_usd": 455000.0, "exponent": 0.58, "installation_factor": 1.50}
+      }
+    }
+  },
+  "citations": [
+    {
+      "source_class": "engineering_correlation",
+      "title": "Chemical Engineering Design",
+      "authors": "Towler and Sinnott",
+      "method": "power-law screening correlation structure; coefficients remain project screening proxies"
+    },
+    {
+      "source_class": "engineering_correlation",
+      "title": "Analysis, Synthesis, and Design of Chemical Processes",
+      "authors": "Turton et al.",
+      "method": "equipment scaling and installation-factor structure"
+    }
+  ]
+}

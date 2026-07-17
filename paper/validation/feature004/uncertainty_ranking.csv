@@ -1,0 +1,13 @@
+carbon_price_scenario_id,fiscal_case_id,base_order,downside_order,upside_order,stable_across_bounds
+current_idx,pre_tax,oil_led>balanced>storage_led,balanced>oil_led>storage_led,oil_led>balanced>storage_led,False
+current_idx,cost_recovery_screening,oil_led>balanced>storage_led,balanced>oil_led>storage_led,oil_led>balanced>storage_led,False
+current_idx,gross_split_screening,oil_led>balanced>storage_led,balanced>oil_led>storage_led,oil_led>balanced>storage_led,False
+domestic_maturing,pre_tax,oil_led>balanced>storage_led,storage_led>balanced>oil_led,oil_led>balanced>storage_led,False
+domestic_maturing,cost_recovery_screening,oil_led>balanced>storage_led,storage_led>balanced>oil_led,oil_led>balanced>storage_led,False
+domestic_maturing,gross_split_screening,storage_led>balanced>oil_led,storage_led>balanced>oil_led,storage_led>balanced>oil_led,True
+article6_jcm,pre_tax,storage_led>balanced>oil_led,storage_led>balanced>oil_led,oil_led>storage_led>balanced,False
+article6_jcm,cost_recovery_screening,storage_led>balanced>oil_led,storage_led>balanced>oil_led,storage_led>oil_led>balanced,False
+article6_jcm,gross_split_screening,storage_led>balanced>oil_led,storage_led>balanced>oil_led,storage_led>balanced>oil_led,True
+aspirational,pre_tax,storage_led>balanced>oil_led,storage_led>balanced>oil_led,storage_led>oil_led>balanced,False
+aspirational,cost_recovery_screening,storage_led>balanced>oil_led,storage_led>balanced>oil_led,storage_led>balanced>oil_led,True
+aspirational,gross_split_screening,storage_led>balanced>oil_led,storage_led>balanced>oil_led,storage_led>balanced>oil_led,True

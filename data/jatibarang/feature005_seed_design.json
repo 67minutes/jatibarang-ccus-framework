@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "design_id": "jatibarang_feature005_seed_design_v1",
+  "source_manifest": "C:/Users/mauli/Documents/boreyes2026/exports_hnp_expressive/final/manifest.json",
+  "geology_selection": {
+    "count": 20,
+    "method": "normalized_maximin",
+    "initial": "closest_to_multivariate_median",
+    "tie_break": "case_id",
+    "features": [
+      "poro_mean",
+      "perm_mult",
+      "anisotropy_ratio",
+      "corridor_width_norm",
+      "dip_relief_m",
+      "local_structure_amp_m"
+    ]
+  },
+  "candidate_mapping": "stable_case_id_order_to_W01_through_W20",
+  "fixed_injection_duration_days": 45.0,
+  "grid": {
+    "injection_rate_m3_day": [8000.0, 9000.0, 10000.0],
+    "soak_duration_days": [25.0, 30.0, 35.0],
+    "production_duration_days": [170.0, 190.0, 210.0],
+    "production_bhp_psi": [650.0, 675.0, 700.0],
+    "cycles": [3, 4]
+  },
+  "demo_schedule_selection": {
+    "base_combination_count": 5,
+    "method": "normalized_maximin_from_center_then_lexicographic_tie_break",
+    "pair_each_with_cycles": [3, 4]
+  },
+  "full_schedule_count": 162,
+  "payload_policy": "derived_static_maps_and_eight_frame_seed_only",
+  "runtime_mrst_forbidden": true
+}

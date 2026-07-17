@@ -31,14 +31,18 @@ presentation's centerpiece. Build decisions should serve both.
 
 | Module | Name | Role | Runtime engine |
 |---|---|---|---|
-| 1 | Pipeline & Logistics Optimizer | CO₂ supply routing, diameter, boosters | CoolProp + graph search |
+| 1 | Pipeline & Logistics Optimizer | CO₂ network design, well selection, diameter, boosters | A* route precomputation + MILP network design (Pyomo/CBC) |
 | 2 | Subsurface Surrogate | Plume + production prediction (inference only) | PyTorch (pre-trained) |
 | 3 | Surface Facility Cost Model | Compression, separation, injection sizing | CoolProp + cost correlations |
 | 4 | Economic Engine | NPV under Indonesian carbon regulation | NumPy |
 
-Runtime data flow (NOT build order): **Module 2 → Module 1 → Module 3 → Module 4.**
-Module 2 screening produces the CO₂ demand profile that Module 1 needs and the
-injection rate that Module 3 needs. Module 4 is terminal — all paths lead there.
+Runtime reporting flow (NOT build order): **Module 2 → Module 1 → Module 3 → Module 4.**
+Module 2 screening produces candidate wells with CO₂ demands. Module 4 may run a quick
+preliminary pass with flat delivered-cost assumptions to estimate each well's value for
+Module 1. Module 1's MILP then jointly selects which wells to connect and designs the
+pipeline network — well selection is embedded in the network optimization. Module 3
+sizes facilities for the selected wells. Module 4 runs again with actual delivered
+costs for the final economics.
 
 ## Architecture Rules
 
@@ -46,8 +50,10 @@ injection rate that Module 3 needs. Module 4 is terminal — all paths lead ther
 - Frontend: Next.js 14+ with TypeScript.
 - Surrogate: PyTorch, CPU inference only, checkpoint loaded once at startup.
 - CO₂ thermodynamics: **CoolProp only at runtime.** No DWSIM, no MATLAB, no .NET,
-  no external process calls during screening.
+  no process-simulator calls during screening.
 - Economics: NumPy, vectorized. No Excel/spreadsheet dependencies.
+- Pipeline network design: Pyomo + CBC (or Gurobi/CPLEX if available). MILP jointly
+  selects which wells to connect and designs the network topology.
 - All inter-module communication uses typed Pydantic models. Interface contracts
   are fixed before implementation (define the schemas, then build).
 - Every module must be independently runnable and independently testable.
@@ -113,7 +119,9 @@ reproduction of the 2022 pilot. Documentation and the paper must state this hone
 ## Out of Scope (for this project)
 
 - Retraining or modifying the surrogate. It is consumed as a frozen checkpoint.
-- Full MILP pipeline-network optimization (single-source-to-sink routing is enough).
+- Live process-simulation-in-the-loop pipeline optimization. Module 1's MILP uses
+  CoolProp-precomputed pressure curves offline, not live DWSIM or external process
+  simulation.
 - Dynamic DWSIM-in-the-loop. DWSIM is used offline to validate the facility
   correlations only.
 - Real-time MRST coupling. MRST is the offline ground truth for the paper.

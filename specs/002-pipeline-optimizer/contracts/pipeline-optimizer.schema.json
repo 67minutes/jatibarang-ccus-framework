@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pipeline-optimizer.schema.json",
+  "title": "Feature 002 PipelineDesignRequest contract",
+  "type": "object",
+  "$defs": {
+    "coordinate": {
+      "type": "object",
+      "required": ["latitude", "longitude"],
+      "properties": {
+        "latitude": {"type": "number", "minimum": -90, "maximum": 90},
+        "longitude": {"type": "number", "minimum": -180, "maximum": 180}
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["id", "location", "capacity_tonnes_per_year", "max_mass_flow_kg_s", "outlet_pressure_bar", "outlet_temperature_c", "co2_purity"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "location": {"$ref": "#/$defs/coordinate"},
+        "capacity_tonnes_per_year": {"type": "number", "exclusiveMinimum": 0},
+        "max_mass_flow_kg_s": {"type": "number", "exclusiveMinimum": 0},
+        "outlet_pressure_bar": {"type": "number", "minimum": 80},
+        "outlet_temperature_c": {"type": "number"},
+        "co2_purity": {"type": "number", "minimum": 0.95, "maximum": 1}
+      }
+    },
+    "wellDemand": {
+      "type": "object",
+      "required": ["candidate_id", "location", "annual_demand_tonnes", "peak_mass_flow_kg_s", "pre_logistics_value_usd"],
+      "properties": {
+        "candidate_id": {"type": "string", "minLength": 1},
+        "location": {"$ref": "#/$defs/coordinate"},
+        "annual_demand_tonnes": {"type": "number", "exclusiveMinimum": 0},
+        "peak_mass_flow_kg_s": {"type": "number", "exclusiveMinimum": 0},
+        "pre_logistics_value_usd": {"type": "number"},
+        "mandatory": {"type": "boolean", "default": false}
+      }
+    }
+  },
+  "required": ["objective_mode", "sources", "well_demands", "route_library", "annual_co2_budget_tonnes", "assumptions"],
+  "properties": {
+    "objective_mode": {"enum": ["max_net_value", "min_lifecycle_cost"]},
+    "supply_scenario_id": {"type": "string", "default": "optimized_pipeline"},
+    "sources": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source"}},
+    "well_demands": {"type": "array", "items": {"$ref": "#/$defs/wellDemand"}},
+    "route_library": {
+      "type": "object",
+      "required": ["nodes", "segments", "fingerprint", "provenance"],
+      "properties": {
+        "nodes": {"type": "array"},
+        "segments": {"type": "array"},
+        "fingerprint": {"type": "string", "minLength": 1},
+        "provenance": {"type": "object"}
+      }
+    },
+    "annual_co2_budget_tonnes": {"type": "number", "exclusiveMinimum": 0},
+    "assumptions": {"type": "object"},
+    "cost_case": {"enum": ["low", "base", "high"], "default": "base"},
+    "delivery_target_tonnes_per_year": {"type": ["number", "null"], "exclusiveMinimum": 0},
+    "solver": {"type": "string", "default": "cbc"}
+  }
+}

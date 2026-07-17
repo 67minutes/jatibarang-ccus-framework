@@ -193,6 +193,7 @@ class CompactPresetBank:
                 yield MaterializedScenario(
                     scenario_id=scenario_id,
                     candidate_id=candidate.candidate_id,
+                    geology_id=f"{self.metadata.preset_id}:{candidate.candidate_id}",
                     location=candidate.location,
                     produced_co2=candidate.produced_co2,
                     schedule=schedule,
@@ -272,6 +273,7 @@ def materialize_inline_scenarios(request: InlineScreenRequest) -> list[Materiali
                 MaterializedScenario(
                     scenario_id=scenario_id,
                     candidate_id=candidate.candidate_id,
+                    geology_id=candidate.geology_id,
                     location=candidate.location,
                     produced_co2=candidate.produced_co2,
                     schedule=active_schedule,

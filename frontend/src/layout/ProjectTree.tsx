@@ -3,6 +3,8 @@ import { useLedgerStore } from "../state/ledger.store";
 import { useSelectionStore, type SelectionKind } from "../state/selection.store";
 import { shortFingerprint } from "../memo/studyMemo";
 import type { CarbonPricePlan, ScreenResult } from "../api/types";
+import { useComposeStore } from "../compose/compose.store";
+import { useStudyStore } from "../state/study.store";
 
 /**
  * The project tree (left region): the active study's objects — sources,
@@ -16,6 +18,8 @@ export function ProjectTree() {
   const activeEntryId = useLedgerStore((s) => s.activeEntryId);
   const setActive = useLedgerStore((s) => s.setActive);
   const carbonPriceId = useSelectionStore((s) => s.carbonPriceId);
+  const draft = useComposeStore((s) => s.draft);
+  const study = useStudyStore((s) => s.study);
 
   const result = activeEntry?.result;
   const plan = result ? selectPlan(result, carbonPriceId) : null;
@@ -23,7 +27,14 @@ export function ProjectTree() {
   return (
     <>
       <Panel title="Study Objects">
-        {!result ? (
+        {!result && draft ? (
+          <div className="study-draft-summary">
+            <span className="tree-group-label">Draft</span>
+            <strong>{study.name}</strong>
+            <span>{draft.candidates.length} candidate wells</span>
+            <span>Not screened yet</span>
+          </div>
+        ) : !result ? (
           <p className="empty-hint">
             No study loaded. Compose and run a screening study, or open a saved
             study memo.

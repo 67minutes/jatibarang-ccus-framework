@@ -1,31 +1,6 @@
 import type { PredictionResult } from "../api/types";
 import type { PlumeFrame } from "./grid";
 
-/**
- * Reservoir-field frames for the extruded grid. Real detailed predictions carry
- * per-cell spatial fields; the demo (which correctly selects no wells, so has no
- * detailed predictions) falls back to a bundled real single-well plume preview.
- */
-
-export interface PlumeAnimation {
-  scenario_id: string;
-  width: number;
-  height: number;
-  stepIndices: number[];
-  frames: PlumeFrame[];
-}
-
-let demoCache: Promise<PlumeAnimation | null> | null = null;
-
-export function loadDemoPlume(): Promise<PlumeAnimation | null> {
-  if (!demoCache) {
-    demoCache = fetch("/assets/demo-plume.json")
-      .then((r) => (r.ok ? (r.json() as Promise<PlumeAnimation>) : null))
-      .catch(() => null);
-  }
-  return demoCache;
-}
-
 /** Convert a detailed prediction's spatial fields into plume frames. */
 export function framesFromPrediction(prediction: PredictionResult): PlumeFrame[] {
   if (!prediction.fields) return [];

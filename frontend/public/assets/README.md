@@ -7,18 +7,16 @@ regenerable from the scripts below.
 
 | Asset | What it is | Regenerate with |
 |-------|-----------|-----------------|
-| `demo-request.json` | A valid inline screening request (3 wells, 4 carbon prices, 2 injection-rate schedules) over uniform demo geology at real Jatibarang-area coordinates. Seeds the composer and pairs with the cached result. | `python frontend/scripts/gen_demo_request.py` |
-| `canned-demo.json` | A real `/screen` result captured from the backend for `demo-request.json`. Loaded into the ledger on startup so results show offline. | `curl -X POST :8000/screen --data-binary @demo-request.json -o canned-demo.json` |
-| `demo-plume.json` | A compact 10-frame CO₂ plume animation (z_CO₂ + gas saturation) captured from `/predict` for the demo well. Feeds the 3D extruded reservoir grid. | See `gen_demo_request.py` header + a `/predict` capture |
+| `demo-request.json` | Inline preview of Figure 3's declared median-error validation case (`case_0016`): real MRST-derived static geology, the eight-frame MRST warm start, exact schedule, and one local-proxy W01 location. | `python frontend/scripts/gen_demo_request.py` |
+| `canned-demo.json` | A real `/screen` result for that request, including aligned `detailed_predictions` and `detailed_reservoirs`. Loaded into the ledger on startup so the simulator-style reservoir works offline. | Start the backend, then run `npm run capture:canned` |
 | `terrain.json` | A 120×120 SRTM heightmap clipped to the Jatibarang extent, baked from the province GeoTIFF. | `node frontend/scripts/bake-terrain.mjs` |
 
 ## Honest note on the demo result
 
-The demo uses **uniform** geology (the real MRST-derived fields are not
-materialized locally — Feature 007 owns that). At Huff-and-Puff CO₂ volumes a
-dedicated pipeline is not economic, so the screening result is honestly
-`no_viable_network` with an empty development shortlist — the same outcome the
-repository documents for the default proxy. The workbench surfaces this
-transparently (pre-logistics well ranking, trucking as the indicated supply,
-full confidence flags). Viable-network economics and a differentiated ranking
-appear when real MRST geology is supplied.
+The preview uses the real local validation artifact, but its W01 placement is a
+**local proxy**, not surveyed orientation or subsea depth. At Huff-and-Puff CO₂
+volumes the screened dedicated pipeline is still not economic, so the cached
+result honestly remains `no_viable_network`; the reservoir evidence is retained
+from the pre-logistics ranking for inspection instead of substituting a uniform
+plume. MRST truth/surrogate/residual comparison fields live in the hash-verified
+Feature 007 `case_0016` reservoir payload.

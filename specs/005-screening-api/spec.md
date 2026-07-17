@@ -1,110 +1,138 @@
-# Feature 005: Screening API (Orchestrator)
+# Feature 005: Screening API and Orchestrator
+
+## Status
+
+Production code and synthetic/mechanical integration are implemented as of
+2026-07-16. Twenty-three focused tests and the 140-test repository suite pass. Real preset
+promotion is **BLOCKED** because the fixed MRST-derived demo/full banks have not yet
+been fully generated and imported. No proxy result is substituted. Feature 007 owns
+the A/B/C runs and scientific or paper-number promotion.
 
 ## Purpose
 
-Tie the four modules into one workflow. Accept a screening request (geology +
-operational parameter grid + CO₂ source/sink + carbon-price scenarios), run the modules
-in the correct order, and return ranked, fully-costed integrated scenarios. This is the
-backend the frontend talks to and the engine the paper's case study runs through.
+Provide the production FastAPI integration layer for Features 001-004. A request
+supplies preset or inline geology, exact schedule-compatible warm seeds, candidates,
+sources, operational schedules, economic dimensions, and server-known basis IDs. The
+response reports a development plan for every carbon price plus cross-price,
+validation, qualification, timing, and provenance data.
 
-## Orchestration order
+The legacy Phase 1 `_evaluate_candidate()` workflow remains available only for the
+historical abstract-number ledger. It is not used by `/screen`.
 
-Runtime data flow is **2 → 1 → 3 → 4** (not the build/numbering order):
+## Runtime Flow
 
-1. **Module 2 (surrogate)** screens every scenario in the operational grid →
-   production profiles, plume frames, CO₂ inventory, and the aggregate CO₂ **demand
-   profile**.
-2. **Module 5 post-processing** derives per-scenario influence zones from the
-   surrogate frames before economics: maximum CO₂ plume extent and pressure
-   perturbation extent in physical units, plus multi-well interference checks when
-   multiple injectors/producers are evaluated together.
-3. **Module 1 (pipeline)** takes the demand profile (at a few representative throughput
-   levels) → delivered CO₂ cost per tonne for each supply scenario. Modules 1 and 3 are
-   independent of each other and may run concurrently.
-4. **Module 3 (facility)** takes injection rate / produced-gas info per scenario →
-   facility CAPEX/OPEX and CO₂ surface losses.
-5. **Module 4 (economics)** combines everything → NPV, break-evens, ranking, across all
-   carbon-price scenarios.
+1. Resolve the request, preset hashes, exact seed coverage, terrain, bases, checkpoint,
+   and CBC readiness.
+2. Expand and canonicalize logical scenarios, deduplicate identical physical inputs,
+   and call Feature 001 in chunks of at most 256.
+3. Annualize predictions through Feature 004. Preliminary economics use pinned flat
+   delivered supply and zero facility cost; discounted flat supply is added back to
+   form the Feature 002 pre-logistics value.
+4. Choose each candidate's best schedule separately for every carbon price. Build the
+   route library once and run the real Feature 002 `max_net_value` MILP once per price,
+   with no forced minimum selection.
+5. For accepted non-empty portfolios, call Feature 003 once for selected wells only,
+   using predicted production increments, pipeline delivery pressure, and explicit
+   provenance-tagged produced-gas CO2 composition.
+6. Evaluate selected per-well and aggregate Feature 004 portfolios across every
+   requested carbon price and fiscal case using raw pipeline allocations, facility
+   costs/losses, real inventory profiles, and surrogate uncertainty.
+7. Price trucking for the same selected set and rerun economics. Trucking is never a
+   separate well selector.
+8. Run one non-convergent audit MILP. Selected wells receive refined values with
+   actual pipeline costs added back; unselected wells retain preliminary values. The
+   audit selection is reported but never adopted or iterated.
+9. Assemble geodesic influence-radius interference, flags, cross-price entry/exit,
+   deterministic top-K validation shortlist, up to ten detailed predictions, timings,
+   and provenance.
 
-## Inputs
+## Requests
 
-- **Geology**: either a named preset (e.g. the Jatibarang case-study geology with
-  uncertainty) or explicit static maps.
-- **Operational grid**: ranges/levels for injection rate, soak duration, production
-  duration, BHP, cycle count to sweep (within trained ranges; out-of-range combinations
-  flagged).
-- **CO₂ source(s)** and **sink** (Jatibarang) for the pipeline module.
-- **Supply scenarios** to evaluate (trucking baseline, pipeline, multi-source hub).
-- **Carbon-price scenarios** and economic parameters for Module 4.
-- **CO₂ budget constraint** (optional): max tonnes/year, for any portfolio/shortlist
-  logic.
-- **Multi-well configuration** (optional): well coordinates, spacing, timing groups,
-  and non-interference policy for configurations that screen more than one well at a
-  time.
+`ScreenRequest` is discriminated by `mode`:
 
-## Outputs
+- `preset`: `jatibarang_demo_v1` or `jatibarang_full_v1` plus optional carbon/fiscal
+  filters and result-detail controls.
+- `inline`: typed geologies, seeds, candidates, sources, schedules or operational
+  grid, annual budget, at least four carbon prices, fiscal cases, economic assumptions,
+  and server-known terrain/routing/pipeline basis IDs.
 
-- **Ranked scenario list**: each entry carries its operational parameters, production
-  and storage outcomes, pipeline design + delivered cost, facility costs, and NPV under
-  each carbon-price scenario, plus confidence/extrapolation flags.
-- **Influence-zone metrics per scenario**: maximum CO₂ plume extent and maximum
-  pressure-perturbation extent reported in physical units, derived from surrogate
-  spatial outputs before economics.
-- **Multi-well interference report**: for multi-well configurations, an `N x N`
-  boolean matrix where entry `(i, j)` indicates whether well `i`'s influence zone
-  overlaps well `j`'s influence zone; any pair that fails the non-interference check is
-  flagged with a recommendation for that pair: increase spacing, stagger timing, or
-  validate with full simulation.
-- **Best-by-carbon-price**: the top scenario(s) for each carbon-price scenario,
-  highlighting where the ranking changes.
-- **Shortlist for full validation**: top-K scenarios recommended for MRST + detailed
-  DWSIM validation.
-- **Run metadata**: number of scenarios screened, wall-clock time (for the
-  speed-comparison story).
+Each operational schedule includes injection rate, injection duration, soak duration,
+production duration, production BHP, and cycles. Every candidate/schedule fingerprint
+must map to a seed carrying that exact fingerprint. Missing coverage is `422`; the
+service never rewrites a fingerprint or invents a cold start.
 
-## Behavior rules
+Logical scenarios are capped at 4,096. Feature 001 and preliminary Feature 004 calls
+are internally chunked at 256. Identical Feature 001 physical inputs run once per
+request.
 
-- Stateless request/response; long screening runs may stream progress (for the UI
-  progress bar) but must also work as a single synchronous call for scripted/paper use.
-- Every scenario carries its provenance: which module produced which number, and all
-  flags. Nothing is silently dropped or smoothed.
-- Influence-radius and interference outputs are first-class scenario metadata. They
-  must propagate into rankings, shortlist decisions, and validation recommendations;
-  non-interference failures are never hidden behind favorable NPV.
-- Caching: identical surrogate inputs should not be re-run within a request (the grid
-  may repeat geology across operational variations).
-- The orchestrator does not contain physics or economics logic itself — it only
-  sequences the modules and assembles results. All domain logic lives in 1–4.
+Every candidate carries an explicit produced-gas CO2 mole fraction and provenance.
+This value is not inferred from inventory, preserving an independent storage
+cross-check.
+
+## Results
+
+`ScreenResult` contains:
+
+- one `CarbonPricePlan` per requested carbon price;
+- best per-candidate strategy, selected wells, Feature 002 result, selected-well
+  Feature 003 portfolio, and Feature 004 batches;
+- same-selected-set trucking economics;
+- explicit empty, infeasible, no-network, hydraulic, and solver outcomes;
+- selection-discrepancy audit, interference matrix and flagged pairs;
+- cross-price entrants/exits and pivot flag;
+- deterministic validation shortlist and at most ten detailed predictions;
+- logical/unique/cache counts, timings, warnings, flags, and provenance catalog.
+
+If only some prices fail, the overall status is `completed_with_failures`. Dependency
+unavailability is `503`; a concurrent second full run is `429`.
 
 ## Endpoints
 
-- `POST /screen` — full screening run → ranked scenarios + best-by-carbon-price +
-  shortlist + metadata.
-- `POST /screen/stream` — same, with progress events for the UI.
-- `GET /presets` — available geology presets and supply scenarios.
-- `GET /health` — service + surrogate checkpoint status.
+- `POST /screen`: synchronous integrated result.
+- `POST /screen/stream`: equivalent execution as typed SSE events.
+- `DELETE /screen/runs/{run_id}`: cooperative cancellation.
+- `GET /presets`: dimensions, manifest/hash, and readiness.
+- `GET /health`: checkpoint, CBC, terrain, facility/economic bases, presets, and active
+  run readiness.
 
-## Dependencies
+SSE emits monotonic `run_started`, `stage_started`, `progress`, `stage_completed`,
+`warning`, and exactly one terminal `result`, `error`, or `cancelled` event.
 
-- FastAPI.
-- Modules 001–004 as importable packages.
-- Pydantic (shared interface models — define these first, before implementing 1–4).
+## Derived Presets
 
-## Done Criteria
+- `jatibarang_demo_v1`: 20 normalized-maximin proxy geologies by 10 schedules = 200.
+- `jatibarang_full_v1`: the same 20 geologies by all 162 schedules = 3,240.
 
-- [ ] `POST /screen` runs the full 2→1→3→4 chain on the Jatibarang preset and returns
-      ranked scenarios with NPV under all carbon-price scenarios.
-- [ ] Ordering enforced: Module 1 receives a real demand profile from Module 2, not a
-      placeholder.
-- [ ] Best-by-carbon-price correctly surfaces ranking changes across carbon prices.
-- [ ] Shortlist (top-K) is produced for downstream validation.
-- [ ] Each scenario includes physical-unit plume and pressure influence radii derived
-      from surrogate output frames.
-- [ ] Multi-well screens return an `N x N` interference matrix, pair-level
-      non-interference failure flags, and pair-level recommendations to increase
-      spacing, stagger timing, or validate with full simulation.
-- [ ] A few-hundred-scenario screen completes in minutes; metadata reports the count
-      and wall-clock time.
-- [ ] Extrapolation and low-confidence flags propagate from modules to the final
-      response.
-- [ ] Streaming endpoint emits progress suitable for a UI progress bar.
+The tracked design rules select accepted upstream parameter sets deterministically and
+map stable case-ID order to W01-W20. The demo selects five normalized-maximin
+rate/soak/production/BHP combinations, fixes injection duration at 45 days, and pairs
+each with three and four cycles.
+
+MRST runs offline in `boreyes2026`. Only static maps, eight-frame histories, seed
+production increments, provenance, and hashes may be imported. Raw 177-case training
+data is forbidden in this repository. Large payloads are ignored and hash-manifested.
+
+## Boundaries
+
+No live MRST/DWSIM, surrogate retraining, frontend, durable job store, arbitrary client
+filesystem paths, raw-corpus copy, synthetic minimum-well forcing, separate trucking
+selector, iterative audit convergence, or paper-number promotion.
+
+## Acceptance
+
+- [x] Real Feature 001 predictions feed Feature 002 demand/value adapters in production
+      code and integration fixtures.
+- [x] Candidate-specific schedule choice runs independently per carbon price.
+- [x] Facilities run only for selected wells.
+- [x] Duplicate physical inputs invoke the surrogate once per request.
+- [x] Synthetic fixtures prove price pivot, pass-1/pass-2 discrepancy, and partial
+      failures.
+- [x] Sync and streaming use one event-producing pipeline.
+- [x] Pipeline/facility costs have exactly-once typed ownership.
+- [x] Interference, provenance, shortlist, readiness, SSE, cancellation, and OpenAPI
+      contracts are tested.
+- [x] Focused and complete Python regression suites pass.
+- [ ] The real 200-scenario demo payload is complete and passes the under-10-minute,
+      under-4-GiB promotion run.
+- [ ] The full 3,240 bank is materialized and passes load/hash/chunk/stream readiness;
+      its long paper run remains Feature 007 work.

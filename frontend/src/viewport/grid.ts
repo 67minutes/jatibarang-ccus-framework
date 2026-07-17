@@ -24,11 +24,11 @@ export interface Bin {
 }
 
 export const FRACTION_BINS: Bin[] = [
-  { max: 0.05, rgb: [0.35, 0.38, 0.42] }, // ~background
-  { max: 0.15, rgb: [0.18, 0.56, 0.3] }, // green
-  { max: 0.3, rgb: [0.58, 0.72, 0.23] }, // yellow-green
-  { max: 0.45, rgb: [0.85, 0.54, 0.17] }, // orange
-  { max: Infinity, rgb: [0.76, 0.23, 0.18] }, // red
+  { max: 0.05, rgb: [0.055, 0.08, 0.1] }, // inactive/background
+  { max: 0.15, rgb: [0.06, 0.34, 0.4] }, // trace plume
+  { max: 0.3, rgb: [0.08, 0.63, 0.58] }, // mobile plume
+  { max: 0.45, rgb: [0.86, 0.7, 0.2] }, // elevated response
+  { max: Infinity, rgb: [0.92, 0.25, 0.13] }, // peak response
 ];
 
 /** Normalization maxima per field (fields are physical, not pre-normalized). */
@@ -47,7 +47,8 @@ export interface GridInstances {
   heights: Float32Array;
   /** Per-instance rgb color. */
   colors: Float32Array;
-  cellSize: number;
+  cellSizeX: number;
+  cellSizeZ: number;
 }
 
 export interface GridEncodeOptions {
@@ -55,6 +56,8 @@ export interface GridEncodeOptions {
   colorField: PlumeField;
   /** Footprint of the whole grid in scene units. */
   footprint?: number;
+  footprintX?: number;
+  footprintZ?: number;
   /** Maximum extruded height in scene units. */
   maxHeight?: number;
 }
@@ -78,28 +81,32 @@ export function gridToInstances(
   frame: PlumeFrame,
   opts: GridEncodeOptions,
 ): GridInstances {
-  const footprint = opts.footprint ?? 6;
+  const footprintX = opts.footprintX ?? opts.footprint ?? 6;
+  const footprintZ = opts.footprintZ ?? opts.footprint ?? 6;
   const maxHeight = opts.maxHeight ?? 3;
   const heightVals = fieldValues(frame, opts.heightField);
-  const colorVals = fieldValues(frame, opts.colorField) ?? heightVals;
+  const colorVals = fieldValues(frame, opts.colorField);
+  if (!heightVals) throw new Error(`height field ${opts.heightField} is unavailable`);
+  if (!colorVals) throw new Error(`color field ${opts.colorField} is unavailable`);
   const count = GRID_N * GRID_N;
   const positions = new Float32Array(count * 3);
   const heights = new Float32Array(count);
   const colors = new Float32Array(count * 3);
-  const cellSize = footprint / GRID_N;
+  const cellSizeX = footprintX / GRID_N;
+  const cellSizeZ = footprintZ / GRID_N;
   const hMax = FIELD_MAX[opts.heightField];
   const cMax = FIELD_MAX[opts.colorField];
 
   for (let j = 0; j < GRID_N; j++) {
     for (let i = 0; i < GRID_N; i++) {
       const k = j * GRID_N + i;
-      const hv = heightVals ? heightVals[k] : 0;
-      const cv = colorVals ? colorVals[k] : 0;
+      const hv = heightVals[k];
+      const cv = colorVals[k];
       const hNorm = Math.max(0, Math.min(1, hv / hMax));
       const cNorm = Math.max(0, Math.min(1, cv / cMax));
       const height = Math.max(0.01, hNorm * maxHeight);
-      const x = (i - GRID_N / 2 + 0.5) * cellSize;
-      const z = (j - GRID_N / 2 + 0.5) * cellSize;
+      const x = (i - GRID_N / 2 + 0.5) * cellSizeX;
+      const z = (j - GRID_N / 2 + 0.5) * cellSizeZ;
       positions[k * 3] = x;
       positions[k * 3 + 1] = height / 2;
       positions[k * 3 + 2] = z;
@@ -110,5 +117,5 @@ export function gridToInstances(
       colors[k * 3 + 2] = b;
     }
   }
-  return { count, positions, heights, colors, cellSize };
+  return { count, positions, heights, colors, cellSizeX, cellSizeZ };
 }

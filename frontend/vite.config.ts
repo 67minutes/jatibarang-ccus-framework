@@ -12,6 +12,9 @@ const API_PATHS = [
   "/health",
   "/model",
   "/predict",
+  "/paper",
+  "/docs",
+  "/openapi.json",
 ];
 
 export default defineConfig({
