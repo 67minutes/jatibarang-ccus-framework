@@ -63,6 +63,32 @@ paths:
       summary: List screening presets and local readiness
       responses:
         '200': {description: Preset metadata}
+  /terrain/import:
+    post:
+      summary: Register a GeoTIFF terrain and return its basin overview
+      responses:
+        '200': {description: Terrain record with overview heightmap}
+        '422': {description: Path is missing or not a readable raster}
+  /terrain:
+    get:
+      summary: List registered terrains
+      responses:
+        '200': {description: Registered terrain records}
+  /terrain/{terrain_id}/window:
+    get:
+      summary: Read a high-resolution terrain window for the field view
+      parameters:
+        - {in: path, name: terrain_id, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Windowed heightmap}
+        '404': {description: Terrain is not registered}
+        '422': {description: Window does not intersect the terrain}
+  /reservoir/import:
+    post:
+      summary: Import one MRST reservoir model and optional launch-pad bank
+      responses:
+        '200': {description: Typed reservoir payload and coverage}
+        '422': {description: Model or bank file is unreadable}
   /health:
     get:
       summary: Report screening dependency readiness

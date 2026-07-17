@@ -10,7 +10,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
+from ..imports.launchpads import LaunchpadBankError, load_launchpad_bank
+from ..imports.mrst import MrstImportError, load_mrst_reservoir
+from ..imports.store import ImportStore
+from ..imports.terrain import Heightmap, TerrainImportError, TerrainRegistry
 from ..screening.progress import RunBusyError, sse_encode
 from ..screening.schemas import HealthResponse, PresetInfo, ScreenRequest, ScreenResult
 
@@ -64,11 +69,25 @@ def _json_safe_validation_detail(value: Any) -> Any:
     return str(value)
 
 
+class TerrainImportRequest(BaseModel):
+    path: str
+
+
+class ReservoirImportRequest(BaseModel):
+    model_path: str
+    bank_path: str | None = None
+
+
 def create_app(
     runner_factory: RunnerFactory = load_surrogate,
     *,
     screening_factory: ScreeningFactory | None = None,
+    terrain_registry: TerrainRegistry | None = None,
+    import_store: ImportStore | None = None,
 ) -> FastAPI:
+    registry = terrain_registry or TerrainRegistry(_REPO_ROOT / "data" / "imports")
+    artifacts = import_store or ImportStore(_REPO_ROOT / "data" / "imports")
+
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         application.state.surrogate = runner_factory()
@@ -260,6 +279,99 @@ def create_app(
     )
     def presets(request: Request) -> list[PresetInfo]:
         return screening(request).list_presets()
+
+    @application.post(
+        "/terrain/import",
+        summary="Register a GeoTIFF terrain and return its basin overview",
+        responses={200: {"description": "Terrain record with overview heightmap"},
+                   422: {"description": "Path is missing or not a readable raster"}},
+    )
+    def terrain_import(payload: TerrainImportRequest) -> dict[str, Any]:
+        try:
+            record = registry.imports(Path(payload.path))
+            overview = registry.overview(record.terrain_id)
+        except TerrainImportError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        min_lon, min_lat, max_lon, max_lat = record.extent
+        return {
+            "terrain_id": record.terrain_id,
+            "sha256": record.sha256,
+            "extent": {"minLon": min_lon, "minLat": min_lat, "maxLon": max_lon, "maxLat": max_lat},
+            "cell_size_m": record.cell_size_m,
+            "overview": overview.model_dump(),
+        }
+
+    @application.get(
+        "/terrain",
+        summary="List registered terrains",
+        responses={200: {"description": "Registered terrain records"}},
+    )
+    def terrain_list() -> list[dict[str, Any]]:
+        return [
+            {
+                "terrain_id": r.terrain_id, "sha256": r.sha256, "source_path": r.source_path,
+                "extent": {"minLon": r.extent[0], "minLat": r.extent[1],
+                           "maxLon": r.extent[2], "maxLat": r.extent[3]},
+                "cell_size_m": r.cell_size_m,
+            }
+            for r in registry.list()
+        ]
+
+    @application.get(
+        "/terrain/{terrain_id}/window",
+        response_model=Heightmap,
+        summary="Read a high-resolution terrain window for the field view",
+        responses={200: {"description": "Windowed heightmap"},
+                   404: {"description": "Terrain is not registered"},
+                   422: {"description": "Window does not intersect the terrain"}},
+    )
+    def terrain_window(
+        terrain_id: str, min_lon: float, min_lat: float, max_lon: float, max_lat: float,
+        max_px: int = 768,
+    ) -> Heightmap:
+        try:
+            return registry.window(terrain_id, (min_lon, min_lat, max_lon, max_lat), max_px=max_px)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except TerrainImportError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @application.post(
+        "/reservoir/import",
+        summary="Import one MRST reservoir model and optional launch-pad bank",
+        responses={200: {"description": "Typed reservoir payload and coverage"},
+                   422: {"description": "Model or bank file is unreadable"}},
+    )
+    def reservoir_import(payload: ReservoirImportRequest) -> dict[str, Any]:
+        try:
+            imported = load_mrst_reservoir(Path(payload.model_path))
+        except MrstImportError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        stored = artifacts.put(Path(payload.model_path))
+        bank_id = bank_sha = None
+        covered = [imported.seed.schedule_fingerprint]
+        if payload.bank_path:
+            try:
+                bank = load_launchpad_bank(Path(payload.bank_path))
+            except LaunchpadBankError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            stored_bank = artifacts.put(Path(payload.bank_path))
+            bank_id, bank_sha = stored_bank.artifact_id, stored_bank.sha256
+            covered = sorted(set(covered) | set(bank))
+        return {
+            "model_id": stored.artifact_id,
+            "sha256": stored.sha256,
+            "source_file": Path(payload.model_path).name,
+            "geology": imported.geology.model_dump(),
+            "native_schedule": imported.schedule.model_dump(),
+            "native_fingerprint": imported.seed.schedule_fingerprint,
+            "well_ij": list(imported.well_ij),
+            "completion_ij": [list(pair) for pair in imported.completion_ij],
+            "launchpads": {
+                "bank_id": bank_id, "bank_sha256": bank_sha,
+                "covered_fingerprints": covered,
+            },
+        }
 
     @application.get(
         "/health",
