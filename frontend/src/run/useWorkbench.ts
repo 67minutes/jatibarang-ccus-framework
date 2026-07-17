@@ -160,15 +160,26 @@ export function useWorkbench(): void {
       },
       hasActiveResult: () => useLedgerStore.getState().activeEntryId != null,
       createNewStudy: (options) => {
+        const status = useRunStore.getState().status;
+        if (status === "running" || status === "stalled") {
+          useUiStore.getState().pushBanner({
+            id: "new-study-run-active",
+            severity: "warning",
+            message: "Finish or cancel the active screening run before creating a new study.",
+          });
+          return;
+        }
         useStudyStore.getState().create(options);
         useComposeStore.setState({ draft: null, past: [], future: [] });
         useLedgerStore.getState().setActive(null);
         useSelectionStore.getState().clear();
+        useRunStore.getState().reset();
         const workspace = useWorkspaceStore.getState();
         workspace.setViewport(options.startView);
         workspace.setExaggeration(options.verticalExaggeration);
         workspace.setActiveTool("select");
         workspace.setActiveTab("compose");
+        useUiStore.getState().dismissBanner("new-study-run-active");
       },
       openStudy: async () => {
         try {

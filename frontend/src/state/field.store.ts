@@ -1,4 +1,5 @@
 import { create, type StoreApi, type UseBoundStore } from "zustand";
+import type { ReservoirImportResponse } from "../api/client";
 import type { FieldSetupMemo } from "../memo/studyMemo";
 import type { TerrainData } from "../viewport/terrain";
 
@@ -65,6 +66,12 @@ interface FieldState {
   /** Runtime overview used by the viewport; deliberately excluded from memos. */
   overviewData: TerrainData | null;
   reservoir: ReservoirRef | null;
+  /**
+   * Complete import payload needed to build a pre-run reservoir scene and an
+   * inline screening request. It may be large, so it is held by reference for
+   * this session only and is deliberately absent from FieldSetupMemo.
+   */
+  reservoirRuntime: ReservoirImportResponse | null;
   placement: FieldPlacement | null;
   /** The first well is the model's native well whenever a reservoir is set. */
   wells: PlacedWell[];
@@ -76,6 +83,7 @@ interface FieldState {
     reservoir: ReservoirRef,
     placement: FieldPlacement,
     overviewData?: TerrainData | null,
+    reservoirRuntime?: ReservoirImportResponse | null,
   ) => void;
   moveField: (center_lat: number, center_lon: number) => void;
   rotateField: (rotation_deg: number) => void;
@@ -99,6 +107,7 @@ const EMPTY_STATE = {
   terrain: null,
   overviewData: null,
   reservoir: null,
+  reservoirRuntime: null,
   placement: null,
   wells: [],
   sources: [],
@@ -169,11 +178,18 @@ export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
   create<FieldState>((set, get) => ({
     ...EMPTY_STATE,
 
-    setup: (terrain, reservoir, placement, overviewData = null) =>
+    setup: (
+      terrain,
+      reservoir,
+      placement,
+      overviewData = null,
+      reservoirRuntime = null,
+    ) =>
       set({
         terrain,
         overviewData,
         reservoir,
+        reservoirRuntime,
         placement,
         wells: [nativeWell(placement, reservoir)],
         sources: [],
@@ -275,6 +291,9 @@ export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
           well_ij: [...setup.reservoir.well_ij],
           covered_fingerprints: [...setup.reservoir.covered_fingerprints],
         },
+        // Runtime geology and launch pads must be re-linked from the backend
+        // registry. They are never serialized into a portable memo.
+        reservoirRuntime: null,
         placement: { ...setup.placement },
         // Preserve memo coordinates exactly. A later move/rotate re-derives
         // only the native well from the imported model.

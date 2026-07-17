@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import type { ReservoirImportResponse } from "../api/client";
 import type { FieldSetupMemo } from "../memo/studyMemo";
 import type { TerrainData } from "../viewport/terrain";
 import {
@@ -44,13 +45,34 @@ const overview: TerrainData = {
   elevations: [10, 20, 30, 40],
 };
 
+const reservoirRuntime = {
+  model_id: reservoir.model_id,
+  sha256: reservoir.sha256,
+  source_file: reservoir.source_file,
+  geology: { length_x_m: 900, length_y_m: 600 },
+  native_schedule: { injection_duration_days: 45 },
+  native_fingerprint: reservoir.native_fingerprint,
+  native_seed: { schedule_fingerprint: reservoir.native_fingerprint },
+  bank_seeds: {},
+  well_ij: reservoir.well_ij,
+  completion_ij: [reservoir.well_ij],
+  launchpads: {
+    bank_id: null,
+    bank_sha256: null,
+    covered_fingerprints: reservoir.covered_fingerprints,
+  },
+} satisfies ReservoirImportResponse;
+
 describe("field store", () => {
   beforeEach(() => useFieldStore.getState().reset());
 
   it("setup derives the native well from well_ij", () => {
-    useFieldStore.getState().setup(terrain, reservoir, placement, overview);
+    useFieldStore
+      .getState()
+      .setup(terrain, reservoir, placement, overview, reservoirRuntime);
     const state = useFieldStore.getState();
     expect(state.overviewData).toBe(overview);
+    expect(state.reservoirRuntime).toBe(reservoirRuntime);
     expect(state.wells).toHaveLength(1);
     expect(state.wells[0]).toMatchObject({
       id: "W01",
@@ -147,6 +169,7 @@ describe("field store", () => {
     useFieldStore.getState().hydrate(setup);
 
     expect(useFieldStore.getState().overviewData).toBeNull();
+    expect(useFieldStore.getState().reservoirRuntime).toBeNull();
     expect(useFieldStore.getState().wells[0]).toMatchObject({
       id: "W01",
       name: "Memo native",
