@@ -148,7 +148,7 @@ class InlineScreenRequest(CommonScreenOptions):
     fiscal_cases: list[FiscalCase] = Field(min_length=1)
     economic_assumptions: EconomicAssumptions
     project_life_years: int = Field(default=8, ge=1, le=50)
-    terrain_id: Literal["jatibarang_srtm_v1"] = "jatibarang_srtm_v1"
+    terrain_id: str = "jatibarang_srtm_v1"
     routing_basis_id: Literal["jatibarang_case_study_v1"] = "jatibarang_case_study_v1"
     pipeline_basis_id: Literal["jatibarang_case_study_v1"] = "jatibarang_case_study_v1"
 

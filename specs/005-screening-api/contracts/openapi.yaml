@@ -125,6 +125,7 @@ components:
         schedules: {type: [array, 'null']}
         operational_grid: {oneOf: [{$ref: '#/components/schemas/OperationalGrid'}, {type: 'null'}]}
         scenario_limit: {type: integer, minimum: 1, maximum: 4096, default: 4096}
+        terrain_id: {type: string, default: jatibarang_srtm_v1}
     OperationalGrid:
       type: object
       required:

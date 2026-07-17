@@ -288,9 +288,10 @@ def create_app(
     )
     def terrain_import(payload: TerrainImportRequest) -> dict[str, Any]:
         try:
-            record = registry.imports(Path(payload.path))
+            stored = artifacts.put(Path(payload.path))
+            record = registry.imports(stored.path)
             overview = registry.overview(record.terrain_id)
-        except TerrainImportError as exc:
+        except (TerrainImportError, FileNotFoundError, OSError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         min_lon, min_lat, max_lon, max_lat = record.extent
         return {

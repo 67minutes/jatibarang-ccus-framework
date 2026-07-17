@@ -91,6 +91,54 @@ from .schemas import (
 
 SURROGATE_CHUNK_SIZE = 256
 ECONOMIC_CHUNK_SIZE = 256
+LEGACY_TERRAIN_ID = "jatibarang_srtm_v1"
+
+
+def resolve_terrain_path(
+    terrain_id: str,
+    *,
+    routing_assumptions: dict[str, Any] | None = None,
+    registry: Any | None = None,
+) -> Path:
+    """Resolve the legacy terrain or a hash-registered imported terrain.
+
+    Imported ids fail loudly rather than falling back to the paper/demo raster.
+    The optional arguments keep this pure enough for isolated registry tests.
+    """
+
+    if terrain_id == LEGACY_TERRAIN_ID:
+        routing = routing_assumptions or load_assumptions()["routing"]
+        configured = Path(routing["terrain_raster_path"])
+        return configured if configured.is_absolute() else REPO_ROOT / configured
+
+    if registry is None:
+        from ..imports.terrain import TerrainRegistry
+
+        registry = TerrainRegistry(REPO_ROOT / "data" / "imports")
+    try:
+        return Path(registry.get(terrain_id).source_path)
+    except KeyError as exc:
+        raise ValueError(f"unknown terrain_id: {terrain_id}") from exc
+
+
+def routing_assumptions_for_terrain(
+    terrain_id: str,
+    base: dict[str, Any],
+    *,
+    registry: Any | None = None,
+) -> dict[str, Any]:
+    """Clone routing assumptions and bind them to the requested terrain hash."""
+
+    assumptions = json.loads(json.dumps(base))
+    path = resolve_terrain_path(
+        terrain_id,
+        routing_assumptions=assumptions,
+        registry=registry,
+    )
+    if terrain_id != LEGACY_TERRAIN_ID:
+        assumptions["terrain_raster_path"] = str(path)
+        assumptions["terrain_sha256"] = _sha256(path)
+    return assumptions
 
 
 class ScreeningCancelled(RuntimeError):
@@ -803,11 +851,20 @@ class ScreeningOrchestrator:
                     candidate_id=candidate_id,
                 )
             )
+        terrain_id = (
+            request.terrain_id
+            if isinstance(request, InlineScreenRequest)
+            else LEGACY_TERRAIN_ID
+        )
+        routing_assumptions = routing_assumptions_for_terrain(
+            terrain_id,
+            self.assumptions["routing"],
+        )
         route_library = self.services.route_builder(
             RouteLibraryRequest(
                 sources=request.sources,
                 well_demands=routing_demands,
-                routing_assumptions=self.assumptions["routing"],
+                routing_assumptions=routing_assumptions,
             )
         )
         stages["routing"] = perf_counter() - stage_started

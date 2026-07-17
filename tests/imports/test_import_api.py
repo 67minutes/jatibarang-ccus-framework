@@ -56,7 +56,11 @@ def test_terrain_import_list_and_window(tmp_path: Path, dem: Path) -> None:
         assert body["terrain_id"].startswith("terrain-")
         assert body["overview"]["width"] > 0
 
-        assert client.get("/terrain").json()[0]["terrain_id"] == body["terrain_id"]
+        listed = client.get("/terrain").json()[0]
+        assert listed["terrain_id"] == body["terrain_id"]
+        stored_path = Path(listed["source_path"])
+        assert stored_path.exists()
+        assert stored_path.parent.parent == tmp_path / "imports"
 
         window = client.get(
             f"/terrain/{body['terrain_id']}/window",
