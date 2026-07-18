@@ -61,15 +61,41 @@ export function Inspector() {
       ) : !plan ? (
         <p className="empty-hint">No plan available for the current carbon price.</p>
       ) : (
-        <SelectionDetail
-          plan={plan}
-          kind={selection.kind}
-          id={selection.id}
-          sharedReservoir={Boolean(fieldReservoir)}
-        />
+        <div>
+          <SelectionDetail
+            plan={plan}
+            kind={selection.kind}
+            id={selection.id}
+            sharedReservoir={Boolean(fieldReservoir)}
+          />
+          <TruckingDistanceProvenance
+            provenance={plan.trucking_counterfactual?.supply.distance_provenance}
+          />
+        </div>
       )}
     </Panel>
   );
+}
+
+export function TruckingDistanceProvenance({
+  provenance,
+}: {
+  provenance: string | undefined;
+}) {
+  if (provenance === "greatcircle_detour_estimate") {
+    return (
+      <p className="confidence-note">
+        Estimated from great-circle distance × 1.4 — import a road network for
+        road-accurate routing.
+      </p>
+    );
+  }
+  if (provenance?.startsWith("osm_road_network:")) {
+    return (
+      <p className="confidence-note">Routed over the imported road network.</p>
+    );
+  }
+  return null;
 }
 
 function SelectionDetail({

@@ -1,7 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { CarbonPricePlan, InterferencePair } from "../api/types";
-import { WellInterferenceWarnings } from "./Inspector";
+import {
+  TruckingDistanceProvenance,
+  WellInterferenceWarnings,
+} from "./Inspector";
 
 function planWithPairs(flaggedPairs: InterferencePair[]): CarbonPricePlan {
   return {
@@ -62,6 +65,38 @@ describe("WellInterferenceWarnings", () => {
           },
         ])}
       />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("TruckingDistanceProvenance", () => {
+  it("explains great-circle estimates and prompts for a road import", () => {
+    render(
+      <TruckingDistanceProvenance provenance="greatcircle_detour_estimate" />,
+    );
+
+    expect(
+      screen.getByText(
+        "Estimated from great-circle distance × 1.4 — import a road network for road-accurate routing.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("identifies routes computed over an imported road graph", () => {
+    render(
+      <TruckingDistanceProvenance provenance="osm_road_network:roads-abc123" />,
+    );
+
+    expect(
+      screen.getByText("Routed over the imported road network."),
+    ).toBeInTheDocument();
+  });
+
+  it("stays hidden for unrelated provenance", () => {
+    const { container } = render(
+      <TruckingDistanceProvenance provenance="declared_distance" />,
     );
 
     expect(container).toBeEmptyDOMElement();

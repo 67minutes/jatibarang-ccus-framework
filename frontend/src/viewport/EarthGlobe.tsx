@@ -143,13 +143,13 @@ export function EarthGlobe({
 
   return (
     <group>
-      <mesh>
+      <mesh onDoubleClick={(event) => event.stopPropagation()}>
         <sphereGeometry args={[GLOBE_RADIUS, 64, 48]} />
-        <meshStandardMaterial
+        <meshBasicMaterial
+          key={texture ? "earth-texture" : "earth-fallback"}
           map={texture ?? undefined}
           color={texture ? "#ffffff" : "#123a52"}
-          roughness={0.9}
-          metalness={0}
+          toneMapped={false}
         />
       </mesh>
       {graticule.map((line) => (
@@ -186,9 +186,25 @@ export function EarthGlobe({
               lineWidth={active ? 2.4 : 1.4}
               onDoubleClick={(event) => dive(event, terrain.terrain_id)}
             />
+            <mesh
+              position={latLonToVec3(
+                centerLat,
+                centerLon,
+                GLOBE_RADIUS * 1.006,
+              )}
+              onDoubleClick={(event) => dive(event, terrain.terrain_id)}
+            >
+              <sphereGeometry args={[0.32, 12, 8]} />
+              <meshBasicMaterial
+                transparent
+                opacity={0}
+                depthWrite={false}
+              />
+            </mesh>
             {active ? (
               <Html
                 center
+                occlude
                 position={latLonToVec3(
                   centerLat,
                   centerLon,
@@ -197,9 +213,14 @@ export function EarthGlobe({
                 distanceFactor={10}
                 zIndexRange={[6, 0]}
               >
-                <span className="scene-label">
+                <button
+                  type="button"
+                  className="scene-label earth-terrain-label"
+                  aria-label={`Open ${terrain.terrain_id} basin`}
+                  onDoubleClick={() => onDive(terrain.terrain_id)}
+                >
                   {terrain.terrain_id.replace(/^terrain-/, "").slice(0, 8)}
-                </span>
+                </button>
               </Html>
             ) : null}
           </group>

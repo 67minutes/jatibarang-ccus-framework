@@ -575,6 +575,10 @@
   border-color: #f0695d;
   box-shadow: 0 0 0 1px rgba(240, 105, 93, 0.25);
 }
+.earth-terrain-label {
+  cursor: zoom-in;
+  pointer-events: auto;
+}
 
 .influence-warning-badge {
   display: inline-flex;
