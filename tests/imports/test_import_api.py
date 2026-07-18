@@ -11,11 +11,13 @@ from rasterio.transform import from_bounds as transform_from_bounds
 from jatibarang_ccus.api.app import create_app
 from jatibarang_ccus.imports.launchpads import write_launchpad_bank
 from jatibarang_ccus.imports.mrst import load_mrst_reservoir
+from jatibarang_ccus.imports.roads import RoadsRegistry
 from jatibarang_ccus.imports.store import ImportStore
 from jatibarang_ccus.imports.terrain import TerrainRegistry
 from jatibarang_ccus.surrogate.schemas import SeedHistory
 
 from tests.screening.helpers import FakeRunner
+from tests.imports.test_roads import write_pbf
 
 
 class _FakeScreening:
@@ -35,6 +37,7 @@ def _app(tmp_path: Path):
         screening_factory=lambda _runner: _FakeScreening(),
         terrain_registry=TerrainRegistry(tmp_path / "registry"),
         import_store=ImportStore(tmp_path / "imports"),
+        roads_registry=RoadsRegistry(tmp_path / "imports"),
     )
 
 
@@ -46,6 +49,26 @@ def dem(tmp_path: Path) -> Path:
     with rasterio.open(
         path, "w", driver="GTiff", height=40, width=50, count=1,
         dtype="float32", crs="EPSG:4326", transform=transform,
+    ) as dst:
+        dst.write(data, 1)
+    return path
+
+
+@pytest.fixture()
+def roads_dem(tmp_path: Path) -> Path:
+    path = tmp_path / "roads-dem.tif"
+    data = np.linspace(0, 300, 40 * 50, dtype=np.float32).reshape(40, 50)
+    transform = transform_from_bounds(107.0, -6.6, 107.2, -6.3, 50, 40)
+    with rasterio.open(
+        path,
+        "w",
+        driver="GTiff",
+        height=40,
+        width=50,
+        count=1,
+        dtype="float32",
+        crs="EPSG:4326",
+        transform=transform,
     ) as dst:
         dst.write(data, 1)
     return path
@@ -160,6 +183,49 @@ def test_reservoir_get_reloads_from_the_artifact_store(tmp_path: Path) -> None:
         assert missing_bank.status_code == 404
 
 
+def test_roads_import_list_and_layers(
+    tmp_path: Path,
+    roads_dem: Path,
+) -> None:
+    pbf = tmp_path / "toy.osm.pbf"
+    write_pbf(pbf)
+    with TestClient(_app(tmp_path)) as client:
+        terrain = client.post(
+            "/terrain/import",
+            json={"path": str(roads_dem)},
+        ).json()
+        imported = client.post(
+            "/roads/import",
+            json={"path": str(pbf), "terrain_id": terrain["terrain_id"]},
+        )
+        assert imported.status_code == 200
+        body = imported.json()
+        assert body["road_network_id"].startswith("roads-")
+        assert body["edge_count"] > 0
+
+        listed = client.get("/roads").json()
+        assert listed[0]["road_network_id"] == body["road_network_id"]
+
+        layers = client.get(f"/roads/{body['road_network_id']}/layers")
+        assert layers.status_code == 200
+        assert "roads" in layers.json()
+
+        assert client.get("/roads/roads-unknown0000000/layers").status_code == 404
+        unknown_terrain = client.post(
+            "/roads/import",
+            json={"path": str(pbf), "terrain_id": "terrain-nope"},
+        )
+        assert unknown_terrain.status_code == 404
+        bad = client.post(
+            "/roads/import",
+            json={
+                "path": str(tmp_path / "missing.pbf"),
+                "terrain_id": terrain["terrain_id"],
+            },
+        )
+        assert bad.status_code == 422
+
+
 def test_path_taking_import_routes_refuse_non_loopback_clients(tmp_path: Path, dem: Path) -> None:
     """The import routes read local files named by the client; that is safe
     only from the machine's own user. A non-loopback peer must get 403 even if
@@ -168,7 +234,7 @@ def test_path_taking_import_routes_refuse_non_loopback_clients(tmp_path: Path, d
 
     import httpx
 
-    async def remote_calls() -> tuple[int, int]:
+    async def remote_calls() -> tuple[int, int, int]:
         transport = httpx.ASGITransport(
             app=_app(tmp_path), client=("203.0.113.9", 4444)
         )
@@ -180,6 +246,10 @@ def test_path_taking_import_routes_refuse_non_loopback_clients(tmp_path: Path, d
                 "/reservoir/import",
                 json={"model_path": "data/validation_cases/case_0016.mat"},
             )
-            return terrain.status_code, reservoir.status_code
+            roads = await remote.post(
+                "/roads/import",
+                json={"path": "C:/roads.osm.pbf", "terrain_id": "terrain-x"},
+            )
+            return terrain.status_code, reservoir.status_code, roads.status_code
 
-    assert asyncio.run(remote_calls()) == (403, 403)
+    assert asyncio.run(remote_calls()) == (403, 403, 403)

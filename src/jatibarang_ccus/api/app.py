@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from ..imports.launchpads import LaunchpadBankError, load_launchpad_bank
 from ..imports.mrst import MrstImportError, load_mrst_reservoir
+from ..imports.roads import RoadsImportError, RoadsRegistry
 from ..imports.store import ImportStore
 from ..imports.terrain import Heightmap, TerrainImportError, TerrainRegistry
 from ..screening.progress import RunBusyError, sse_encode
@@ -97,6 +98,11 @@ class ReservoirImportRequest(BaseModel):
     bank_path: str | None = None
 
 
+class RoadsImportRequest(BaseModel):
+    path: str
+    terrain_id: str
+
+
 def _reservoir_payload(
     model_path: Path,
     model_id: str,
@@ -138,9 +144,11 @@ def create_app(
     screening_factory: ScreeningFactory | None = None,
     terrain_registry: TerrainRegistry | None = None,
     import_store: ImportStore | None = None,
+    roads_registry: RoadsRegistry | None = None,
 ) -> FastAPI:
     registry = terrain_registry or TerrainRegistry(_REPO_ROOT / "data" / "imports")
     artifacts = import_store or ImportStore(_REPO_ROOT / "data" / "imports")
+    roads = roads_registry or RoadsRegistry(_REPO_ROOT / "data" / "imports")
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
@@ -455,6 +463,64 @@ def create_app(
             )
         except (MrstImportError, LaunchpadBankError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @application.post(
+        "/roads/import",
+        summary="Import an OSM extract as the study road network",
+        responses={200: {"description": "Road network record"},
+                   404: {"description": "Terrain is not registered"},
+                   422: {"description": "File is not a readable OSM extract with roads in the extent"}},
+    )
+    def roads_import(
+        payload: RoadsImportRequest,
+        request: Request,
+    ) -> dict[str, Any]:
+        _require_local_client(request)
+        try:
+            terrain = registry.get(payload.terrain_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        try:
+            record = roads.imports(Path(payload.path), terrain.extent)
+        except RoadsImportError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {
+            "road_network_id": record.road_network_id,
+            "sha256": record.sha256,
+            "node_count": record.node_count,
+            "edge_count": record.edge_count,
+            "bbox": list(record.bbox),
+        }
+
+    @application.get(
+        "/roads",
+        summary="List registered road networks",
+        responses={200: {"description": "Registered road-network records"}},
+    )
+    def roads_list() -> list[dict[str, Any]]:
+        return [
+            {
+                "road_network_id": record.road_network_id,
+                "sha256": record.sha256,
+                "source_path": record.source_path,
+                "bbox": list(record.bbox),
+                "node_count": record.node_count,
+                "edge_count": record.edge_count,
+            }
+            for record in roads.list()
+        ]
+
+    @application.get(
+        "/roads/{road_network_id}/layers",
+        summary="Read simplified map-context layers for the basin view",
+        responses={200: {"description": "Roads, coastline, and place layers"},
+                   404: {"description": "Road network is not registered"}},
+    )
+    def roads_layers(road_network_id: str) -> dict[str, Any]:
+        try:
+            return roads.layers(road_network_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @application.get(
         "/health",

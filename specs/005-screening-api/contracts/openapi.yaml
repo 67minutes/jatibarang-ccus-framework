@@ -98,6 +98,26 @@ paths:
         '200': {description: Typed reservoir payload and coverage}
         '404': {description: Imported artifact is missing}
         '422': {description: Stored artifact is unreadable}
+  /roads/import:
+    post:
+      summary: Import an OSM extract as the study road network
+      responses:
+        '200': {description: Road network record}
+        '404': {description: Terrain is not registered}
+        '422': {description: File is not a readable OSM extract with roads in the extent}
+  /roads:
+    get:
+      summary: List registered road networks
+      responses:
+        '200': {description: Registered road-network records}
+  /roads/{road_network_id}/layers:
+    get:
+      summary: Read simplified map-context layers for the basin view
+      parameters:
+        - {in: path, name: road_network_id, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Roads, coastline, and place layers}
+        '404': {description: Road network is not registered}
   /health:
     get:
       summary: Report screening dependency readiness
