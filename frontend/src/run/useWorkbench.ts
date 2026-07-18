@@ -65,6 +65,7 @@ function currentFieldSetup(): FieldSetupMemo | null {
       well_ij: [...state.reservoir.well_ij],
       covered_fingerprints: [...state.reservoir.covered_fingerprints],
     },
+    roads: state.roads ? { ...state.roads } : null,
     placement: { ...state.placement },
     wells: state.wells.map((well) => ({ ...well })),
     sources: state.sources.map((source) => ({ ...source })),

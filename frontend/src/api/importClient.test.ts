@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  getRoadLayers,
   getReservoir,
   getTerrainWindow,
   importReservoir,
+  importRoads,
   importTerrain,
   listTerrains,
 } from "./client";
@@ -143,5 +145,42 @@ describe("import client", () => {
     expect(result.model_id).toBe("m1");
     const [url] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("/reservoir/m1?bank_id=b1");
+  });
+
+  it("imports a road network for a registered terrain", async () => {
+    const body = {
+      road_network_id: "roads-a",
+      sha256: "D".repeat(64),
+      node_count: 12,
+      edge_count: 11,
+      bbox: [107, -7, 108, -6],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(body))),
+    );
+
+    await expect(
+      importRoads("C:/java.osm.pbf", "terrain-x"),
+    ).resolves.toEqual(body);
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("/roads/import");
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      path: "C:/java.osm.pbf",
+      terrain_id: "terrain-x",
+    });
+  });
+
+  it("fetches display layers for a road network", async () => {
+    const body = { roads: [], coastline: [], places: [] };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(body))),
+    );
+
+    await expect(getRoadLayers("roads-a")).resolves.toEqual(body);
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith("/roads/roads-a/layers", {
+      headers: { Accept: "application/json" },
+    });
   });
 });

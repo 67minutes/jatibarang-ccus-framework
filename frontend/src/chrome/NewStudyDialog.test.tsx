@@ -172,4 +172,47 @@ describe("NewStudyDialog", () => {
       screen.getByText(/native schedule is real and runnable, but outside/i),
     ).toBeVisible();
   });
+
+  it("imports an optional road network and reports its cached size", async () => {
+    const fetchMock = vi.fn(async (
+      input: RequestInfo | URL,
+      _init?: RequestInit,
+    ) => {
+      const url = String(input);
+      if (url === "/roads/import") {
+        return new Response(
+          JSON.stringify({
+            road_network_id: "roads-a",
+            sha256: "R".repeat(64),
+            node_count: 12,
+            edge_count: 11,
+            bbox: [107, -7, 109, -6],
+          }),
+        );
+      }
+      if (url === "/roads/roads-a/layers") {
+        return new Response(
+          JSON.stringify({ roads: [], coastline: [], places: [] }),
+        );
+      }
+      return new Response(JSON.stringify([registeredTerrain]));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<NewStudyDialog onDone={() => undefined} />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: /west-java\.tif/i })).toBeVisible(),
+    );
+    fireEvent.change(screen.getByLabelText("Road network (.osm.pbf)"), {
+      target: { value: "C:\\maps\\java.osm.pbf" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Import network" }));
+
+    expect(await screen.findByText("12 nodes · 11 edges")).toBeVisible();
+    const [, init] = fetchMock.mock.calls.find(([url]) => url === "/roads/import")!;
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      path: "C:\\maps\\java.osm.pbf",
+      terrain_id: "terrain-a",
+    });
+  });
 });

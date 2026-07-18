@@ -1,4 +1,4 @@
-import { getReservoir, getTerrainWindow } from "../api/client";
+import { getReservoir, getRoadLayers, getTerrainWindow } from "../api/client";
 import { useFieldStore } from "../state/field.store";
 import { useUiStore } from "../state/ui.store";
 import { isLegacyMemo, isStudyMemo, type StudyMemo } from "./studyMemo";
@@ -53,6 +53,7 @@ export async function hydrateMemoFieldSetup(memo: StudyMemo): Promise<void> {
   }
 
   ui.dismissBanner("memo-legacy");
+  ui.dismissBanner("roads-relink");
   if (!memo.field_setup) return;
 
   field.hydrate(memo.field_setup);
@@ -96,6 +97,28 @@ export async function hydrateMemoFieldSetup(memo: StudyMemo): Promise<void> {
   } catch {
     // The artifact may have been removed from data/imports. Keep the memo open;
     // the workbench banner explains how to restore screening capability.
+  }
+
+  if (memo.field_setup.roads) {
+    try {
+      const layers = await getRoadLayers(
+        memo.field_setup.roads.road_network_id,
+      );
+      const active = useFieldStore.getState().roads;
+      if (
+        active?.road_network_id ===
+        memo.field_setup.roads.road_network_id
+      ) {
+        useFieldStore.setState({ roadLayers: layers });
+      }
+    } catch {
+      ui.pushBanner({
+        id: "roads-relink",
+        severity: "info",
+        message:
+          "The road network for this study could not be found; trucking falls back to the great-circle estimate until it is re-imported.",
+      });
+    }
   }
 }
 

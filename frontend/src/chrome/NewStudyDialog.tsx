@@ -7,11 +7,15 @@ import {
   type FormEvent,
 } from "react";
 import {
+  getRoadLayers,
   getTerrainWindow,
+  importRoads,
   importReservoir,
   importTerrain,
   listTerrains,
+  type RoadLayers,
   type RegisteredTerrain,
+  type RoadsImportResponse,
   type ReservoirImportResponse,
 } from "../api/client";
 import { DEFAULT_OPERATIONAL_GRID } from "../compose/defaults";
@@ -23,6 +27,7 @@ import { useActionsStore } from "../state/actions.store";
 import {
   useFieldStore,
   type ReservoirRef,
+  type RoadsRef,
   type TerrainRef,
 } from "../state/field.store";
 import { useRunStore } from "../state/run.store";
@@ -160,6 +165,14 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
     useState<ReservoirImportResponse | null>(null);
   const [reservoirImportKey, setReservoirImportKey] = useState<string | null>(null);
 
+  const [roadPath, setRoadPath] = useState("");
+  const [roadsImporting, setRoadsImporting] = useState(false);
+  const [roadsError, setRoadsError] = useState<string | null>(null);
+  const [roadsImportResult, setRoadsImportResult] =
+    useState<RoadsImportResponse | null>(null);
+  const [roadLayersResult, setRoadLayersResult] = useState<RoadLayers | null>(null);
+  const [roadsImportKey, setRoadsImportKey] = useState<string | null>(null);
+
   const [centerLat, setCenterLat] = useState("");
   const [centerLon, setCenterLon] = useState("");
   const [rotation, setRotation] = useState("0");
@@ -169,8 +182,10 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
   const [formError, setFormError] = useState<string | null>(null);
 
   const runActive = runStatus === "running" || runStatus === "stalled";
-  const pending = terrainImporting || reservoirImporting || submitting;
+  const pending =
+    terrainImporting || reservoirImporting || roadsImporting || submitting;
   const currentReservoirKey = `${modelPath.trim()}\n${bankPath.trim()}`;
+  const currentRoadsKey = `${roadPath.trim()}\n${terrainSelection}`;
 
   const suggestedMemo = useMemo(() => {
     if (memoTouched && memoName.trim()) return memoName.trim();
@@ -225,6 +240,7 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
     setTerrainSelection(terrainId);
     setTerrainError(null);
     if (terrainOverview?.terrainId !== terrainId) setTerrainOverview(null);
+    invalidateRoadsImport();
     const record = terrains.find((item) => item.terrain_id === terrainId);
     if (record) {
       const [lat, lon] = midpoint(record.extent);
@@ -252,6 +268,7 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
       }
       if (!mounted.current) return;
       setTerrains(records);
+      invalidateRoadsImport();
       setTerrainSelection(record.terrain_id);
       setTerrainOverview({ terrainId: record.terrain_id, data: imported.overview });
       const [lat, lon] = midpoint(record.extent);
@@ -291,6 +308,51 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
     setReservoirImportResult(null);
     setReservoirImportKey(null);
     setReservoirError(null);
+  }
+
+  function invalidateRoadsImport() {
+    setRoadsImportResult(null);
+    setRoadLayersResult(null);
+    setRoadsImportKey(null);
+    setRoadsError(null);
+  }
+
+  async function loadRoads(
+    terrainId = terrainSelection,
+  ): Promise<{ roads: RoadsRef; layers: RoadLayers } | null> {
+    const path = roadPath.trim();
+    if (!path) {
+      setRoadsError("Enter the backend-visible road-network path.");
+      return null;
+    }
+    if (!terrainId || terrainId === IMPORT_TERRAIN) {
+      setRoadsError("Select or import a registered terrain first.");
+      return null;
+    }
+    const key = `${path}\n${terrainId}`;
+    setRoadsImporting(true);
+    setRoadsError(null);
+    try {
+      const imported = await importRoads(path, terrainId);
+      const layers = await getRoadLayers(imported.road_network_id);
+      if (!mounted.current) return null;
+      setRoadsImportResult(imported);
+      setRoadLayersResult(layers);
+      setRoadsImportKey(key);
+      return {
+        roads: {
+          road_network_id: imported.road_network_id,
+          sha256: imported.sha256,
+          source_path: path,
+        },
+        layers,
+      };
+    } catch (error) {
+      if (mounted.current) setRoadsError(messageFrom(error));
+      return null;
+    } finally {
+      if (mounted.current) setRoadsImporting(false);
+    }
   }
 
   async function readWellsFile(event: ChangeEvent<HTMLInputElement>) {
@@ -371,6 +433,27 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
           ? reservoirImportResult
           : await importReservoir(modelPath.trim(), bankPath.trim() || null);
       if (!mounted.current) return;
+      const cachedRoads =
+        roadsImportResult &&
+        roadLayersResult &&
+        roadsImportKey === currentRoadsKey
+          ? {
+              roads: {
+                road_network_id: roadsImportResult.road_network_id,
+                sha256: roadsImportResult.sha256,
+                source_path: roadPath.trim(),
+              },
+              layers: roadLayersResult,
+            }
+          : null;
+      const importedRoads = roadPath.trim()
+        ? cachedRoads ?? await loadRoads(terrainRecord.terrain_id)
+        : null;
+      if (roadPath.trim() && !importedRoads) {
+        setFormError("The road network could not be imported.");
+        return;
+      }
+      if (!mounted.current) return;
 
       const field = useFieldStore.getState();
       field.setup(
@@ -384,6 +467,10 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
         },
         overview,
         importedReservoir,
+      );
+      field.setRoads(
+        importedRoads?.roads ?? null,
+        importedRoads?.layers ?? null,
       );
       applyWellsCsvRows(csvRows, useFieldStore.getState());
       createNewStudy({
@@ -509,6 +596,37 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
             Without a bank, screening is limited to the model&apos;s native schedule.
           </small>
         </label>
+        <div className="dialog-field dialog-field-wide">
+          <span>Road network (.osm.pbf)</span>
+          <div className="dialog-inline">
+            <input
+              value={roadPath}
+              onChange={(event) => {
+                setRoadPath(event.target.value);
+                invalidateRoadsImport();
+              }}
+              placeholder="Optional backend-visible path"
+              disabled={pending}
+              aria-label="Road network (.osm.pbf)"
+            />
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void loadRoads()}
+              disabled={pending || !roadPath.trim() || terrainSelection === IMPORT_TERRAIN}
+            >
+              {roadsImporting ? "Importing…" : "Import network"}
+            </button>
+          </div>
+          <small>
+            {roadsImportResult
+              ? `${roadsImportResult.node_count.toLocaleString()} nodes · ${roadsImportResult.edge_count.toLocaleString()} edges`
+              : "Optional; trucking uses an explicit distance estimate when omitted."}
+          </small>
+        </div>
+        {roadsError ? (
+          <p className="dialog-error dialog-field-wide">{roadsError}</p>
+        ) : null}
         {reservoirError ? (
           <p className="dialog-error dialog-field-wide">{reservoirError}</p>
         ) : null}

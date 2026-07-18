@@ -1,5 +1,5 @@
 import { create, type StoreApi, type UseBoundStore } from "zustand";
-import type { ReservoirImportResponse } from "../api/client";
+import type { RoadLayers, ReservoirImportResponse } from "../api/client";
 import type { FieldSetupMemo } from "../memo/studyMemo";
 import type { TerrainData } from "../viewport/terrain";
 
@@ -38,6 +38,12 @@ export interface ReservoirRef {
   length_y_m: number;
 }
 
+export interface RoadsRef {
+  road_network_id: string;
+  sha256: string;
+  source_path: string;
+}
+
 export interface PlacedWell {
   /** Stable request/selection identity. Renaming never changes this value. */
   id: string;
@@ -73,6 +79,9 @@ interface FieldState {
    * this session only and is deliberately absent from FieldSetupMemo.
    */
   reservoirRuntime: ReservoirImportResponse | null;
+  roads: RoadsRef | null;
+  /** Simplified runtime map layers; deliberately excluded from memos. */
+  roadLayers: RoadLayers | null;
   placement: FieldPlacement | null;
   /** The first well is the model's native well whenever a reservoir is set. */
   wells: PlacedWell[];
@@ -86,6 +95,7 @@ interface FieldState {
     overviewData?: TerrainData | null,
     reservoirRuntime?: ReservoirImportResponse | null,
   ) => void;
+  setRoads: (roads: RoadsRef | null, layers: RoadLayers | null) => void;
   moveField: (center_lat: number, center_lon: number) => void;
   rotateField: (rotation_deg: number) => void;
   addWell: (lat: number, lon: number) => PlacedWell;
@@ -109,6 +119,8 @@ const EMPTY_STATE = {
   overviewData: null,
   reservoir: null,
   reservoirRuntime: null,
+  roads: null,
+  roadLayers: null,
   placement: null,
   wells: [],
   sources: [],
@@ -191,11 +203,15 @@ export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
         overviewData,
         reservoir,
         reservoirRuntime,
+        roads: null,
+        roadLayers: null,
         placement,
         wells: [nativeWell(placement, reservoir)],
         sources: [],
         level: "basin",
       }),
+
+    setRoads: (roads, roadLayers) => set({ roads, roadLayers }),
 
     moveField: (center_lat, center_lon) =>
       set((state) => {
@@ -293,8 +309,10 @@ export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
           covered_fingerprints: [...setup.reservoir.covered_fingerprints],
         },
         // Runtime geology and launch pads are never serialized into a portable
-        // result summary. A new import-backed study is required to screen.
+        // result summary; memo hydration relinks them by id and hash.
         reservoirRuntime: null,
+        roads: setup.roads ? { ...setup.roads } : null,
+        roadLayers: null,
         placement: { ...setup.placement },
         // Preserve memo coordinates exactly. A later move/rotate re-derives
         // only the native well from the imported model.

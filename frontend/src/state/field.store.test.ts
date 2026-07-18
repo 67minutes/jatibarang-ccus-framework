@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { ReservoirImportResponse } from "../api/client";
+import type { RoadLayers, ReservoirImportResponse } from "../api/client";
 import type { FieldSetupMemo } from "../memo/studyMemo";
 import type { TerrainData } from "../viewport/terrain";
 import {
@@ -7,6 +7,7 @@ import {
   useFieldStore,
   type FieldPlacement,
   type ReservoirRef,
+  type RoadsRef,
   type TerrainRef,
 } from "./field.store";
 
@@ -35,6 +36,18 @@ const placement: FieldPlacement = {
   center_lat: -6.5,
   center_lon: 107.5,
   rotation_deg: 0,
+};
+
+const roads: RoadsRef = {
+  road_network_id: "roads-a",
+  sha256: "R".repeat(64),
+  source_path: "C:/java.osm.pbf",
+};
+
+const roadLayers: RoadLayers = {
+  roads: [{ class: "major", points: [[-6.5, 107.5], [-6.4, 107.6]] }],
+  coastline: [],
+  places: [],
 };
 
 const overview: TerrainData = {
@@ -177,5 +190,35 @@ describe("field store", () => {
       lat: -6.123,
       lon: 107.987,
     });
+  });
+
+  it("stores road references and runtime layers, then clears both", () => {
+    useFieldStore.getState().setRoads(roads, roadLayers);
+
+    expect(useFieldStore.getState().roads).toEqual(roads);
+    expect(useFieldStore.getState().roadLayers).toEqual(roadLayers);
+
+    useFieldStore.getState().reset();
+    expect(useFieldStore.getState().roads).toBeNull();
+    expect(useFieldStore.getState().roadLayers).toBeNull();
+  });
+
+  it("hydrates optional road references without embedding layers", () => {
+    const withRoads: FieldSetupMemo = {
+      terrain,
+      reservoir,
+      roads,
+      placement,
+      wells: [],
+      sources: [],
+    };
+
+    useFieldStore.getState().hydrate(withRoads);
+    expect(useFieldStore.getState().roads).toEqual(roads);
+    expect(useFieldStore.getState().roadLayers).toBeNull();
+
+    useFieldStore.getState().hydrate({ ...withRoads, roads: undefined });
+    expect(useFieldStore.getState().roads).toBeNull();
+    expect(useFieldStore.getState().roadLayers).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ import type {
   PlacedSource,
   PlacedWell,
   ReservoirRef,
+  RoadsRef,
   TerrainRef,
 } from "../state/field.store";
 import type { StudyMetadata } from "../state/study.store";
@@ -34,6 +35,7 @@ export const STUDY_MEMO_VERSION = 3;
 export interface FieldSetupMemo {
   terrain: TerrainRef;
   reservoir: ReservoirRef;
+  roads?: RoadsRef | null;
   placement: FieldPlacement;
   wells: PlacedWell[];
   sources: PlacedSource[];

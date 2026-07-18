@@ -61,7 +61,7 @@ export async function exportStudyMemo(entry: LedgerEntry): Promise<void> {
  * their hash-addressed backend registries and are deliberately not memo data.
  */
 export function snapshotFieldSetup(): FieldSetupMemo | undefined {
-  const { terrain, reservoir, placement, wells, sources } =
+  const { terrain, reservoir, roads, placement, wells, sources } =
     useFieldStore.getState();
   if (!terrain || !reservoir || !placement) return undefined;
 
@@ -75,6 +75,7 @@ export function snapshotFieldSetup(): FieldSetupMemo | undefined {
       covered_fingerprints: [...reservoir.covered_fingerprints],
       well_ij: [...reservoir.well_ij],
     },
+    roads: roads ? { ...roads } : null,
     placement: { ...placement },
     wells: wells.map((well) => ({ ...well })),
     sources: sources.map((source) => ({ ...source })),

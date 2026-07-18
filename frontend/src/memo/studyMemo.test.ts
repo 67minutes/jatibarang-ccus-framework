@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { RoadLayers } from "../api/client";
 import type { ScreenRequest, ScreenResult } from "../api/types";
 import { useFieldStore, type FieldPlacement, type ReservoirRef, type TerrainRef } from "../state/field.store";
 import { useUiStore } from "../state/ui.store";
@@ -42,6 +43,18 @@ const placement: FieldPlacement = {
   center_lat: -6.53,
   center_lon: 108.39,
   rotation_deg: 35,
+};
+
+const roads = {
+  road_network_id: "roads-a",
+  sha256: "R".repeat(64),
+  source_path: "C:/java.osm.pbf",
+};
+
+const roadLayers: RoadLayers = {
+  roads: [{ class: "major", points: [[-6.5, 107.5], [-6.4, 107.6]] }],
+  coastline: [],
+  places: [{ name: "Testville", lat: -6.45, lon: 107.55, kind: "town" }],
 };
 
 const setup: FieldSetupMemo = {
@@ -183,6 +196,7 @@ describe("memo v3", () => {
     expect(snapshot).toEqual({
       terrain,
       reservoir,
+      roads: null,
       placement,
       wells: useFieldStore.getState().wells,
       sources: useFieldStore.getState().sources,
@@ -404,5 +418,56 @@ describe("memo v3", () => {
     await expect(hydrateMemoFieldSetup(memo(3, setup))).resolves.toBeUndefined();
     expect(useFieldStore.getState().terrain).toEqual(terrain);
     expect(useFieldStore.getState().reservoirRuntime).toBeNull();
+  });
+
+  it("relinks saved road layers without embedding them in the memo", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.startsWith("/reservoir/")) {
+          return new Response(JSON.stringify(reservoirRuntime));
+        }
+        if (url.startsWith("/roads/")) {
+          return new Response(JSON.stringify(roadLayers));
+        }
+        return new Response(JSON.stringify(overview));
+      }),
+    );
+
+    await hydrateMemoFieldSetup(memo(3, { ...setup, roads }));
+
+    expect(useFieldStore.getState().roads).toEqual(roads);
+    expect(useFieldStore.getState().roadLayers).toEqual(roadLayers);
+    expect(useUiStore.getState().banners).not.toContainEqual(
+      expect.objectContaining({ id: "roads-relink" }),
+    );
+  });
+
+  it("keeps a study open and explains a missing saved road network", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.startsWith("/reservoir/")) {
+          return new Response(JSON.stringify(reservoirRuntime));
+        }
+        if (url.startsWith("/roads/")) {
+          return new Response("missing", { status: 404 });
+        }
+        return new Response(JSON.stringify(overview));
+      }),
+    );
+
+    await hydrateMemoFieldSetup(memo(3, { ...setup, roads }));
+
+    expect(useFieldStore.getState().terrain).toEqual(terrain);
+    expect(useFieldStore.getState().roadLayers).toBeNull();
+    expect(useUiStore.getState().banners).toContainEqual({
+      id: "roads-relink",
+      severity: "info",
+      message:
+        "The road network for this study could not be found; trucking falls back to the great-circle estimate until it is re-imported.",
+    });
   });
 });

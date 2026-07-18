@@ -115,6 +115,52 @@ export function getTerrainWindow(
   );
 }
 
+export interface RoadsImportResponse {
+  road_network_id: string;
+  sha256: string;
+  node_count: number;
+  edge_count: number;
+  bbox: [number, number, number, number];
+}
+
+export interface RegisteredRoadNetwork extends RoadsImportResponse {
+  source_path: string;
+}
+
+export interface RoadLayers {
+  roads: Array<{
+    class: "major" | "minor";
+    points: [number, number][];
+  }>;
+  coastline: [number, number][][];
+  places: Array<{
+    name: string;
+    lat: number;
+    lon: number;
+    kind: string;
+  }>;
+}
+
+export function importRoads(
+  path: string,
+  terrainId: string,
+): Promise<RoadsImportResponse> {
+  return postJson<RoadsImportResponse>("/roads/import", {
+    path,
+    terrain_id: terrainId,
+  });
+}
+
+export function listRoadNetworks(): Promise<RegisteredRoadNetwork[]> {
+  return getJson<RegisteredRoadNetwork[]>("/roads");
+}
+
+export function getRoadLayers(roadNetworkId: string): Promise<RoadLayers> {
+  return getJson<RoadLayers>(
+    `/roads/${encodeURIComponent(roadNetworkId)}/layers`,
+  );
+}
+
 export interface ReservoirImportResponse {
   model_id: string;
   sha256: string;

@@ -187,4 +187,30 @@ describe("buildStudyRequest", () => {
     expect(request.operational_grid).toBeNull();
     expect(request.schedules).toEqual([schedule(native)]);
   });
+
+  it("carries the optional road-network reference into the request", () => {
+    const imported = runtime();
+    const withRoads = field(imported);
+    withRoads.roads = {
+      road_network_id: "roads-a",
+      sha256: "R".repeat(64),
+      source_path: "C:/java.osm.pbf",
+    };
+
+    const routed = buildStudyRequest({
+      field: withRoads,
+      imported,
+      base: createDefaultStudyRequestBase(),
+      scheduleMode: "grid",
+    });
+    const estimated = buildStudyRequest({
+      field: { ...withRoads, roads: null },
+      imported,
+      base: createDefaultStudyRequestBase(),
+      scheduleMode: "grid",
+    });
+
+    expect(routed.road_network_id).toBe("roads-a");
+    expect(estimated.road_network_id).toBeNull();
+  });
 });

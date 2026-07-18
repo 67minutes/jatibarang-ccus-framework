@@ -250,6 +250,7 @@ export function buildStudyRequest({
     detailed_top_k: base.detailed_top_k,
     scenario_limit: 4096,
     terrain_id: field.terrain.terrain_id,
+    road_network_id: field.roads?.road_network_id ?? null,
     routing_basis_id: "jatibarang_case_study_v1",
     pipeline_basis_id: "jatibarang_case_study_v1",
   };
