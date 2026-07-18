@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  getReservoir,
   getTerrainWindow,
   importReservoir,
   importTerrain,
@@ -129,5 +130,18 @@ describe("import client", () => {
       model_path: "C:/model.mat",
       bank_path: "C:/model.launchpads.npz",
     });
+  });
+
+  it("fetches a reservoir relink by model and bank id", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ model_id: "m1" }))),
+    );
+
+    const result = await getReservoir("m1", "b1");
+
+    expect(result.model_id).toBe("m1");
+    const [url] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("/reservoir/m1?bank_id=b1");
   });
 });

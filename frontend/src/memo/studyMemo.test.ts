@@ -88,6 +88,24 @@ const overview: TerrainData = {
   elevations: [10, 20, 30, 40],
 };
 
+const reservoirRuntime = {
+  model_id: reservoir.model_id,
+  sha256: reservoir.sha256,
+  source_file: reservoir.source_file,
+  geology: {},
+  native_schedule: {},
+  native_fingerprint: reservoir.native_fingerprint,
+  native_seed: {},
+  bank_seeds: {},
+  well_ij: reservoir.well_ij,
+  completion_ij: [reservoir.well_ij],
+  launchpads: {
+    bank_id: reservoir.bank_id,
+    bank_sha256: reservoir.bank_sha256,
+    covered_fingerprints: reservoir.covered_fingerprints,
+  },
+};
+
 function memo(
   memoVersion: number,
   fieldSetup: FieldSetupMemo | undefined,
@@ -329,6 +347,62 @@ describe("memo v3", () => {
     await expect(hydrateMemoFieldSetup(memo(3, setup))).resolves.toBeUndefined();
     expect(useFieldStore.getState().terrain).toEqual(terrain);
     expect(useFieldStore.getState().overviewData).toBeNull();
+    expect(useFieldStore.getState().reservoirRuntime).toBeNull();
+  });
+
+  it("relinks matching reservoir runtime payloads after hydration", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        new Response(
+          JSON.stringify(
+            String(input).startsWith("/reservoir/")
+              ? reservoirRuntime
+              : overview,
+          ),
+        ),
+      ),
+    );
+
+    await hydrateMemoFieldSetup(memo(3, setup));
+
+    expect(useFieldStore.getState().reservoirRuntime).toEqual(
+      reservoirRuntime,
+    );
+  });
+
+  it("rejects a reservoir relink whose content hash does not match", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        new Response(
+          JSON.stringify(
+            String(input).startsWith("/reservoir/")
+              ? { ...reservoirRuntime, sha256: "C".repeat(64) }
+              : overview,
+          ),
+        ),
+      ),
+    );
+
+    await hydrateMemoFieldSetup(memo(3, setup));
+
+    expect(useFieldStore.getState().reservoirRuntime).toBeNull();
+  });
+
+  it("keeps the memo open when reservoir relinking fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).startsWith("/reservoir/")) {
+          return new Response("missing", { status: 404 });
+        }
+        return new Response(JSON.stringify(overview));
+      }),
+    );
+
+    await expect(hydrateMemoFieldSetup(memo(3, setup))).resolves.toBeUndefined();
+    expect(useFieldStore.getState().terrain).toEqual(terrain);
     expect(useFieldStore.getState().reservoirRuntime).toBeNull();
   });
 });

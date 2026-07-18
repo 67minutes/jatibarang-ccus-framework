@@ -362,12 +362,16 @@ export function useWorkbench(): void {
             }
             const ui = useUiStore.getState();
             ui.dismissBanner("memo-reservoir-relink");
-            if (memo.field_setup && memo.request_payload_mode === "artifact_referenced") {
+            if (
+              memo.field_setup &&
+              memo.request_payload_mode === "artifact_referenced" &&
+              useFieldStore.getState().reservoirRuntime == null
+            ) {
               ui.pushBanner({
                 id: "memo-reservoir-relink",
                 severity: "info",
                 message:
-                  "Saved result summary restored read-only. To rerun or regenerate cell fields, create a new study and re-import the matching reservoir model and launch-pad bank.",
+                  "The imported reservoir files for this study could not be found in data/imports. Re-import the model via New Study to screen again.",
               });
             }
             const axis = carbonPriceAxis(memo.result);

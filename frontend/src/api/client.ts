@@ -145,6 +145,16 @@ export function importReservoir(
   });
 }
 
+export function getReservoir(
+  modelId: string,
+  bankId?: string | null,
+): Promise<ReservoirImportResponse> {
+  const query = bankId ? `?bank_id=${encodeURIComponent(bankId)}` : "";
+  return getJson<ReservoirImportResponse>(
+    `/reservoir/${encodeURIComponent(modelId)}${query}`,
+  );
+}
+
 /** Synchronous screening (SSE fallback path). */
 export async function postScreen(request: ScreenRequest): Promise<ScreenResult> {
   return postJson<ScreenResult>("/screen", request);

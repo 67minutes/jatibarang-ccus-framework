@@ -1,4 +1,4 @@
-import { getTerrainWindow } from "../api/client";
+import { getReservoir, getTerrainWindow } from "../api/client";
 import { useFieldStore } from "../state/field.store";
 import { useUiStore } from "../state/ui.store";
 import { isLegacyMemo, isStudyMemo, type StudyMemo } from "./studyMemo";
@@ -31,8 +31,8 @@ export async function pickStudyMemo(): Promise<StudyMemo | null> {
 
 /**
  * Replace any live field with the memo's lightweight setup. Overview pixels
- * are restored from the terrain registry; reservoir runtime data remains
- * intentionally unavailable because artifact-referenced memos are read-only.
+ * and reservoir runtime data are restored from their hash-addressed registries
+ * when the referenced machine-local artifacts are still available.
  */
 export async function hydrateMemoFieldSetup(memo: StudyMemo): Promise<void> {
   const field = useFieldStore.getState();
@@ -74,6 +74,28 @@ export async function hydrateMemoFieldSetup(memo: StudyMemo): Promise<void> {
   } catch {
     // The references and engineer-authored map edits are still useful when the
     // registry is offline. Opening the memo must not depend on raster loading.
+  }
+
+  try {
+    const runtime = await getReservoir(
+      memo.field_setup.reservoir.model_id,
+      memo.field_setup.reservoir.bank_id,
+    );
+    const active = useFieldStore.getState().reservoir;
+    const stillOpen =
+      active?.model_id === memo.field_setup.reservoir.model_id;
+    const verified =
+      runtime.sha256 === memo.field_setup.reservoir.sha256 &&
+      (!memo.field_setup.reservoir.bank_sha256 ||
+        runtime.launchpads.bank_sha256 ===
+          memo.field_setup.reservoir.bank_sha256);
+    if (stillOpen && verified) {
+      useFieldStore.setState({ reservoirRuntime: runtime });
+      ui.dismissBanner("memo-reservoir-relink");
+    }
+  } catch {
+    // The artifact may have been removed from data/imports. Keep the memo open;
+    // the workbench banner explains how to restore screening capability.
   }
 }
 
