@@ -121,3 +121,28 @@ def test_reservoir_import_returns_fingerprint_keyed_bank_seeds(tmp_path: Path) -
     assert restored.schedule_fingerprint == bank_entry.schedule_fingerprint
     stored_bank = tmp_path / "imports" / body["launchpads"]["bank_id"] / bank_path.name
     assert stored_bank.exists()
+
+
+def test_path_taking_import_routes_refuse_non_loopback_clients(tmp_path: Path, dem: Path) -> None:
+    """The import routes read local files named by the client; that is safe
+    only from the machine's own user. A non-loopback peer must get 403 even if
+    the server is ever bound beyond 127.0.0.1."""
+    import asyncio
+
+    import httpx
+
+    async def remote_calls() -> tuple[int, int]:
+        transport = httpx.ASGITransport(
+            app=_app(tmp_path), client=("203.0.113.9", 4444)
+        )
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://workbench"
+        ) as remote:
+            terrain = await remote.post("/terrain/import", json={"path": str(dem)})
+            reservoir = await remote.post(
+                "/reservoir/import",
+                json={"model_path": "data/validation_cases/case_0016.mat"},
+            )
+            return terrain.status_code, reservoir.status_code
+
+    assert asyncio.run(remote_calls()) == (403, 403)

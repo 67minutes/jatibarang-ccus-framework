@@ -69,6 +69,24 @@ def _json_safe_validation_detail(value: Any) -> Any:
     return str(value)
 
 
+# The import routes take local filesystem paths in JSON bodies by design:
+# this is a loopback-only single-user tool and browser file inputs cannot
+# carry paths (spec 2026-07-17 §6). That design is safe only while the server
+# binds 127.0.0.1 (start_workbench.bat) and no CORS middleware is added.
+# _require_local_client keeps the file-reading surface refused if the app is
+# ever exposed on a non-loopback interface. Do not relax either guard.
+_LOCAL_CLIENT_HOSTS = {"127.0.0.1", "::1", "localhost", "testclient"}
+
+
+def _require_local_client(request: Request) -> None:
+    client = request.client
+    if client is not None and client.host not in _LOCAL_CLIENT_HOSTS:
+        raise HTTPException(
+            status_code=403,
+            detail="import endpoints accept local file paths and are loopback-only",
+        )
+
+
 class TerrainImportRequest(BaseModel):
     path: str
 
@@ -286,7 +304,8 @@ def create_app(
         responses={200: {"description": "Terrain record with overview heightmap"},
                    422: {"description": "Path is missing or not a readable raster"}},
     )
-    def terrain_import(payload: TerrainImportRequest) -> dict[str, Any]:
+    def terrain_import(payload: TerrainImportRequest, request: Request) -> dict[str, Any]:
+        _require_local_client(request)
         try:
             stored = artifacts.put(Path(payload.path))
             record = registry.imports(stored.path)
@@ -343,7 +362,8 @@ def create_app(
         responses={200: {"description": "Typed reservoir payload and coverage"},
                    422: {"description": "Model or bank file is unreadable"}},
     )
-    def reservoir_import(payload: ReservoirImportRequest) -> dict[str, Any]:
+    def reservoir_import(payload: ReservoirImportRequest, request: Request) -> dict[str, Any]:
+        _require_local_client(request)
         try:
             imported = load_mrst_reservoir(Path(payload.model_path))
         except MrstImportError as exc:
