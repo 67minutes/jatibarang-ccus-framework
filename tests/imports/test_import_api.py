@@ -123,6 +123,43 @@ def test_reservoir_import_returns_fingerprint_keyed_bank_seeds(tmp_path: Path) -
     assert stored_bank.exists()
 
 
+def test_reservoir_get_reloads_from_the_artifact_store(tmp_path: Path) -> None:
+    model = Path("data/validation_cases/case_0016.mat")
+    bank_entry = load_mrst_reservoir(
+        Path("data/validation_cases/case_0115.mat")
+    ).seed
+    bank_path = tmp_path / "model.launchpads.npz"
+    write_launchpad_bank(
+        bank_path,
+        {bank_entry.schedule_fingerprint: bank_entry},
+    )
+
+    with TestClient(_app(tmp_path)) as client:
+        imported = client.post(
+            "/reservoir/import",
+            json={"model_path": str(model), "bank_path": str(bank_path)},
+        ).json()
+
+        again = client.get(
+            f"/reservoir/{imported['model_id']}",
+            params={"bank_id": imported["launchpads"]["bank_id"]},
+        )
+        assert again.status_code == 200
+        body = again.json()
+        assert body["sha256"] == imported["sha256"]
+        assert body["native_fingerprint"] == imported["native_fingerprint"]
+        assert body["launchpads"] == imported["launchpads"]
+        assert set(body["bank_seeds"]) == set(imported["bank_seeds"])
+        assert body["native_seed"]
+
+        assert client.get("/reservoir/00000000deadbeef").status_code == 404
+        missing_bank = client.get(
+            f"/reservoir/{imported['model_id']}",
+            params={"bank_id": "00000000deadbeef"},
+        )
+        assert missing_bank.status_code == 404
+
+
 def test_path_taking_import_routes_refuse_non_loopback_clients(tmp_path: Path, dem: Path) -> None:
     """The import routes read local files named by the client; that is safe
     only from the machine's own user. A non-loopback peer must get 403 even if

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import hashlib
 import math
 from pathlib import Path
 from time import perf_counter
@@ -94,6 +95,41 @@ class TerrainImportRequest(BaseModel):
 class ReservoirImportRequest(BaseModel):
     model_path: str
     bank_path: str | None = None
+
+
+def _reservoir_payload(
+    model_path: Path,
+    model_id: str,
+    model_sha: str,
+    bank_path: Path | None,
+    bank_id: str | None,
+    bank_sha: str | None,
+) -> dict[str, Any]:
+    imported = load_mrst_reservoir(model_path)
+    bank = load_launchpad_bank(bank_path) if bank_path is not None else {}
+    covered = sorted(
+        {imported.seed.schedule_fingerprint, *bank.keys()}
+    )
+    return {
+        "model_id": model_id,
+        "sha256": model_sha,
+        "source_file": model_path.name,
+        "geology": imported.geology.model_dump(),
+        "native_schedule": imported.schedule.model_dump(),
+        "native_fingerprint": imported.seed.schedule_fingerprint,
+        "native_seed": imported.seed.model_dump(mode="json"),
+        "bank_seeds": {
+            fingerprint: seed.model_dump(mode="json")
+            for fingerprint, seed in sorted(bank.items())
+        },
+        "well_ij": list(imported.well_ij),
+        "completion_ij": [list(pair) for pair in imported.completion_ij],
+        "launchpads": {
+            "bank_id": bank_id,
+            "bank_sha256": bank_sha,
+            "covered_fingerprints": covered,
+        },
+    }
 
 
 def create_app(
@@ -365,40 +401,60 @@ def create_app(
     def reservoir_import(payload: ReservoirImportRequest, request: Request) -> dict[str, Any]:
         _require_local_client(request)
         try:
-            imported = load_mrst_reservoir(Path(payload.model_path))
+            model_path = Path(payload.model_path)
+            imported = load_mrst_reservoir(model_path)
         except MrstImportError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        stored = artifacts.put(Path(payload.model_path))
+        stored = artifacts.put(model_path)
         bank_id = bank_sha = None
-        bank = {}
-        covered = [imported.seed.schedule_fingerprint]
+        bank_path = None
         if payload.bank_path:
             try:
-                bank = load_launchpad_bank(Path(payload.bank_path))
+                bank_path = Path(payload.bank_path)
+                load_launchpad_bank(bank_path)
             except LaunchpadBankError as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
-            stored_bank = artifacts.put(Path(payload.bank_path))
+            stored_bank = artifacts.put(bank_path)
             bank_id, bank_sha = stored_bank.artifact_id, stored_bank.sha256
-            covered = sorted(set(covered) | set(bank))
-        return {
-            "model_id": stored.artifact_id,
-            "sha256": stored.sha256,
-            "source_file": Path(payload.model_path).name,
-            "geology": imported.geology.model_dump(),
-            "native_schedule": imported.schedule.model_dump(),
-            "native_fingerprint": imported.seed.schedule_fingerprint,
-            "native_seed": imported.seed.model_dump(mode="json"),
-            "bank_seeds": {
-                fingerprint: seed.model_dump(mode="json")
-                for fingerprint, seed in sorted(bank.items())
-            },
-            "well_ij": list(imported.well_ij),
-            "completion_ij": [list(pair) for pair in imported.completion_ij],
-            "launchpads": {
-                "bank_id": bank_id, "bank_sha256": bank_sha,
-                "covered_fingerprints": covered,
-            },
-        }
+        return _reservoir_payload(
+            stored.path,
+            stored.artifact_id,
+            stored.sha256,
+            stored_bank.path if payload.bank_path else None,
+            bank_id,
+            bank_sha,
+        )
+
+    @application.get(
+        "/reservoir/{model_id}",
+        summary="Re-load an imported reservoir model from the artifact store",
+        responses={200: {"description": "Typed reservoir payload and coverage"},
+                   404: {"description": "Imported artifact is missing"},
+                   422: {"description": "Stored artifact is unreadable"}},
+    )
+    def reservoir_get(model_id: str, bank_id: str | None = None) -> dict[str, Any]:
+        try:
+            model_path = artifacts.resolve(model_id)
+            bank_path = artifacts.resolve(bank_id) if bank_id else None
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        model_sha = hashlib.sha256(model_path.read_bytes()).hexdigest().upper()
+        bank_sha = (
+            hashlib.sha256(bank_path.read_bytes()).hexdigest().upper()
+            if bank_path is not None
+            else None
+        )
+        try:
+            return _reservoir_payload(
+                model_path,
+                model_id,
+                model_sha,
+                bank_path,
+                bank_id,
+                bank_sha,
+            )
+        except (MrstImportError, LaunchpadBankError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @application.get(
         "/health",

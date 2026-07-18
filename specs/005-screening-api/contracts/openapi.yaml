@@ -89,6 +89,15 @@ paths:
       responses:
         '200': {description: Typed reservoir payload and coverage}
         '422': {description: Model or bank file is unreadable}
+  /reservoir/{model_id}:
+    get:
+      summary: Re-load an imported reservoir model from the artifact store
+      parameters:
+        - {in: path, name: model_id, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Typed reservoir payload and coverage}
+        '404': {description: Imported artifact is missing}
+        '422': {description: Stored artifact is unreadable}
   /health:
     get:
       summary: Report screening dependency readiness
