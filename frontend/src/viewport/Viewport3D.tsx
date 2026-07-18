@@ -35,6 +35,7 @@ import { InfluenceZones, influenceEntries } from "./InfluenceZones";
 import { getTerrainWindow } from "../api/client";
 import { scientificDisplayText } from "../ui/presentation";
 import { useUiStore } from "../state/ui.store";
+import { compassRotationDeg, useCameraStore } from "../state/camera.store";
 import "./viewport.css";
 
 const DEG2RAD = Math.PI / 180;
@@ -899,6 +900,7 @@ function ViewportNavigationHud({
   projector: TerrainProjector;
   level: SceneLevel;
 }) {
+  const azimuthDeg = useCameraStore((state) => state.azimuthDeg);
   const { extent, minElev, maxElev } = projector.data;
   const placement = useFieldStore((state) => state.placement);
   const centerLat = (extent.minLat + extent.maxLat) / 2;
@@ -908,7 +910,12 @@ function ViewportNavigationHud({
       className={`viewport-navigation-hud${level === "field" ? " viewport-navigation-hud-field" : ""}`}
       aria-hidden
     >
-      <div className="viewport-compass"><span>N</span><i /></div>
+      <div
+        className="viewport-compass"
+        style={{ transform: `rotate(${azimuthDeg}deg)` }}
+      >
+        <span>N</span><i />
+      </div>
       <div>
         <strong>{(placement?.name ?? "Basin overview").toUpperCase()}</strong>
         <span>{Math.abs(centerLat).toFixed(3)}{"\u00b0S \u00b7 "}{centerLon.toFixed(3)}{"\u00b0E"}</span>
@@ -1242,6 +1249,7 @@ function CameraRig({
   const { camera } = useThree();
   const controls = useRef<OrbitControlsImpl>(null);
   const destination = useRef<CameraDestination | null>(null);
+  const lastAzimuth = useRef(0);
   const activeEntry = useLedgerStore((s) => s.entryById(s.activeEntryId));
   const selection = useSelectionStore((s) => s.selection);
   const exaggeration = useWorkspaceStore((s) => s.verticalExaggeration);
@@ -1336,6 +1344,15 @@ function CameraRig({
   }, [camera, fieldOffset, fieldTarget, level, motion, selectedHasReservoir, selectedTarget]);
 
   useFrame((_, delta) => {
+    if (controls.current) {
+      const azimuth = Math.round(
+        compassRotationDeg(controls.current.getAzimuthalAngle()),
+      );
+      if (azimuth !== lastAzimuth.current) {
+        lastAzimuth.current = azimuth;
+        useCameraStore.getState().setAzimuthDeg(azimuth);
+      }
+    }
     const next = destination.current;
     if (!next || !controls.current) return;
     next.elapsed = Math.min(next.duration, next.elapsed + delta);
