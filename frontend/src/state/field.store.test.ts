@@ -153,13 +153,32 @@ describe("field store", () => {
 
   it("enters and exits the field only when a reservoir is loaded", () => {
     useFieldStore.getState().enterField();
-    expect(useFieldStore.getState().level).toBe("basin");
+    expect(useFieldStore.getState().level).toBe("earth");
 
     useFieldStore.getState().setup(terrain, reservoir, placement);
     useFieldStore.getState().enterField();
     expect(useFieldStore.getState().level).toBe("field");
     useFieldStore.getState().exitField();
     expect(useFieldStore.getState().level).toBe("basin");
+  });
+
+  it("navigates earth to basin only when a terrain is loaded", () => {
+    expect(useFieldStore.getState().level).toBe("earth");
+
+    useFieldStore.getState().enterBasin();
+    expect(useFieldStore.getState().level).toBe("earth");
+
+    useFieldStore.getState().setup(terrain, reservoir, placement);
+    expect(useFieldStore.getState().level).toBe("basin");
+
+    useFieldStore.getState().exitBasin();
+    expect(useFieldStore.getState().level).toBe("earth");
+
+    useFieldStore.getState().enterBasin();
+    expect(useFieldStore.getState().level).toBe("basin");
+
+    useFieldStore.getState().reset();
+    expect(useFieldStore.getState().level).toBe("earth");
   });
 
   it("hydrates memo coordinates without re-deriving the native well", () => {

@@ -31,6 +31,7 @@ import {
   type TerrainRef,
 } from "../state/field.store";
 import { useRunStore } from "../state/run.store";
+import { useUiStore } from "../state/ui.store";
 import {
   DEFAULT_STUDY_NAME,
   useStudyStore,
@@ -134,6 +135,7 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
   const createNewStudy = useActionsStore((state) => state.actions.createNewStudy);
   const current = useStudyStore((state) => state.study);
   const runStatus = useRunStore((state) => state.status);
+  const preferredTerrainId = useUiStore((state) => state.newStudyTerrainId);
   const mounted = useRef(true);
 
   const [name, setName] = useState(
@@ -219,8 +221,12 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
         if (cancelled) return;
         setTerrains(records);
         if (records.length > 0) {
-          setTerrainSelection(records[0].terrain_id);
-          const [lat, lon] = midpoint(records[0].extent);
+          const preferred =
+            records.find(
+              (record) => record.terrain_id === preferredTerrainId,
+            ) ?? records[0];
+          setTerrainSelection(preferred.terrain_id);
+          const [lat, lon] = midpoint(preferred.extent);
           setCenterLat(String(lat));
           setCenterLon(String(lon));
         }
@@ -234,7 +240,7 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [preferredTerrainId]);
 
   function selectTerrain(terrainId: string) {
     setTerrainSelection(terrainId);

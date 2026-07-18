@@ -66,7 +66,7 @@ export interface PlacedSource {
   max_mass_flow_kg_s: number;
 }
 
-export type SceneLevel = "basin" | "field";
+export type SceneLevel = "earth" | "basin" | "field";
 
 interface FieldState {
   terrain: TerrainRef | null;
@@ -108,6 +108,8 @@ interface FieldState {
     patch: Partial<Omit<PlacedSource, "id">>,
   ) => void;
   removeSource: (id: string) => void;
+  enterBasin: () => void;
+  exitBasin: () => void;
   enterField: () => void;
   exitField: () => void;
   reset: () => void;
@@ -124,7 +126,7 @@ const EMPTY_STATE = {
   placement: null,
   wells: [],
   sources: [],
-  level: "basin" as const,
+  level: "earth" as const,
 };
 
 function degreesToRadians(value: number): number {
@@ -290,6 +292,11 @@ export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
       set((state) => ({
         sources: state.sources.filter((source) => source.id !== id),
       })),
+
+    enterBasin: () => {
+      if (get().terrain) set({ level: "basin" });
+    },
+    exitBasin: () => set({ level: "earth" }),
 
     enterField: () => {
       if (get().reservoir) set({ level: "field" });

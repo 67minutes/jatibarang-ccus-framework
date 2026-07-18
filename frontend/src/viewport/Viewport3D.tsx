@@ -32,11 +32,16 @@ import {
 } from "./SceneContextMenu";
 import { SourceDialog, type SourceDialogValue } from "./SourceDialog";
 import { InfluenceZones, influenceEntries } from "./InfluenceZones";
-import { getTerrainWindow } from "../api/client";
+import {
+  getTerrainWindow,
+  listTerrains,
+  type RegisteredTerrain,
+} from "../api/client";
 import { scientificDisplayText } from "../ui/presentation";
 import { useUiStore } from "../state/ui.store";
 import { compassRotationDeg, useCameraStore } from "../state/camera.store";
 import { MapContextLayers } from "./MapContextLayers";
+import { EarthGlobe } from "./EarthGlobe";
 import "./viewport.css";
 
 const DEG2RAD = Math.PI / 180;
@@ -76,6 +81,7 @@ export function Viewport3D() {
   const [sourceEditor, setSourceEditor] = useState<SourceEditorState | null>(null);
   const [fieldWindow, setFieldWindow] = useState<TerrainData | null>(null);
   const [fieldWindowLoading, setFieldWindowLoading] = useState(false);
+  const [terrains, setTerrains] = useState<RegisteredTerrain[]>([]);
   const fieldReady = level === "field" && fieldWindow !== null;
   const sceneLevel: SceneLevel = fieldReady ? "field" : "basin";
   const terrainData = fieldReady ? fieldWindow : terrainOverview;
@@ -89,6 +95,20 @@ export function Viewport3D() {
     setContextTarget(null);
     setSourceEditor(null);
   }, [readOnlySummary]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listTerrains()
+      .then((records) => {
+        if (!cancelled) setTerrains(records);
+      })
+      .catch(() => {
+        if (!cancelled) setTerrains([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [terrain?.terrain_id]);
 
   useEffect(() => {
     if (level !== "field") {
@@ -133,7 +153,6 @@ export function Viewport3D() {
     const exitOnEscape = (event: KeyboardEvent) => {
       if (
         event.key !== "Escape" ||
-        level !== "field" ||
         modal ||
         contextTarget ||
         sourceEditor ||
@@ -141,13 +160,19 @@ export function Viewport3D() {
       ) {
         return;
       }
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      useFieldStore.getState().exitField();
+      if (level === "field") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        useFieldStore.getState().exitField();
+      } else if (level === "basin" && selection.kind === "none") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        useFieldStore.getState().exitBasin();
+      }
     };
     window.addEventListener("keydown", exitOnEscape, true);
     return () => window.removeEventListener("keydown", exitOnEscape, true);
-  }, [contextTarget, level, modal, sourceEditor]);
+  }, [contextTarget, level, modal, selection.kind, sourceEditor]);
 
   const openContext = (
     event: ThreeEvent<MouseEvent>,
@@ -189,6 +214,73 @@ export function Viewport3D() {
     }
     setSourceEditor(null);
   };
+
+  const handleDive = (terrainId: string) => {
+    if (terrain?.terrain_id === terrainId) {
+      useFieldStore.getState().enterBasin();
+      return;
+    }
+    if (!terrain) {
+      const ui = useUiStore.getState();
+      ui.setNewStudyTerrainId(terrainId);
+      ui.openModal("newStudy");
+    }
+  };
+
+  if (level === "earth") {
+    return (
+      <div ref={wrapperRef} className="viewport-3d viewport-earth">
+        <Canvas
+          camera={{ position: [0, 8, 26], fov: 40, near: 0.1, far: 200 }}
+          dpr={[1, 1.75]}
+          gl={{
+            antialias: true,
+            preserveDrawingBuffer: true,
+            powerPreference: "high-performance",
+          }}
+          onCreated={({ gl }) => {
+            gl.toneMapping = THREE.ACESFilmicToneMapping;
+            gl.toneMappingExposure = 1.02;
+            gl.outputColorSpace = THREE.SRGBColorSpace;
+          }}
+        >
+          <color attach="background" args={["#050a0d"]} />
+          <ambientLight intensity={0.5} />
+          <directionalLight
+            position={[-12, 9, 16]}
+            color="#fff1d6"
+            intensity={2.2}
+          />
+          <directionalLight
+            position={[10, -5, -12]}
+            color="#315b72"
+            intensity={0.55}
+          />
+          <EarthGlobe
+            terrains={terrains}
+            activeTerrainId={terrain?.terrain_id ?? null}
+            onDive={handleDive}
+          />
+          <OrbitControls
+            makeDefault
+            target={[0, 0, 0]}
+            enableDamping
+            dampingFactor={0.07}
+            enablePan={false}
+            minDistance={13}
+            maxDistance={40}
+          />
+        </Canvas>
+        {terrains.length === 0 && !terrain ? (
+          <div className="viewport-empty-hint viewport-earth-hint">
+            <strong>No study loaded</strong>
+            <span>New Study — Ctrl+N · Open Study — Ctrl+O</span>
+          </div>
+        ) : null}
+        <div className="viewport-mode-tag">3D {"\u00b7"} earth</div>
+      </div>
+    );
+  }
 
   if (!terrain) {
     return (
@@ -253,8 +345,7 @@ export function Viewport3D() {
         />
         <CameraRig projector={projector} level={sceneLevel} />
       </Canvas>
-      {placement && reservoir ? (
-        level === "field" ? (
+      {level === "field" && placement && reservoir ? (
           <button
             type="button"
             className="field-breadcrumb"
@@ -262,7 +353,16 @@ export function Viewport3D() {
           >
             {"\u25c2 Basin"}
           </button>
-        ) : (
+      ) : level === "basin" ? (
+        <>
+          <button
+            type="button"
+            className="field-breadcrumb"
+            onClick={() => useFieldStore.getState().exitBasin()}
+          >
+            {"\u25c2 Earth"}
+          </button>
+          {placement && reservoir ? (
           <button
             type="button"
             className="field-breadcrumb field-entry"
@@ -272,7 +372,8 @@ export function Viewport3D() {
           >
             {"Field \u25b8"}
           </button>
-        )
+          ) : null}
+        </>
       ) : null}
       {level === "field" && !fieldReady ? (
         <div className="field-window-loading" role="status">

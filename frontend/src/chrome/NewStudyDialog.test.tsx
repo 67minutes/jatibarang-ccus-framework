@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReservoirImportResponse } from "../api/client";
 import { comboFingerprint, scheduleCombos } from "../compose/coverage";
 import { DEFAULT_OPERATIONAL_GRID } from "../compose/defaults";
+import { useUiStore } from "../state/ui.store";
 import {
   launchPadCoveragePreview,
   NewStudyDialog,
@@ -66,6 +67,10 @@ function stubImportApi(reservoir?: ReservoirImportResponse) {
 }
 
 describe("NewStudyDialog", () => {
+  beforeEach(() => {
+    useUiStore.setState({ modal: null, newStudyTerrainId: null });
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -214,5 +219,29 @@ describe("NewStudyDialog", () => {
       path: "C:\\maps\\java.osm.pbf",
       terrain_id: "terrain-a",
     });
+  });
+
+  it("preselects the terrain chosen from the earth footprint", async () => {
+    const alternate = {
+      ...registeredTerrain,
+      terrain_id: "terrain-b",
+      source_path: "data/imports/d/east-java.tif",
+      extent: { minLon: 110, minLat: -8, maxLon: 112, maxLat: -7 },
+    };
+    useUiStore.getState().setNewStudyTerrainId("terrain-b");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify([registeredTerrain, alternate])),
+      ),
+    );
+
+    render(<NewStudyDialog onDone={() => undefined} />);
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Terrain")).toHaveValue("terrain-b"),
+    );
+    expect(screen.getByLabelText("Center latitude")).toHaveValue(-7.5);
+    expect(screen.getByLabelText("Center longitude")).toHaveValue(111);
   });
 });
