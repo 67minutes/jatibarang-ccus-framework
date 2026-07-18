@@ -48,6 +48,7 @@ from jatibarang_ccus.infrastructure.facility import (
 from jatibarang_ccus.infrastructure.pipeline import assert_solver_available, solve_pipeline_design
 from jatibarang_ccus.infrastructure.routing import build_route_library
 from jatibarang_ccus.infrastructure.supply import evaluate_trucking_supply
+from jatibarang_ccus.imports.roads import compute_trucking_legs
 from jatibarang_ccus.phase1.case_study import load_assumptions
 from jatibarang_ccus.surrogate.config import REPO_ROOT
 from jatibarang_ccus.surrogate.postprocessing import build_prediction_result
@@ -119,6 +120,21 @@ def resolve_terrain_path(
         return Path(registry.get(terrain_id).source_path)
     except KeyError as exc:
         raise ValueError(f"unknown terrain_id: {terrain_id}") from exc
+
+
+def resolve_road_graph(road_network_id: str | None) -> Any | None:
+    """Resolve an imported road graph; None selects the offline estimate."""
+
+    if not road_network_id:
+        return None
+    from ..imports.roads import RoadsRegistry
+
+    try:
+        return RoadsRegistry(REPO_ROOT / "data" / "imports").graph(
+            road_network_id
+        )
+    except (KeyError, FileNotFoundError) as exc:
+        raise ValueError(f"unknown road_network_id: {road_network_id}") from exc
 
 
 def routing_assumptions_for_terrain(
@@ -628,6 +644,9 @@ class ScreeningOrchestrator:
         else:
             materialized = materialize_inline_scenarios(request)
             logical_scenario_count = len(materialized)
+        road_graph = resolve_road_graph(
+            getattr(request, "road_network_id", None)
+        )
         stages["resolve"] = perf_counter() - stage_started
         yield event(
             "stage_completed",
@@ -1103,10 +1122,22 @@ class ScreeningOrchestrator:
                         "well_demands": [item for item in demands if item.candidate_id in selected]
                     }
                 )
+                selected_demands = [
+                    item for item in demands if item.candidate_id in selected
+                ]
+                weighted_km, distance_provenance, trucking_legs = (
+                    compute_trucking_legs(
+                        design_request.sources,
+                        selected_demands,
+                        road_graph,
+                    )
+                )
                 trucking_supply = self.services.trucking_evaluator(
                     SupplyComparisonRequest(
                         pipeline_request=selected_request,
-                        trucking_distance_km=70.0,
+                        trucking_distance_km=weighted_km,
+                        trucking_legs=trucking_legs,
+                        distance_provenance=distance_provenance,
                     ),
                     annual_mass_tonnes=annual_mass,
                 )

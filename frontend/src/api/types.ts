@@ -270,6 +270,13 @@ export interface PipelineDesignResult {
   total_network_cost_usd: number;
 }
 
+export interface TruckingLeg {
+  candidate_id: string;
+  distance_km: number;
+  annual_mass_tonnes: number;
+  route: [number, number][] | null;
+}
+
 export interface TruckingSupplyResult {
   scenario_id: string;
   mode: "trucking";
@@ -280,6 +287,8 @@ export interface TruckingSupplyResult {
   levelized_delivered_usd_per_tonne: number;
   annual_cost_usd: number;
   present_value_lifecycle_cost_usd: number;
+  distance_provenance: string;
+  legs: TruckingLeg[] | null;
   provenance: Record<string, unknown>;
 }
 
@@ -676,6 +685,7 @@ export interface InlineScreenRequest {
   detailed_top_k?: number;
   scenario_limit?: number;
   terrain_id?: string;
+  road_network_id?: string | null;
   routing_basis_id?: string;
   pipeline_basis_id?: string;
   run_id?: string | null;

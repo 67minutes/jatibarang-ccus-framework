@@ -40,6 +40,8 @@ def _trucking_result(request: SupplyComparisonRequest, annual_mass_tonnes: float
         levelized_delivered_usd_per_tonne=delivered,
         annual_cost_usd=annual_cost,
         present_value_lifecycle_cost_usd=annual_cost * pv_factor,
+        distance_provenance=request.distance_provenance,
+        legs=request.trucking_legs,
         provenance={
             "status": basis["status"],
             "source": basis["trucking_source"],

@@ -259,6 +259,13 @@ class PipelineDesignResult(BaseModel):
         return [item.node_id for item in self.boosters]
 
 
+class TruckingLeg(BaseModel):
+    candidate_id: str
+    distance_km: float = Field(gt=0)
+    annual_mass_tonnes: float = Field(gt=0)
+    route: list[tuple[float, float]] | None = None
+
+
 class TruckingSupplyResult(BaseModel):
     scenario_id: str
     mode: Literal["trucking"] = "trucking"
@@ -273,6 +280,8 @@ class TruckingSupplyResult(BaseModel):
     levelized_delivered_usd_per_tonne: float = Field(ge=0)
     annual_cost_usd: float = Field(ge=0)
     present_value_lifecycle_cost_usd: float = Field(ge=0)
+    distance_provenance: str = "declared_distance"
+    legs: list[TruckingLeg] | None = None
     accounting_basis: Literal["raw_cashflows_levelized_display_only"] = "raw_cashflows_levelized_display_only"
     provenance: dict[str, Any]
 
@@ -293,6 +302,8 @@ class SupplyOptionResult(BaseModel):
 class SupplyComparisonRequest(BaseModel):
     pipeline_request: PipelineDesignRequest
     trucking_distance_km: float = Field(gt=0)
+    trucking_legs: list[TruckingLeg] | None = None
+    distance_provenance: str = "declared_distance"
 
 
 class SupplyComparisonResult(BaseModel):

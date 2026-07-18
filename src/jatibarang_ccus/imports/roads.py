@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +14,8 @@ import numpy as np
 import osmium
 from scipy.spatial import cKDTree
 from shapely.geometry import LineString
+
+from ..contracts import CO2Source, PipelineWellDemand, TruckingLeg
 
 DRIVABLE = {
     "motorway",
@@ -40,6 +42,8 @@ PAD_FRACTION = 0.2
 MAX_LAYER_POINTS_PER_LINE = 400
 LAYER_SIMPLIFY_TOLERANCE_DEG = 0.00005
 EARTH_RADIUS_KM = 6371.0088
+GREATCIRCLE_DETOUR_FACTOR = 1.4
+MIN_LEG_KM = 0.1
 
 
 class RoadsImportError(ValueError):
@@ -81,6 +85,10 @@ class RoadGraph:
     graph: nx.Graph
     kdtree: cKDTree
     lon_scale: float
+    _path_cache: dict[
+        tuple[int, int],
+        tuple[float, list[tuple[float, float]]],
+    ] = field(default_factory=dict, repr=False)
 
     def snap(self, lat: float, lon: float) -> tuple[int, float]:
         _, index = self.kdtree.query([lat, lon * self.lon_scale])
@@ -98,6 +106,9 @@ class RoadGraph:
         a: int,
         b: int,
     ) -> tuple[float, list[tuple[float, float]]]:
+        cached = self._path_cache.get((a, b))
+        if cached is not None:
+            return cached
         nodes = nx.shortest_path(self.graph, a, b, weight="length_m")
         length_m = sum(
             self.graph.edges[u, v]["length_m"]
@@ -107,7 +118,90 @@ class RoadGraph:
             (float(self.latlon[node][0]), float(self.latlon[node][1]))
             for node in nodes
         ]
-        return length_m / 1000.0, route
+        result = (length_m / 1000.0, route)
+        self._path_cache[(a, b)] = result
+        self._path_cache[(b, a)] = (result[0], list(reversed(route)))
+        return result
+
+
+def compute_trucking_legs(
+    sources: list[CO2Source],
+    demands: list[PipelineWellDemand],
+    graph: RoadGraph | None,
+) -> tuple[float, str, list[TruckingLeg]]:
+    """Build mass-weighted source-to-candidate trucking legs.
+
+    Imported-road mode snaps endpoints onto the cached network and includes
+    straight connector distances. Offline fallback uses great-circle distance
+    with the approved 1.4 circuity factor.
+    """
+
+    if not sources:
+        raise ValueError("trucking legs require at least one CO2 source")
+    provenance = (
+        f"osm_road_network:{graph.road_network_id}"
+        if graph is not None
+        else "greatcircle_detour_estimate"
+    )
+    legs: list[TruckingLeg] = []
+    for demand in demands:
+        demand_lat = demand.location.latitude
+        demand_lon = demand.location.longitude
+        source = min(
+            sources,
+            key=lambda item: haversine_km(
+                item.location.latitude,
+                item.location.longitude,
+                demand_lat,
+                demand_lon,
+            ),
+        )
+        source_lat = source.location.latitude
+        source_lon = source.location.longitude
+        route: list[tuple[float, float]] | None = None
+        if graph is None:
+            distance_km = (
+                haversine_km(
+                    source_lat,
+                    source_lon,
+                    demand_lat,
+                    demand_lon,
+                )
+                * GREATCIRCLE_DETOUR_FACTOR
+            )
+        else:
+            source_index, source_connector = graph.snap(source_lat, source_lon)
+            demand_index, demand_connector = graph.snap(demand_lat, demand_lon)
+            path_km, path = graph.shortest_path_km(
+                source_index,
+                demand_index,
+            )
+            distance_km = path_km + source_connector + demand_connector
+            route = [
+                (source_lat, source_lon),
+                *path,
+                (demand_lat, demand_lon),
+            ]
+        legs.append(
+            TruckingLeg(
+                candidate_id=demand.candidate_id,
+                distance_km=max(distance_km, MIN_LEG_KM),
+                annual_mass_tonnes=demand.annual_demand_tonnes,
+                route=route,
+            )
+        )
+
+    total_mass = sum(leg.annual_mass_tonnes for leg in legs)
+    weighted_km = (
+        sum(
+            leg.distance_km * leg.annual_mass_tonnes
+            for leg in legs
+        )
+        / total_mass
+        if total_mass
+        else MIN_LEG_KM
+    )
+    return weighted_km, provenance, legs
 
 
 class _Collector(osmium.SimpleHandler):

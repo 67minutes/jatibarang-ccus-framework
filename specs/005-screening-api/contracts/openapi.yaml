@@ -155,6 +155,7 @@ components:
         operational_grid: {oneOf: [{$ref: '#/components/schemas/OperationalGrid'}, {type: 'null'}]}
         scenario_limit: {type: integer, minimum: 1, maximum: 4096, default: 4096}
         terrain_id: {type: string, default: jatibarang_srtm_v1}
+        road_network_id: {type: [string, 'null'], default: null}
     OperationalGrid:
       type: object
       required:
