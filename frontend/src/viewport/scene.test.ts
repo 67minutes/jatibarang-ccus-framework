@@ -53,6 +53,38 @@ describe("scene", () => {
     expect(scene.routes).toHaveLength(2); // SRC -> each well
   });
 
+  it("uses a routed trucking leg when the result carries one", () => {
+    const routedPlan = {
+      ...noNetworkPlan,
+      selected_wells: ["W02"],
+      trucking_counterfactual: {
+        supply: {
+          legs: [
+            {
+              candidate_id: "W02",
+              distance_km: 30,
+              annual_mass_tonnes: 100_000,
+              route: [
+                [-6.5, 108.32],
+                [-6.47, 108.34],
+                [-6.49, 108.33],
+              ],
+            },
+          ],
+        },
+      },
+    } as unknown as CarbonPricePlan;
+
+    const scene = collectSceneObjects(request(), routedPlan);
+
+    expect(scene.routes).toHaveLength(1);
+    expect(scene.routes[0].path).toEqual([
+      { latitude: -6.5, longitude: 108.32 },
+      { latitude: -6.47, longitude: 108.34 },
+      { latitude: -6.49, longitude: 108.33 },
+    ]);
+  });
+
   it("projects to a view box with equal-aspect scaling and north-up", () => {
     const scene = collectSceneObjects(request(), noNetworkPlan);
     const view = projectToView(scene, 800, 600, 20);

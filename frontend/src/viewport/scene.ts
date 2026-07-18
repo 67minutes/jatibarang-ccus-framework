@@ -115,14 +115,23 @@ export function collectSceneObjects(
       // trucking supply from the first source to each candidate well.
       const source = request.mode === "inline" ? request.sources[0] : undefined;
       if (source) {
+        const legs = plan.trucking_counterfactual?.supply.legs ?? null;
         const targets = selectedWells.size > 0 ? [...selectedWells] : [...coords.keys()].filter((id) => !sourceIds.has(id));
         for (const wellId of targets) {
           const to = coords.get(wellId);
           if (to) {
+            const leg = legs?.find(
+              (item) => item.candidate_id === wellId,
+            ) ?? null;
             routes.push({
               id: `truck:${wellId}`,
               mode: "trucking",
-              path: [source.location, to],
+              path: leg?.route
+                ? leg.route.map(([latitude, longitude]) => ({
+                    latitude,
+                    longitude,
+                  }))
+                : [source.location, to],
             });
           }
         }

@@ -17,6 +17,9 @@ export type DashboardTab =
 
 export interface LayerVisibility {
   terrain: boolean;
+  roads: boolean;
+  coastline: boolean;
+  places: boolean;
   wells: boolean;
   routes: boolean;
   boosters: boolean;
@@ -119,6 +122,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   cameraMotion: true,
   layers: {
     terrain: true,
+    roads: true,
+    coastline: true,
+    places: true,
     wells: true,
     routes: true,
     boosters: true,

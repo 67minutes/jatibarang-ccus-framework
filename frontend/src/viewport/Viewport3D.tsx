@@ -36,6 +36,7 @@ import { getTerrainWindow } from "../api/client";
 import { scientificDisplayText } from "../ui/presentation";
 import { useUiStore } from "../state/ui.store";
 import { compassRotationDeg, useCameraStore } from "../state/camera.store";
+import { MapContextLayers } from "./MapContextLayers";
 import "./viewport.css";
 
 const DEG2RAD = Math.PI / 180;
@@ -453,6 +454,14 @@ function SceneContent({
           }
         />
       )}
+      {level === "basin" &&
+      (layers.roads || layers.coastline || layers.places) ? (
+        <MapContextLayers
+          projector={projector}
+          exaggeration={exaggeration}
+          layers={layers}
+        />
+      ) : null}
       {level === "basin" && placement && reservoir ? (
         <FieldOutline
           projector={projector}
@@ -927,6 +936,9 @@ function ViewportNavigationHud({
 
 const LAYER_OPTIONS: Array<[keyof ReturnType<typeof useWorkspaceStore.getState>["layers"], string]> = [
   ["terrain", "Terrain"],
+  ["roads", "Roads"],
+  ["coastline", "Coastline"],
+  ["places", "Place labels"],
   ["wells", "Wells"],
   ["labels", "Labels"],
   ["routes", "Routes"],
