@@ -34,6 +34,7 @@ from jatibarang_ccus.infrastructure.costs import (
     build_cost_breakdown,
     load_cost_basis,
     pipe_capex_usd,
+    trucking_logistics_usd_per_tonne,
 )
 from jatibarang_ccus.infrastructure.hydraulics import (
     SegmentHydraulics,
@@ -451,6 +452,12 @@ def solve_pipeline_design(
     model.L = pyo.Set(initialize=lift_options)
     model.A = pyo.Set(dimen=4, initialize=directed_arcs)
     model.z = pyo.Var(model.W, domain=pyo.Binary)
+    model.p = pyo.Var(model.W, domain=pyo.Binary)
+    model.t = pyo.Var(model.W, domain=pyo.Binary)
+    model.mode_split = pyo.Constraint(model.W, rule=lambda m, well: m.z[well] == m.p[well] + m.t[well])
+    for item in request.well_demands:
+        if item.trucking_distance_km is None:
+            model.t[item.candidate_id].fix(0)
     model.a = pyo.Var(model.A, domain=pyo.Binary)
     model.f_peak = pyo.Var(
         model.A,
@@ -527,7 +534,7 @@ def solve_pipeline_design(
         if node in source_by_id:
             return outflow - inflow == m.source_peak[node]
         if node in demand_by_id:
-            return inflow - outflow == demand_by_id[node].peak_mass_flow_kg_s * m.z[node]
+            return inflow - outflow == demand_by_id[node].peak_mass_flow_kg_s * m.p[node]
         return inflow == outflow
 
     def annual_balance(m: pyo.ConcreteModel, node: str):
@@ -536,7 +543,7 @@ def solve_pipeline_design(
         if node in source_by_id:
             return outflow - inflow == m.source_annual[node]
         if node in demand_by_id:
-            return inflow - outflow == demand_by_id[node].annual_demand_tonnes * m.z[node]
+            return inflow - outflow == demand_by_id[node].annual_demand_tonnes * m.p[node]
         return inflow == outflow
 
     model.peak_balance = pyo.Constraint(model.N, rule=peak_balance)
@@ -637,13 +644,21 @@ def solve_pipeline_design(
     commodity_expr = sum(
         demand_by_id[well].annual_demand_tonnes * float(cost_case["co2_supply_usd_per_tonne"]) * pv_factor * model.z[well] for well in model.W
     )
+    trucking_cost_by_well = {
+        item.candidate_id: trucking_logistics_usd_per_tonne(cost_case, item.trucking_distance_km)
+        * item.annual_demand_tonnes
+        * pv_factor
+        for item in request.well_demands
+        if item.trucking_distance_km is not None
+    }
+    trucking_expr = sum(cost * model.t[well_id] for well_id, cost in trucking_cost_by_well.items())
     if request.objective_mode == "max_net_value":
         model.objective = pyo.Objective(
-            expr=sum(demand_by_id[well].pre_logistics_value_usd * model.z[well] for well in model.W) - network_lifecycle_expr - commodity_expr,
+            expr=sum(demand_by_id[well].pre_logistics_value_usd * model.z[well] for well in model.W) - network_lifecycle_expr - commodity_expr - trucking_expr,
             sense=pyo.maximize,
         )
     else:
-        model.objective = pyo.Objective(expr=network_lifecycle_expr + commodity_expr, sense=pyo.minimize)
+        model.objective = pyo.Objective(expr=network_lifecycle_expr + commodity_expr + trucking_expr, sense=pyo.minimize)
 
     solver = pyo.SolverFactory(solver_name)
     solver.options["seconds"] = float(assumptions.get("solver_time_limit_seconds", 30))
@@ -674,6 +689,8 @@ def solve_pipeline_design(
         return _empty_result(request, cost_basis=cost_basis, domain_status="not_solved_to_tolerance", solver_status=str(solver_status), termination=str(termination), reason="incumbent_gap_exceeds_limit", solve_time=cumulative_solve_time)
 
     selected = [well for well in model.W if pyo.value(model.z[well]) >= 0.5]
+    trucked = [well for well in model.W if pyo.value(model.t[well]) >= 0.5]
+    pipeline_served = [well for well in selected if well not in trucked]
     if not selected:
         empty = _empty_result(request, cost_basis=cost_basis, domain_status="no_viable_network", solver_status=str(solver_status), termination=str(termination), reason="all_wells_negative_after_logistics", solve_time=cumulative_solve_time)
         empty.objective_value_usd = objective_value
@@ -845,7 +862,7 @@ def solve_pipeline_design(
     active_graph = nx.DiGraph((from_node, to_node) for _edge, from_node, to_node, _diameter, _peak in active_rows)
     connectivity_passed = all(
         any(source in active_graph and well in active_graph and nx.has_path(active_graph, source, well) for source in source_by_id)
-        for well in selected
+        for well in pipeline_served
     )
     allocated_lifecycle_total = sum(allocations.values())
     transport_lifecycle_total = (
@@ -900,6 +917,8 @@ def solve_pipeline_design(
     else:
         domain_status = "accepted"
     transport_network_pv = costs.pipeline_capex_usd + costs.booster_capex_usd + costs.annual_opex_usd * pv_factor
+    supply_mode_by_well = {well: ("trucking" if well in trucked else "pipeline") for well in selected}
+    trucking_lifecycle_cost_usd = sum(trucking_cost_by_well[well] for well in trucked)
     return PipelineDesignResult(
         domain_status=domain_status,
         solver=solver_name,
@@ -910,6 +929,8 @@ def solve_pipeline_design(
         objective_bound_usd=objective_bound,
         optimality_gap=gap,
         selected_wells=selected,
+        supply_mode_by_well=supply_mode_by_well,
+        trucking_lifecycle_cost_usd=trucking_lifecycle_cost_usd,
         well_decisions=decisions,
         built_segments=built_segments,
         boosters=boosters,

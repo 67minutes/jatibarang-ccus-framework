@@ -177,3 +177,65 @@ def test_trucking_logistics_cost_composition() -> None:
     assert at_10 == fixed + float(case["trucking_usd_per_tonne_km"]) * 10.0
     assert at_80 > at_10
 
+
+def _trucked_well(well_id: str, lon: float, *, peak: float, annual: float, value: float, km: float) -> PipelineWellDemand:
+    return _well(well_id, lon, value=value).model_copy(
+        update={"peak_mass_flow_kg_s": peak, "annual_demand_tonnes": annual, "trucking_distance_km": km}
+    )
+
+
+def test_pilot_scale_well_is_selected_via_trucking() -> None:
+    source = _source("S1", 0.0)
+    well = _trucked_well("W1", 0.63, peak=0.195, annual=1_516.0, value=16_200_000.0, km=78.0)
+    library = RouteLibrary(
+        nodes=[
+            RouteNode(id="S1", kind="source", location=source.location, elevation_m=0.0),
+            RouteNode(id="W1", kind="well", location=well.location, elevation_m=0.0),
+        ],
+        segments=[_segment("E1", "S1", "W1", 0.0, 0.63)],
+        fingerprint="TRUCK",
+        provenance={"terrain_sha256": "TEST"},
+    )
+    result = solve_pipeline_design(
+        PipelineDesignRequest(
+            sources=[source],
+            well_demands=[well],
+            route_library=library,
+            annual_co2_budget_tonnes=320_000.0,
+            assumptions=_assumptions(),
+            objective_mode="max_net_value",
+        )
+    )
+    assert result.domain_status == "accepted"
+    assert result.selected_wells == ["W1"]
+    assert result.supply_mode_by_well == {"W1": "trucking"}
+    assert not result.built_segments
+    assert result.trucking_lifecycle_cost_usd > 0
+
+
+def test_high_flow_short_route_still_prefers_pipeline() -> None:
+    source = _source("S1", 0.0)
+    well = _well("W1", 0.01).model_copy(update={"trucking_distance_km": 400.0})
+    library = RouteLibrary(
+        nodes=[
+            RouteNode(id="S1", kind="source", location=source.location, elevation_m=0.0),
+            RouteNode(id="W1", kind="well", location=well.location, elevation_m=0.0),
+        ],
+        segments=[_segment("E1", "S1", "W1", 0.0, 0.01)],
+        fingerprint="PIPE",
+        provenance={"terrain_sha256": "TEST"},
+    )
+    result = solve_pipeline_design(
+        PipelineDesignRequest(
+            sources=[source],
+            well_demands=[well],
+            route_library=library,
+            annual_co2_budget_tonnes=100_000.0,
+            assumptions=_assumptions(),
+            objective_mode="max_net_value",
+        )
+    )
+    assert result.domain_status == "accepted"
+    assert result.supply_mode_by_well == {"W1": "pipeline"}
+    assert result.built_segments
+
