@@ -54,6 +54,7 @@ class PipelineWellDemand(BaseModel):
     pre_logistics_value_usd: float
     influence_radius_m: float = Field(default=500.0, gt=0)
     mandatory: bool = False
+    trucking_distance_km: float | None = Field(default=None, gt=0)
     provenance: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -195,7 +196,9 @@ class WellSelectionDecision(BaseModel):
         "network_cost",
         "mandatory",
         "infeasible",
+        "hydraulically_unreachable",
     ]
+    supply_mode: Literal["pipeline", "trucking"] | None = None
 
 
 class NetworkCostBreakdown(BaseModel):
@@ -231,6 +234,8 @@ class PipelineDesignResult(BaseModel):
     objective_bound_usd: float | None = None
     optimality_gap: float | None = Field(default=None, ge=0)
     selected_wells: list[str]
+    supply_mode_by_well: dict[str, Literal["pipeline", "trucking"]] = Field(default_factory=dict)
+    trucking_lifecycle_cost_usd: float = 0.0
     well_decisions: list[WellSelectionDecision]
     built_segments: list[BuiltSegment]
     boosters: list[BoosterStation]

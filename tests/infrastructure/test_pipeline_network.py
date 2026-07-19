@@ -8,6 +8,7 @@ from jatibarang_ccus.contracts import (
     RouteLibrary,
     RouteNode,
     RouteSegment,
+    WellSelectionDecision,
 )
 from jatibarang_ccus.infrastructure.pipeline import solve_pipeline_design
 from jatibarang_ccus.phase1.case_study import DEFAULT_ASSUMPTIONS, load_assumptions
@@ -151,4 +152,13 @@ def test_capacity_constrained_multi_source_uses_both_sources() -> None:
     )
     assert result.domain_status == "accepted"
     assert all(result.source_annual_flows_tonnes[source.id] > 0 for source in sources)
+
+
+def test_mode_choice_contract_defaults() -> None:
+    well = _well("W1", 0.01)
+    assert well.trucking_distance_km is None
+    trucked = well.model_copy(update={"trucking_distance_km": 78.0})
+    assert trucked.trucking_distance_km == 78.0
+    decision = WellSelectionDecision(candidate_id="W1", selected=False, reason="hydraulically_unreachable")
+    assert decision.supply_mode is None
 
