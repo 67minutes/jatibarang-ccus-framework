@@ -45,6 +45,17 @@ def booster_capex_usd(*, power_kw: float, case: dict[str, float]) -> float:
     return float(case["booster_fixed_capex_usd"]) + float(case["booster_variable_capex_usd_per_kw"]) * float(power_kw)
 
 
+def trucking_logistics_usd_per_tonne(case: dict[str, Any], distance_km: float) -> float:
+    """Per-tonne trucking logistics (loading + liquefaction + reconditioning +
+    distance transport), excluding the CO2 commodity supply price."""
+    return (
+        float(case["trucking_loading_usd_per_tonne"])
+        + float(case["trucking_liquefaction_usd_per_tonne"])
+        + float(case["trucking_reconditioning_usd_per_tonne"])
+        + float(case["trucking_usd_per_tonne_km"]) * float(distance_km)
+    )
+
+
 def build_cost_breakdown(
     *,
     cost_basis: dict[str, Any],

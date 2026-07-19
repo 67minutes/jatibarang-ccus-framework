@@ -10,6 +10,7 @@ from jatibarang_ccus.contracts import (
     RouteSegment,
     WellSelectionDecision,
 )
+from jatibarang_ccus.infrastructure.costs import load_cost_basis, trucking_logistics_usd_per_tonne
 from jatibarang_ccus.infrastructure.pipeline import solve_pipeline_design
 from jatibarang_ccus.phase1.case_study import DEFAULT_ASSUMPTIONS, load_assumptions
 
@@ -161,4 +162,18 @@ def test_mode_choice_contract_defaults() -> None:
     assert trucked.trucking_distance_km == 78.0
     decision = WellSelectionDecision(candidate_id="W1", selected=False, reason="hydraulically_unreachable")
     assert decision.supply_mode is None
+
+
+def test_trucking_logistics_cost_composition() -> None:
+    basis = load_cost_basis("data/jatibarang/pipeline_cost_basis.json")
+    case = basis["cases"]["base"]
+    at_10 = trucking_logistics_usd_per_tonne(case, 10.0)
+    at_80 = trucking_logistics_usd_per_tonne(case, 80.0)
+    fixed = (
+        float(case["trucking_loading_usd_per_tonne"])
+        + float(case["trucking_liquefaction_usd_per_tonne"])
+        + float(case["trucking_reconditioning_usd_per_tonne"])
+    )
+    assert at_10 == fixed + float(case["trucking_usd_per_tonne_km"]) * 10.0
+    assert at_80 > at_10
 

@@ -6,7 +6,11 @@ from jatibarang_ccus.contracts import (
     SupplyOptionResult,
     TruckingSupplyResult,
 )
-from jatibarang_ccus.infrastructure.costs import annuity_present_value_factor, load_cost_basis
+from jatibarang_ccus.infrastructure.costs import (
+    annuity_present_value_factor,
+    load_cost_basis,
+    trucking_logistics_usd_per_tonne,
+)
 from jatibarang_ccus.infrastructure.pipeline import solve_pipeline_design
 
 
@@ -20,7 +24,7 @@ def _trucking_result(request: SupplyComparisonRequest, annual_mass_tonnes: float
     reconditioning = float(case["trucking_reconditioning_usd_per_tonne"])
     distance_transport = float(case["trucking_usd_per_tonne_km"]) * request.trucking_distance_km
     supply = float(case["co2_supply_usd_per_tonne"])
-    delivered = loading + liquefaction + reconditioning + distance_transport + supply
+    delivered = trucking_logistics_usd_per_tonne(case, request.trucking_distance_km) + supply
     annual_cost = delivered * annual_mass_tonnes
     economics = assumptions["economics"]
     pv_factor = annuity_present_value_factor(
