@@ -13,6 +13,7 @@ import type {
 import { useComposeStore } from "../compose/compose.store";
 import { useStudyStore } from "../state/study.store";
 import { useFieldStore } from "../state/field.store";
+import type { ReservoirRef } from "../state/field.store";
 import {
   quantityDisplayName,
   scientificDisplayText,
@@ -30,6 +31,7 @@ export function Inspector() {
   const draft = useComposeStore((s) => s.draft);
   const study = useStudyStore((s) => s.study);
   const fieldReservoir = useFieldStore((s) => s.reservoir);
+  const reservoirAssignments = useFieldStore((s) => s.reservoirAssignments);
   const placement = useFieldStore((s) => s.placement);
   const wells = useFieldStore((s) => s.wells);
   const sources = useFieldStore((s) => s.sources);
@@ -43,6 +45,7 @@ export function Inspector() {
           selection={selection}
           fieldName={placement.name}
           modelFile={fieldReservoir.source_file}
+          reservoirAssignments={reservoirAssignments}
           wells={wells}
           sources={sources}
         />
@@ -66,10 +69,18 @@ export function Inspector() {
             plan={plan}
             kind={selection.kind}
             id={selection.id}
-            sharedReservoir={Boolean(fieldReservoir)}
+            reservoirAssignments={reservoirAssignments}
           />
           <TruckingDistanceProvenance
-            provenance={plan.trucking_counterfactual?.supply.distance_provenance}
+            provenance={
+              plan.trucking_counterfactual?.supply.distance_provenance ??
+              plan.trucking_route_preview?.distance_provenance
+            }
+            truckingDevelopment={
+              plan.pipeline.domain_status === "accepted" &&
+              selection.kind === "well" &&
+              plan.pipeline.supply_mode_by_well?.[selection.id] === "trucking"
+            }
           />
         </div>
       )}
@@ -79,9 +90,19 @@ export function Inspector() {
 
 export function TruckingDistanceProvenance({
   provenance,
+  truckingDevelopment = false,
 }: {
   provenance: string | undefined;
+  /** True when the selected well's accepted development is supplied by road
+   * transport (below the pipeline's hydraulic floor), rather than a
+   * no-development preview or counterfactual. */
+  truckingDevelopment?: boolean;
 }) {
+  if (truckingDevelopment) {
+    return (
+      <p className="confidence-note">Supplied by road transport from the source.</p>
+    );
+  }
   if (provenance === "greatcircle_detour_estimate") {
     return (
       <p className="confidence-note">
@@ -102,12 +123,12 @@ function SelectionDetail({
   plan,
   kind,
   id,
-  sharedReservoir,
+  reservoirAssignments,
 }: {
   plan: CarbonPricePlan;
   kind: string;
   id: string;
-  sharedReservoir: boolean;
+  reservoirAssignments: Record<string, ReservoirRef>;
 }) {
   if (kind === "well") {
     const strat = plan.well_strategies.find((w) => w.candidate_id === id);
@@ -116,7 +137,7 @@ function SelectionDetail({
         <WellDetail
           plan={plan}
           strat={strat}
-          sharedReservoir={sharedReservoir}
+          reservoir={reservoirAssignments[strat.candidate_id]}
         />
       );
     }
@@ -135,11 +156,11 @@ function SelectionDetail({
 function WellDetail({
   plan,
   strat,
-  sharedReservoir,
+  reservoir,
 }: {
   plan: CarbonPricePlan;
   strat: WellStrategyResult;
-  sharedReservoir: boolean;
+  reservoir: ReservoirRef | undefined;
 }) {
   const selected = plan.selected_wells.includes(strat.candidate_id);
   const conf = strat.prediction.confidence;
@@ -161,9 +182,27 @@ function WellDetail({
         <dd>{tonnes(strat.annual_demand_tonnes)}</dd>
         <dt>Peak mass flow</dt>
         <dd>{num(strat.peak_mass_flow_kg_s, 2)} kg/s</dd>
+        {reservoir ? (
+          <>
+            <dt>Reservoir artifact</dt>
+            <dd>{reservoir.source_file}</dd>
+            <dt>Model ID</dt>
+            <dd className="mono">{reservoir.model_id}</dd>
+            <dt>Model SHA-256</dt>
+            <dd className="mono" title={reservoir.sha256}>
+              {reservoir.sha256.slice(0, 16)}…
+            </dd>
+          </>
+        ) : null}
       </dl>
 
-      {sharedReservoir ? <SharedReservoirNotice /> : null}
+      {reservoir ? (
+        <p className="shared-reservoir-notice">
+          Response and playback use this well&apos;s hash-verified MRST-derived artifact.
+        </p>
+      ) : (
+        <SharedReservoirNotice />
+      )}
       <WellInterferenceWarnings plan={plan} wellId={strat.candidate_id} />
 
       {conf.extended_horizon && (
@@ -256,18 +295,21 @@ function FieldSetupDetail({
   selection,
   fieldName,
   modelFile,
+  reservoirAssignments,
   wells,
   sources,
 }: {
   selection: ReturnType<typeof useSelectionStore.getState>["selection"];
   fieldName: string;
   modelFile: string;
+  reservoirAssignments: Record<string, ReservoirRef>;
   wells: ReturnType<typeof useFieldStore.getState>["wells"];
   sources: ReturnType<typeof useFieldStore.getState>["sources"];
 }) {
   if (selection.kind === "well" && selection.id) {
     const well = wells.find((item) => item.id === selection.id);
     if (well) {
+      const reservoir = reservoirAssignments[well.id];
       return (
         <div>
           <div className="inspector-head">
@@ -284,9 +326,25 @@ function FieldSetupDetail({
             <dt>Longitude</dt>
             <dd>{well.lon.toFixed(6)}</dd>
             <dt>Reservoir model</dt>
-            <dd>{modelFile}</dd>
+            <dd>{reservoir?.source_file ?? modelFile}</dd>
+            {reservoir ? (
+              <>
+                <dt>Model ID</dt>
+                <dd className="mono">{reservoir.model_id}</dd>
+                <dt>Model SHA-256</dt>
+                <dd className="mono" title={reservoir.sha256}>
+                  {reservoir.sha256.slice(0, 16)}…
+                </dd>
+              </>
+            ) : null}
           </dl>
-          <SharedReservoirNotice />
+          {reservoir ? (
+            <p className="shared-reservoir-notice">
+              This well is bound to its own hash-verified MRST-derived artifact.
+            </p>
+          ) : (
+            <SharedReservoirNotice />
+          )}
         </div>
       );
     }

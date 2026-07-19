@@ -2,6 +2,7 @@ import type {
   CarbonPricePlan,
   Coordinate,
   ScreenRequest,
+  TruckingLeg,
 } from "../api/types";
 import type { SelectionKind } from "../state/selection.store";
 import type { ArtifactReferencedRequestSummary } from "../memo/studyMemo";
@@ -70,6 +71,30 @@ export function nodeCoordinateMap(request: SceneRequest): Map<string, Coordinate
   return coords;
 }
 
+/** Build dashed trucking-leg routes from a source to each target well, falling
+ * back to a straight source-to-well line when no routed leg is available. */
+function buildTruckRoutes(
+  wellIds: string[],
+  coords: Map<string, Coordinate>,
+  sourceLocation: Coordinate,
+  legs: TruckingLeg[] | null,
+): SceneRoute[] {
+  const routes: SceneRoute[] = [];
+  for (const wellId of wellIds) {
+    const to = coords.get(wellId);
+    if (!to) continue;
+    const leg = legs?.find((item) => item.candidate_id === wellId) ?? null;
+    routes.push({
+      id: `truck:${wellId}`,
+      mode: "trucking",
+      path: leg?.route
+        ? leg.route.map(([latitude, longitude]) => ({ latitude, longitude }))
+        : [sourceLocation, to],
+    });
+  }
+  return routes;
+}
+
 export function collectSceneObjects(
   request: SceneRequest,
   plan: CarbonPricePlan | null,
@@ -98,6 +123,12 @@ export function collectSceneObjects(
     const pipeline = plan.pipeline;
     const networkAccepted = pipeline.domain_status === "accepted";
 
+    const source = request.mode === "inline" ? request.sources[0] : undefined;
+    const legs =
+      plan.trucking_counterfactual?.supply.legs ??
+      plan.trucking_route_preview?.legs ??
+      null;
+
     if (networkAccepted) {
       for (const seg of pipeline.built_segments) {
         const from = coords.get(seg.from_node);
@@ -110,31 +141,22 @@ export function collectSceneObjects(
         const location = coords.get(booster.node_id);
         if (location) boosters.push({ id: booster.node_id, location });
       }
+
+      // Wells the optimizer supplied by road transport (below the hydraulic
+      // floor) keep their pipeline routing off the map and get a dashed
+      // trucking leg instead, even though the overall network is accepted.
+      if (source) {
+        const truckedWells = pipeline.selected_wells.filter(
+          (wellId) => pipeline.supply_mode_by_well?.[wellId] === "trucking",
+        );
+        routes.push(...buildTruckRoutes(truckedWells, coords, source.location, legs));
+      }
     } else {
       // No viable pipeline (the correct HnP outcome): show the indicated
       // trucking supply from the first source to each candidate well.
-      const source = request.mode === "inline" ? request.sources[0] : undefined;
       if (source) {
-        const legs = plan.trucking_counterfactual?.supply.legs ?? null;
         const targets = selectedWells.size > 0 ? [...selectedWells] : [...coords.keys()].filter((id) => !sourceIds.has(id));
-        for (const wellId of targets) {
-          const to = coords.get(wellId);
-          if (to) {
-            const leg = legs?.find(
-              (item) => item.candidate_id === wellId,
-            ) ?? null;
-            routes.push({
-              id: `truck:${wellId}`,
-              mode: "trucking",
-              path: leg?.route
-                ? leg.route.map(([latitude, longitude]) => ({
-                    latitude,
-                    longitude,
-                  }))
-                : [source.location, to],
-            });
-          }
-        }
+        routes.push(...buildTruckRoutes(targets, coords, source.location, legs));
       }
     }
   }

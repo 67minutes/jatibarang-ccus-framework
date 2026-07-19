@@ -260,6 +260,7 @@ export interface PipelineDesignResult {
   source_annual_flows_tonnes: Record<string, number>;
   delivered_cost_usd_per_tonne: Record<string, number>;
   per_well_allocated_cost_usd: Record<string, number>;
+  supply_mode_by_well?: Record<string, "pipeline" | "trucking">;
   costs: NetworkCostBreakdown;
   solve_time_seconds: number;
   /** May carry route node geometry for the map overlay. */
@@ -476,6 +477,7 @@ export interface SelectionDiscrepancyAudit {
 export interface WellStrategyResult {
   candidate_id: string;
   scenario_id: string;
+  schedule: Record<string, number>;
   selected: boolean;
   annual_demand_tonnes: number;
   peak_mass_flow_kg_s: number;
@@ -492,6 +494,12 @@ export interface TruckingCounterfactual {
   economics: EconomicBatchResult;
 }
 
+/** Geometry-only candidate routes; never a selected development/economic claim. */
+export interface TruckingRoutePreview {
+  distance_provenance: string;
+  legs: TruckingLeg[];
+}
+
 /** One plan per carbon price. The scrubber selects among these client-side. */
 export interface CarbonPricePlan {
   carbon_price_scenario_id: string;
@@ -502,10 +510,12 @@ export interface CarbonPricePlan {
   facility: FacilityPortfolioResult | null;
   economics: EconomicBatchResult | null;
   trucking_counterfactual: TruckingCounterfactual | null;
+  trucking_route_preview: TruckingRoutePreview | null;
   well_strategies: WellStrategyResult[];
   interference: InterferenceReport;
   discrepancy_audit: SelectionDiscrepancyAudit | null;
   flags: ScreenFlag[];
+  logistics_mode?: "pipeline" | "trucking" | "hybrid" | "none";
 }
 
 export interface CrossPriceTransition {

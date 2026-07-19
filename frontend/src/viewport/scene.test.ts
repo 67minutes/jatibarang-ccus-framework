@@ -85,6 +85,88 @@ describe("scene", () => {
     ]);
   });
 
+  it("draws a dashed trucking route for a trucked well on an accepted plan", () => {
+    const acceptedTruckedPlan = {
+      carbon_price_scenario_id: "cp",
+      carbon_price_usd_per_tonne: 20,
+      domain_status: "accepted",
+      selected_wells: ["W02"],
+      logistics_mode: "trucking",
+      pipeline: {
+        domain_status: "accepted",
+        selected_wells: ["W02"],
+        supply_mode_by_well: { W02: "trucking" },
+        built_segments: [],
+        boosters: [],
+      },
+      trucking_counterfactual: null,
+      trucking_route_preview: {
+        distance_provenance: "osm_road_network:roads-test",
+        legs: [
+          {
+            candidate_id: "W02",
+            distance_km: 78,
+            annual_mass_tonnes: 1516,
+            route: [
+              [-6.5, 107.0],
+              [-6.4, 107.1],
+              [-6.5, 107.2],
+            ],
+          },
+        ],
+      },
+    } as unknown as CarbonPricePlan;
+
+    const scene = collectSceneObjects(request(), acceptedTruckedPlan);
+
+    expect(scene.routes).toHaveLength(1);
+    expect(scene.routes[0].mode).toBe("trucking");
+    expect(scene.routes[0].path).toEqual([
+      { latitude: -6.5, longitude: 107.0 },
+      { latitude: -6.4, longitude: 107.1 },
+      { latitude: -6.5, longitude: 107.2 },
+    ]);
+  });
+
+  it("uses road-routed preview legs without inventing a selected portfolio", () => {
+    const previewPlan = {
+      ...noNetworkPlan,
+      trucking_route_preview: {
+        distance_provenance: "osm_road_network:roads-test",
+        legs: [
+          {
+            candidate_id: "W01",
+            distance_km: 24,
+            annual_mass_tonnes: 50_000,
+            route: [
+              [-6.5, 108.32],
+              [-6.51, 108.3],
+              [-6.48, 108.31],
+            ],
+          },
+          {
+            candidate_id: "W02",
+            distance_km: 30,
+            annual_mass_tonnes: 50_000,
+            route: [
+              [-6.5, 108.32],
+              [-6.52, 108.34],
+              [-6.49, 108.33],
+            ],
+          },
+        ],
+      },
+    } as unknown as CarbonPricePlan;
+
+    const scene = collectSceneObjects(request(), previewPlan);
+
+    expect(scene.routes).toHaveLength(2);
+    expect(scene.routes[0].path).toHaveLength(3);
+    expect(scene.routes[1].path).toHaveLength(3);
+    expect(previewPlan.selected_wells).toEqual([]);
+    expect(previewPlan.trucking_counterfactual).toBeNull();
+  });
+
   it("projects to a view box with equal-aspect scaling and north-up", () => {
     const scene = collectSceneObjects(request(), noNetworkPlan);
     const view = projectToView(scene, 800, 600, 20);
