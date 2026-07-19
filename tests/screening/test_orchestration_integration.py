@@ -13,12 +13,15 @@ from jatibarang_ccus.infrastructure.economics import evaluate_economic_batch
 from jatibarang_ccus.infrastructure.facility import evaluate_facility_portfolio
 from jatibarang_ccus.infrastructure.supply import evaluate_trucking_supply
 from jatibarang_ccus.screening.orchestrator import ScreeningOrchestrator, ScreeningServices
+from jatibarang_ccus.screening.presets import materialize_inline_scenarios
 from jatibarang_ccus.screening.schemas import (
     InlineScreenRequest,
     ProducedCO2Assumption,
     ScreeningCandidate,
 )
 from jatibarang_ccus.surrogate.preprocessing import schedule_fingerprint
+from jatibarang_ccus.surrogate.preprocessing import compile_request
+from jatibarang_ccus.surrogate.postprocessing import build_prediction_result
 
 from .helpers import FakeRunner, economic_dimensions, geology, schedule, seed, source
 
@@ -87,7 +90,12 @@ def route_library(route_request) -> RouteLibrary:
     )
 
 
-def pipeline_result(design_request, selected: list[str], domain_status: str = "accepted") -> PipelineDesignResult:
+def pipeline_result(
+    design_request,
+    selected: list[str],
+    domain_status: str = "accepted",
+    supply_mode_by_well: dict[str, str] | None = None,
+) -> PipelineDesignResult:
     costs = NetworkCostBreakdown(
         cost_case=design_request.cost_case,
         cost_year=2025,
@@ -112,6 +120,7 @@ def pipeline_result(design_request, selected: list[str], domain_status: str = "a
         objective_bound_usd=1_000_000.0,
         optimality_gap=0.0,
         selected_wells=selected,
+        supply_mode_by_well=supply_mode_by_well or {},
         well_decisions=[
             WellSelectionDecision(
                 candidate_id=item.candidate_id,
@@ -231,6 +240,55 @@ def test_sync_and_event_pipeline_return_the_same_result() -> None:
     assert streamed["logical_scenario_count"] == sync.logical_scenario_count
 
 
+def test_cached_downstream_resolve_makes_zero_surrogate_calls() -> None:
+    runner = FakeRunner()
+    services = ScreeningServices(
+        route_builder=route_library,
+        pipeline_solver=accepted_pipeline,
+        facility_evaluator=evaluate_facility_portfolio,
+        economic_evaluator=evaluate_economic_batch,
+        trucking_evaluator=evaluate_trucking_supply,
+        solver_checker=lambda _solver: None,
+    )
+    orchestrator = ScreeningOrchestrator(runner, services=services)
+    request = inline_request().model_copy(update={"detailed_top_k": 0})
+    materialized = materialize_inline_scenarios(request)
+    unique = {item.input_fingerprint: item for item in materialized}
+    compiled = [
+        compile_request(item.predict_request, runner.checkpoint["stats"])
+        for item in unique.values()
+    ]
+    raw = runner.predict_compiled_batch(compiled)
+    cache = {
+        fingerprint: build_prediction_result(
+            compiled_item,
+            prediction,
+            runner,
+            include_fields=False,
+        )
+        for fingerprint, compiled_item, prediction in zip(
+            unique,
+            compiled,
+            raw,
+            strict=True,
+        )
+    }
+    runner.batch_calls = 0
+    runner.compiled_count = 0
+
+    result = orchestrator.run_with_prediction_cache(request, cache)
+
+    assert runner.batch_calls == 0
+    assert runner.compiled_count == 0
+    assert result.unique_inference_count == 1
+    assert result.inference_cache_hits == 1
+    assert result.logical_scenario_count == 2
+    assert result.provenance_catalog["surrogate_evaluation_mode"] == (
+        "immutable_prediction_cache_zero_surrogate_calls"
+    )
+    assert all(plan.selected_wells == ["W01"] for plan in result.plans)
+
+
 def test_synthetic_fixture_proves_price_pivot_and_partial_failure_outcomes() -> None:
     seen: dict[str, int] = {}
 
@@ -260,6 +318,12 @@ def test_synthetic_fixture_proves_price_pivot_and_partial_failure_outcomes() -> 
     assert result.plans[0].domain_status == "no_viable_network"
     assert result.plans[0].selected_wells == []
     assert result.plans[0].facility is None
+    assert result.plans[0].trucking_counterfactual is None
+    assert result.plans[0].trucking_route_preview is not None
+    assert result.plans[0].trucking_route_preview.distance_provenance == (
+        "greatcircle_detour_estimate"
+    )
+    assert len(result.plans[0].trucking_route_preview.legs) == 2
     assert result.cross_price_comparison.pivot_observed is True
     assert result.cross_price_comparison.transitions[0].entrants == ["W01"]
     assert result.cross_price_comparison.transitions[1].entrants == ["W02"]
@@ -323,3 +387,40 @@ def test_orchestrator_cancellation_is_cooperative_and_terminal() -> None:
     remaining = list(events)
     assert remaining[-1].event == "cancelled"
     assert orchestrator.cancel("cancel-me") is False
+
+
+def test_trucking_selection_is_development() -> None:
+    request = inline_request()
+
+    def trucking_solver(design_request):
+        result = pipeline_result(design_request, selected=["W01", "W02"])
+        return result.model_copy(
+            update={
+                "supply_mode_by_well": {"W01": "trucking", "W02": "trucking"},
+                "trucking_lifecycle_cost_usd": 500_000.0,
+                "per_well_allocated_cost_usd": {"W01": 250_000.0, "W02": 250_000.0},
+                "built_segments": [],
+            }
+        )
+
+    orchestrator = ScreeningOrchestrator(
+        FakeRunner(),
+        services=ScreeningServices(
+            route_builder=route_library,
+            pipeline_solver=trucking_solver,
+            facility_evaluator=evaluate_facility_portfolio,
+            economic_evaluator=evaluate_economic_batch,
+            trucking_evaluator=evaluate_trucking_supply,
+            solver_checker=lambda _solver: None,
+        ),
+    )
+    result = orchestrator.run(request)
+
+    plan = result.plans[0]
+    assert plan.logistics_mode == "trucking"
+    assert plan.selected_wells == ["W01", "W02"]
+    assert plan.economics is not None
+    assert plan.facility is not None
+    assert plan.trucking_route_preview is not None and len(plan.trucking_route_preview.legs) == 2
+    assert not any(flag.code == "no_viable_network" for flag in plan.flags)
+    assert any(flag.code == "pipeline_hydraulically_inadmissible" for flag in plan.flags)

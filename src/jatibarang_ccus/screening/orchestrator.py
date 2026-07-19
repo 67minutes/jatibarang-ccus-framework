@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import Event
 import tempfile
 from time import perf_counter
-from typing import Any, Callable, Iterable, Iterator
+from typing import Any, Callable, Iterable, Iterator, Mapping
 from uuid import uuid4
 
 import numpy as np
@@ -53,7 +53,7 @@ from jatibarang_ccus.phase1.case_study import load_assumptions
 from jatibarang_ccus.surrogate.config import REPO_ROOT
 from jatibarang_ccus.surrogate.postprocessing import build_prediction_result
 from jatibarang_ccus.surrogate.preprocessing import compile_request
-from jatibarang_ccus.surrogate.schemas import Grid2D, SpatialFrame
+from jatibarang_ccus.surrogate.schemas import Grid2D, PredictionResult, SpatialFrame
 
 from .adapters import (
     discounted_supply_cost,
@@ -85,6 +85,7 @@ from .schemas import (
     ScreenResult,
     SelectionDiscrepancyAudit,
     TruckingCounterfactual,
+    TruckingRoutePreview,
     ValidationShortlistItem,
     WellStrategyResult,
 )
@@ -593,6 +594,43 @@ class ScreeningOrchestrator:
             raise RuntimeError("screening run was cancelled")
         raise RuntimeError(terminal.message)
 
+    def run_with_prediction_cache(
+        self,
+        request: InlineScreenRequest,
+        prediction_cache: Mapping[str, PredictionResult],
+    ) -> ScreenResult:
+        """Re-run logistics, facilities, and economics without surrogate calls.
+
+        Cache keys are the location-independent geology/seed/schedule input
+        fingerprints produced by ``materialize_inline_scenarios``.  This is the
+        Feature 007 Arm C boundary: assignment re-labels physical wells while
+        the 3,240 rollout values remain immutable.
+        """
+
+        if request.detailed_top_k != 0:
+            raise ValueError(
+                "cached downstream re-solves require detailed_top_k=0; spatial fields are not in the compact rollout cache"
+            )
+        resolved = self._resolve_request(request)
+        if not isinstance(resolved, InlineScreenRequest):
+            raise TypeError("cached downstream re-solves require an inline request")
+        run_id = request.run_id or uuid4().hex
+        terminal: ProgressEvent | None = None
+        for event in self._execute(
+            run_id,
+            request,
+            resolved,
+            Event(),
+            prediction_cache=prediction_cache,
+        ):
+            if event.event in {"result", "error", "cancelled"}:
+                terminal = event
+        if terminal is None or terminal.event != "result":
+            raise RuntimeError(
+                terminal.message if terminal is not None else "cached screening ended without a result"
+            )
+        return ScreenResult.model_validate(terminal.payload["result"])
+
     def _economic_results(
         self,
         portfolios: list[PortfolioEconomicInput],
@@ -620,6 +658,8 @@ class ScreeningOrchestrator:
         original_request: ScreenRequest,
         request: InlineScreenRequest | CompactPresetBank,
         token: Event,
+        *,
+        prediction_cache: Mapping[str, PredictionResult] | None = None,
     ) -> Iterator[ProgressEvent]:
         sequence = 0
         overall_started = perf_counter()
@@ -660,10 +700,50 @@ class ScreeningOrchestrator:
         yield event("stage_started", "surrogate", total=logical_scenario_count)
         stage_started = perf_counter()
         compact_by_fingerprint: dict[str, Any] = {}
-        field_store = _DetailedFieldStore(enabled=request.detailed_top_k > 0)
+        cached_mode = prediction_cache is not None
+        field_store = _DetailedFieldStore(
+            enabled=request.detailed_top_k > 0 and not cached_mode
+        )
         scenarios: list[_ScenarioRecord] = []
         prediction_by_scenario: dict[str, Any] = {}
-        if isinstance(request, CompactPresetBank):
+        if cached_mode:
+            if isinstance(request, CompactPresetBank):
+                raise TypeError("prediction-cache re-solves require an inline request")
+            unique: dict[str, MaterializedScenario] = {}
+            for item in materialized:
+                unique.setdefault(item.input_fingerprint, item)
+            missing = sorted(set(unique) - set(prediction_cache))
+            if missing:
+                preview = ", ".join(missing[:3])
+                raise ValueError(
+                    f"prediction cache is missing {len(missing)} input fingerprints: {preview}"
+                )
+            compact_by_fingerprint = {
+                fingerprint: PredictionResult.model_validate(prediction_cache[fingerprint])
+                for fingerprint in unique
+            }
+            prediction_by_scenario = {
+                item.scenario_id: compact_by_fingerprint[item.input_fingerprint].model_copy(
+                    update={"scenario_id": item.scenario_id}
+                )
+                for item in materialized
+            }
+            scenarios = [
+                _ScenarioRecord(
+                    scenario_id=item.scenario_id,
+                    candidate_id=item.candidate_id,
+                    geology_id=item.geology_id,
+                    location=item.location,
+                    produced_co2=item.produced_co2,
+                    schedule=item.schedule,
+                    input_fingerprint=item.input_fingerprint,
+                    seed_source_class=item.predict_request.seed.source_class,
+                    seed_source_id=item.predict_request.seed.source_id,
+                )
+                for item in materialized
+            ]
+            del materialized, unique
+        elif isinstance(request, CompactPresetBank):
             completed = 0
             for materialized_chunk in _iter_chunks(
                 request.iter_scenarios(), SURROGATE_CHUNK_SIZE
@@ -756,6 +836,9 @@ class ScreeningOrchestrator:
             ]
             del materialized, unique, unique_items, compiled, predictions
         scenario_by_id = {item.scenario_id: item for item in scenarios}
+        # This field is the number of unique prediction payloads represented in
+        # the result contract, not a live runner call counter. Cached mode keeps
+        # that cardinality while its provenance records zero surrogate calls.
         unique_inference_count = len(compact_by_fingerprint)
         stages["surrogate"] = perf_counter() - stage_started
         yield event(
@@ -763,7 +846,11 @@ class ScreeningOrchestrator:
             "surrogate",
             completed=unique_inference_count,
             total=unique_inference_count,
-            message=f"{logical_scenario_count - unique_inference_count} request-local cache hits",
+            message=(
+                f"{logical_scenario_count} immutable Feature 007 rollout-cache hits"
+                if cached_mode
+                else f"{logical_scenario_count - unique_inference_count} request-local cache hits"
+            ),
         )
 
         yield event("stage_started", "preliminary_economics", total=len(scenarios))
@@ -895,6 +982,13 @@ class ScreeningOrchestrator:
             message="one shared route library built",
         )
 
+        _, trucking_distance_provenance, road_distance_legs = compute_trucking_legs(
+            request.sources,
+            routing_demands,
+            road_graph,
+        )
+        trucking_km_by_candidate = {leg.candidate_id: leg.distance_km for leg in road_distance_legs}
+
         assumptions = json.loads(json.dumps(self.assumptions))
         assumptions["pipeline"]["minimum_selected_wells"] = 0
         assumptions["economics"]["discount_rate"] = request.economic_assumptions.discount_rate
@@ -929,6 +1023,12 @@ class ScreeningOrchestrator:
                         candidate_id=candidate_id,
                     )
                 )
+            demands = [
+                item.model_copy(
+                    update={"trucking_distance_km": trucking_km_by_candidate.get(item.candidate_id)}
+                )
+                for item in demands
+            ]
             design_request = PipelineDesignRequest(
                 objective_mode="max_net_value",
                 supply_scenario_id=f"optimized_pipeline--{carbon.scenario_id}",
@@ -946,10 +1046,20 @@ class ScreeningOrchestrator:
             final_batch: EconomicBatchResult | None = None
             facility = None
             trucking = None
+            trucking_route_preview = None
             audit = None
             well_strategies: list[WellStrategyResult] = []
             selected = list(pipeline.selected_wells) if pipeline.domain_status == "accepted" else []
             if pipeline.domain_status != "accepted" or not selected:
+                _, preview_provenance, preview_legs = compute_trucking_legs(
+                    design_request.sources,
+                    demands,
+                    road_graph,
+                )
+                trucking_route_preview = TruckingRoutePreview(
+                    distance_provenance=preview_provenance,
+                    legs=preview_legs,
+                )
                 flags.append(
                     ScreenFlag(
                         code=pipeline.domain_status,
@@ -962,6 +1072,25 @@ class ScreeningOrchestrator:
                 selected_scenarios.update(
                     best[(carbon.scenario_id, candidate_id)].scenario_id for candidate_id in selected
                 )
+                trucked_ids = [w for w in selected if pipeline.supply_mode_by_well.get(w) == "trucking"]
+                if trucked_ids:
+                    flags.append(
+                        ScreenFlag(
+                            code="pipeline_hydraulically_inadmissible",
+                            severity="info",
+                            source_module="feature002",
+                            message="Pipeline supply is below the minimum admissible hydraulic flow; selected wells are supplied by road transport.",
+                        )
+                    )
+                    _, preview_provenance, preview_legs = compute_trucking_legs(
+                        design_request.sources,
+                        [d for d in demands if d.candidate_id in trucked_ids],
+                        road_graph,
+                    )
+                    trucking_route_preview = TruckingRoutePreview(
+                        distance_provenance=preview_provenance,
+                        legs=preview_legs,
+                    )
                 facility_request = FacilityPortfolioRequest(
                     portfolio_id=f"facility--{carbon.scenario_id}",
                     cost_case=request.cost_case,
@@ -1303,10 +1432,26 @@ class ScreeningOrchestrator:
                     facility=facility,
                     economics=final_batch,
                     trucking_counterfactual=trucking,
+                    trucking_route_preview=trucking_route_preview,
                     well_strategies=well_strategies,
                     interference=interference,
                     discrepancy_audit=audit,
                     flags=flags,
+                    logistics_mode=(
+                        "none"
+                        if not selected
+                        else (
+                            "hybrid"
+                            if 0
+                            < len([w for w in selected if pipeline.supply_mode_by_well.get(w) == "trucking"])
+                            < len(selected)
+                            else (
+                                "trucking"
+                                if pipeline.supply_mode_by_well.get(selected[0]) == "trucking"
+                                else "pipeline"
+                            )
+                        )
+                    ),
                 )
             )
             for flag in flags:
@@ -1451,6 +1596,11 @@ class ScreeningOrchestrator:
                 ),
                 "produced_co2_composition": "explicit_per_candidate_provenance_tagged_assumption",
                 "pipeline_minimum_selected_wells": 0,
+                "surrogate_evaluation_mode": (
+                    "immutable_prediction_cache_zero_surrogate_calls"
+                    if cached_mode
+                    else "runtime_surrogate_inference"
+                ),
             },
         )
         yield event(

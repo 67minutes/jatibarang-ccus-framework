@@ -16,6 +16,7 @@ from jatibarang_ccus.contracts import (
     FacilityPortfolioResult,
     FiscalCase,
     PipelineDesignResult,
+    TruckingLeg,
     TruckingSupplyResult,
 )
 from jatibarang_ccus.surrogate.schemas import (
@@ -245,6 +246,18 @@ class TruckingCounterfactual(BaseModel):
     economics: EconomicBatchResult
 
 
+class TruckingRoutePreview(BaseModel):
+    """Geometry-only routes when the optimizer selects no development.
+
+    This is deliberately not a supply or economic result.  It lets the map
+    show how the declared source would reach candidate wells without turning
+    an explicit non-development result into a selected trucking portfolio.
+    """
+
+    distance_provenance: str
+    legs: list[TruckingLeg]
+
+
 class CarbonPricePlan(BaseModel):
     carbon_price_scenario_id: str
     carbon_price_usd_per_tonne: float = Field(ge=0)
@@ -254,10 +267,12 @@ class CarbonPricePlan(BaseModel):
     facility: FacilityPortfolioResult | None = None
     economics: EconomicBatchResult | None = None
     trucking_counterfactual: TruckingCounterfactual | None = None
+    trucking_route_preview: TruckingRoutePreview | None = None
     well_strategies: list[WellStrategyResult]
     interference: InterferenceReport
     discrepancy_audit: SelectionDiscrepancyAudit | None = None
     flags: list[ScreenFlag] = Field(default_factory=list)
+    logistics_mode: Literal["pipeline", "trucking", "hybrid", "none"] = "none"
 
 
 class CrossPriceTransition(BaseModel):
