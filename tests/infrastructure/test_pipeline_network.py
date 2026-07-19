@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from jatibarang_ccus.contracts import (
     CO2Source,
     Coordinate,
@@ -211,6 +213,10 @@ def test_pilot_scale_well_is_selected_via_trucking() -> None:
     assert result.supply_mode_by_well == {"W1": "trucking"}
     assert not result.built_segments
     assert result.trucking_lifecycle_cost_usd > 0
+    assert result.per_well_allocated_cost_usd["W1"] == pytest.approx(result.trucking_lifecycle_cost_usd)
+    assert result.delivered_cost_usd_per_tonne["W1"] > result.costs.commodity_supply_usd_per_tonne
+    assert result.hydraulic_verification["passed"] is True
+    assert result.well_decisions[0].supply_mode == "trucking"
 
 
 def test_high_flow_short_route_still_prefers_pipeline() -> None:

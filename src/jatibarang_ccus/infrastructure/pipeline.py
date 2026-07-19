@@ -882,8 +882,15 @@ def solve_pipeline_design(
     )
     for built in built_segments:
         built.allocated_lifecycle_cost_usd = segment_lifecycle_cost[built.segment_id]
+    for well_id in trucked:
+        allocations[well_id] = trucking_cost_by_well[well_id]
     delivered = {
-        well: float(cost_case["co2_supply_usd_per_tonne"]) + allocations[well] / max(demand_by_id[well].annual_demand_tonnes * pv_factor, 1e-9)
+        well: (
+            float(cost_case["co2_supply_usd_per_tonne"])
+            + trucking_cost_by_well[well] / max(demand_by_id[well].annual_demand_tonnes * pv_factor, 1e-9)
+            if well in trucked
+            else float(cost_case["co2_supply_usd_per_tonne"]) + allocations[well] / max(demand_by_id[well].annual_demand_tonnes * pv_factor, 1e-9)
+        )
         for well in selected
     }
     max_constraint_violation = _constraint_violation(model)
@@ -895,7 +902,7 @@ def solve_pipeline_design(
         any(source in active_graph and well in active_graph and nx.has_path(active_graph, source, well) for source in source_by_id)
         for well in pipeline_served
     )
-    allocated_lifecycle_total = sum(allocations.values())
+    allocated_lifecycle_total = sum(allocations[well] for well in pipeline_served)
     transport_lifecycle_total = (
         costs.pipeline_capex_usd + costs.booster_capex_usd + costs.annual_opex_usd * pv_factor
     )
@@ -945,6 +952,11 @@ def solve_pipeline_design(
                     if hydraulically_unreachable[item.candidate_id] and item.trucking_distance_km is None
                     else ("negative_net_value" if item.pre_logistics_value_usd <= 0 else "network_cost")
                 )
+            ),
+            supply_mode=(
+                ("trucking" if item.candidate_id in trucked else "pipeline")
+                if item.candidate_id in selected
+                else None
             ),
         )
         for item in request.well_demands
