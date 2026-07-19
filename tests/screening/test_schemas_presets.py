@@ -17,9 +17,14 @@ from jatibarang_ccus.screening.presets import (
     PresetRegistry,
     materialize_inline_scenarios,
 )
-from jatibarang_ccus.screening.preset_builder import build_upstream_design, import_seed_bank
+from jatibarang_ccus.screening.preset_builder import (
+    build_upstream_design,
+    build_workflow_smoke_design,
+    import_seed_bank,
+)
 from jatibarang_ccus.screening.orchestrator import _chunks
 from jatibarang_ccus.screening.schemas import (
+    CarbonPricePlan,
     InlineScreenRequest,
     OperationalGrid,
     ProducedCO2Assumption,
@@ -190,6 +195,43 @@ def test_upstream_design_has_deterministic_demo_and_full_dimensions(tmp_path) ->
     )["design_sha256"]
 
 
+def test_workflow_smoke_design_is_real_20_by_1_and_not_paper_claim(tmp_path) -> None:
+    full_path = tmp_path / "full.json"
+    full = {
+        "schema_version": "1.0",
+        "preset_id": "jatibarang_full_v1",
+        "geologies": [
+            {"candidate_id": f"W{index:02d}"} for index in range(1, 21)
+        ],
+        "schedules": [
+            {
+                "values": {
+                    "injection_rate_m3_day": 9000.0,
+                    "injection_reference_pressure_bar": 1.01325,
+                    "injection_reference_temperature_c": 15.0,
+                    "injection_duration_days": 45.0,
+                    "soak_duration_days": 30.0,
+                    "production_duration_days": 190.0,
+                    "production_bhp_psi": 675.0,
+                    "cycles": 4,
+                },
+                "schedule_fingerprint": "A" * 64,
+            }
+        ],
+        "logical_scenarios": 3240,
+        "design_sha256": "B" * 64,
+    }
+    full_path.write_text(json.dumps(full), encoding="utf-8")
+
+    smoke = build_workflow_smoke_design(full_path)
+
+    assert smoke["logical_scenarios"] == 20
+    assert len(smoke["geologies"]) == 20
+    assert len(smoke["schedules"]) == 1
+    assert smoke["purpose"] == "end_to_end_ui_smoke_not_paper_evidence"
+    assert smoke["design_sha256"] == build_workflow_smoke_design(full_path)["design_sha256"]
+
+
 def test_compact_preset_materializes_seeds_lazily(tmp_path, monkeypatch) -> None:
     prices, fiscal, assumptions = economic_dimensions()
     schedules = [schedule(cycles=3), schedule(cycles=4)]
@@ -288,3 +330,9 @@ def test_seed_import_rejects_an_incomplete_upstream_exporter_manifest(tmp_path) 
 
     with pytest.raises(ValueError, match="incomplete"):
         import_seed_bank(design_path=design_path, seed_root=seed_root, output_root=tmp_path)
+
+
+def test_plan_serializes_logistics_mode() -> None:
+    fields = CarbonPricePlan.model_fields
+    assert "logistics_mode" in fields
+    assert fields["logistics_mode"].default == "none"

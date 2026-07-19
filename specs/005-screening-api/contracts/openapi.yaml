@@ -185,6 +185,18 @@ components:
         detailed_reservoirs:
           type: object
           additionalProperties: {$ref: '#/components/schemas/ReservoirVisualization'}
+    CarbonPricePlan:
+      type: object
+      properties:
+        pipeline: {$ref: '#/components/schemas/PipelineDesignResult'}
+        logistics_mode: {type: string, enum: [pipeline, trucking, hybrid, none], default: none}
+    PipelineDesignResult:
+      type: object
+      properties:
+        supply_mode_by_well:
+          type: object
+          additionalProperties: {type: string, enum: [pipeline, trucking]}
+        trucking_lifecycle_cost_usd: {type: number, default: 0}
     PredictionResult:
       type: object
     ReservoirVisualization:
