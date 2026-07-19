@@ -688,14 +688,45 @@ def solve_pipeline_design(
     if termination != TerminationCondition.optimal and (gap is None or gap > float(assumptions.get("solver_ratio_gap", 0.02)) + 1e-9):
         return _empty_result(request, cost_basis=cost_basis, domain_status="not_solved_to_tolerance", solver_status=str(solver_status), termination=str(termination), reason="incumbent_gap_exceeds_limit", solve_time=cumulative_solve_time)
 
+    def _min_admissible_inflow_kg_s(well_id: str) -> float:
+        incident = [arc for arc in directed_arcs if arc[2] == well_id]
+        if not incident:
+            return float("inf")
+        return min(
+            hydraulics[(arc[0], arc[1], arc[2])].diameters[float(arc[3])].minimum_flow_kg_s
+            for arc in incident
+        )
+
+    hydraulically_unreachable = {
+        well_id: demand_by_id[well_id].peak_mass_flow_kg_s < _min_admissible_inflow_kg_s(well_id)
+        for well_id in demand_by_id
+    }
+
     selected = [well for well in model.W if pyo.value(model.z[well]) >= 0.5]
     trucked = [well for well in model.W if pyo.value(model.t[well]) >= 0.5]
     pipeline_served = [well for well in selected if well not in trucked]
     if not selected:
-        empty = _empty_result(request, cost_basis=cost_basis, domain_status="no_viable_network", solver_status=str(solver_status), termination=str(termination), reason="all_wells_negative_after_logistics", solve_time=cumulative_solve_time)
+        zero_reason = (
+            "below_minimum_hydraulic_flow"
+            if hydraulically_unreachable and all(hydraulically_unreachable.values())
+            else "all_wells_negative_after_logistics"
+        )
+        empty = _empty_result(request, cost_basis=cost_basis, domain_status="no_viable_network", solver_status=str(solver_status), termination=str(termination), reason=zero_reason, solve_time=cumulative_solve_time)
         empty.objective_value_usd = objective_value
         empty.objective_bound_usd = objective_bound
         empty.optimality_gap = gap
+        empty.well_decisions = [
+            WellSelectionDecision(
+                candidate_id=item.candidate_id,
+                selected=False,
+                reason=(
+                    "hydraulically_unreachable"
+                    if hydraulically_unreachable[item.candidate_id] and item.trucking_distance_km is None
+                    else ("negative_net_value" if item.pre_logistics_value_usd <= 0 else "network_cost")
+                ),
+            )
+            for item in request.well_demands
+        ]
         return empty
 
     active_rows: list[tuple[str, str, str, float, float]] = []
@@ -906,7 +937,15 @@ def solve_pipeline_design(
         WellSelectionDecision(
             candidate_id=item.candidate_id,
             selected=item.candidate_id in selected,
-            reason=("mandatory" if item.mandatory else "selected") if item.candidate_id in selected else ("negative_net_value" if item.pre_logistics_value_usd <= 0 else "network_cost"),
+            reason=(
+                ("mandatory" if item.mandatory else "selected")
+                if item.candidate_id in selected
+                else (
+                    "hydraulically_unreachable"
+                    if hydraulically_unreachable[item.candidate_id] and item.trucking_distance_km is None
+                    else ("negative_net_value" if item.pre_logistics_value_usd <= 0 else "network_cost")
+                )
+            ),
         )
         for item in request.well_demands
     ]

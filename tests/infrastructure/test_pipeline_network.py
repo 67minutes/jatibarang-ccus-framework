@@ -239,3 +239,38 @@ def test_high_flow_short_route_still_prefers_pipeline() -> None:
     assert result.supply_mode_by_well == {"W1": "pipeline"}
     assert result.built_segments
 
+
+def test_velocity_floor_zero_reports_hydraulic_reason() -> None:
+    source = _source("S1", 0.0)
+    well = _well("W1", 0.63, value=16_200_000.0).model_copy(
+        update={"peak_mass_flow_kg_s": 0.195, "annual_demand_tonnes": 1_516.0}
+    )
+    library = RouteLibrary(
+        nodes=[
+            RouteNode(id="S1", kind="source", location=source.location, elevation_m=0.0),
+            RouteNode(id="W1", kind="well", location=well.location, elevation_m=0.0),
+        ],
+        segments=[_segment("E1", "S1", "W1", 0.0, 0.63)],
+        fingerprint="FLOOR",
+        provenance={"terrain_sha256": "TEST"},
+    )
+    result = solve_pipeline_design(
+        PipelineDesignRequest(
+            sources=[source],
+            well_demands=[well],
+            route_library=library,
+            annual_co2_budget_tonnes=320_000.0,
+            assumptions=_assumptions(),
+            objective_mode="max_net_value",
+        )
+    )
+    assert result.domain_status == "no_viable_network"
+    assert result.constraint_audit["reason"] == "below_minimum_hydraulic_flow"
+    assert result.well_decisions[0].reason == "hydraulically_unreachable"
+
+
+def test_negative_value_zero_keeps_economic_reason() -> None:
+    result = solve_pipeline_design(_request(value=-1_000_000.0))
+    assert result.domain_status == "no_viable_network"
+    assert result.constraint_audit["reason"] == "all_wells_negative_after_logistics"
+
