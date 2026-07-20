@@ -74,7 +74,26 @@ gap is now data and execution: the fixed 200/3,240 MRST-derived warm-seed payloa
 not been fully generated and imported, so no real preset result has been promoted.
 The saved legacy 3,240-scenario result remains a proxy and is not silently relabeled.
 The July 17 MRST preflight returned zero safe workers under the locked RAM-reserve
-formula, so neither the three-run benchmark nor either bank export was launched.
+formula. A later bounded three-run benchmark completed in `502.863 s`, but neither
+the 200- nor 3,240-scenario paper-bank export has been launched.
+
+The Feature 002 logistics MILP is now a **pipeline-vs-trucking mode-choice optimizer**:
+for each candidate well the solver jointly selects the well and its supply mode
+(pipeline network arc or per-well trucking) while maximizing net value, instead of
+treating pipeline delivery as the only path to development. Zero-selection provenance
+is now honest about *why* nothing was selected: `below_minimum_hydraulic_flow` and
+per-well `hydraulically_unreachable` are reported when the minimum-velocity hydraulic
+floor (not economics) excludes every pipeline option, distinct from the pre-existing
+economic `all_wells_negative_after_logistics` reason. Feature 005's orchestrator gained
+a trucking-supplied development branch, so pilot-scale candidates that are physically
+inadmissible for pipeline delivery can still return an `accepted` selection with a
+trucking-supplied development plan, and the API/frontend surface the new
+`logistics_mode`, `supply_mode_by_well`, and `pipeline_hydraulically_inadmissible`
+provenance end to end. This closes a mechanical gap identified by a root-cause
+investigation into `no_viable_network` at pilot-scale flows; it is a code-level,
+mechanically-tested change only — no paper result is promoted by it, and the real
+20-well pivot re-run (whether the plan or best schedule differs across carbon prices)
+has not yet been executed against this code path.
 
 ## Current and Target Data Flows
 
@@ -263,6 +282,23 @@ The full-paper workflow still needs Feature 005 to:
   001 APIs. It annualizes campaign tonnes over project life and retains peak flow as a
   separate sizing quantity. Feature 005 now owns and implements the real production
   integration path.
+- [`solve_pipeline_design()`](src/jatibarang_ccus/infrastructure/pipeline.py) now decides
+  selection **and** supply mode per well: a mutually-exclusive `p[w]` (pipeline-served) /
+  `t[w]` (trucked) binary pair under `z[w] == p[w] + t[w]`, with only pipeline-served
+  demand drawing network flow and trucked demand priced through the shared trucking
+  logistics helper. This is additive and back-compatible: `t[w]` is fixed to `0` whenever
+  a well carries no trucking distance, so every pre-existing pipeline-only caller and
+  fixture is bit-identical.
+- Zero-selection provenance now distinguishes a hydraulic-floor zero from an economic
+  zero. `below_minimum_hydraulic_flow` (and per-well `hydraulically_unreachable`) is
+  reported when the minimum-velocity floor makes every candidate's peak flow
+  inadmissible on every incident arc/diameter and no trucking option exists; the
+  pre-existing `all_wells_negative_after_logistics` reason is unchanged otherwise. The
+  tracked Feature 002 rational-zero validation fixture has no trucking distances and
+  keeps its original `no_viable_network` outcome.
+- A new pure module, [`crossover.py`](src/jatibarang_ccus/infrastructure/crossover.py),
+  generates a trucking / pipeline-direct / hybrid-trunk-and-truck levelized-cost sweep
+  over an annual-throughput grid for the paper's Figure 5(c) scaling story.
 
 ### Validation evidence and verdict
 
@@ -434,7 +470,19 @@ The full-paper workflow still needs Feature 005 to:
 - Final Feature 004 portfolios use raw allocated pipeline components, dedicated
   facility costs/losses, inventory profiles, and surrogate uncertainty across every
   requested carbon price and fiscal case.
-- Trucking is priced for the same selected set; it never becomes a second selector.
+- Trucking is now a genuine development path, not only a priced add-on for the
+  pipeline-selected set. After the route library is built, per-well road (or
+  haversine-fallback) trucking distances are injected into the Feature 002 MILP, which
+  jointly decides selection and supply mode; the orchestrator's accepted branch now
+  runs for trucking-inclusive selections, so a candidate set that is hydraulically
+  inadmissible for pipeline delivery at pilot-scale flows can still return an
+  `accepted` plan supplied entirely by trucking. `CarbonPricePlan.logistics_mode`
+  (`pipeline`/`trucking`/`hybrid`/`none`) and per-well `supply_mode` are additive
+  outputs; `STUDY_MEMO_VERSION` is unchanged.
+- A new info-severity flag, `pipeline_hydraulically_inadmissible`, is attached to a
+  plan when trucked wells exist and the audit shows the velocity floor (not economics)
+  excluded pipeline delivery; the pre-existing `no_viable_network` warning is reserved
+  for the case where nothing is selected at all.
 - Each accepted plan receives one non-convergent selected-set discrepancy audit,
   geodesic influence-radius interference checks, propagated flags, cross-price
   entry/exit comparison, deterministic shortlist, timings, and a provenance catalog.
@@ -459,6 +507,12 @@ The full-paper workflow still needs Feature 005 to:
 4. **The frontend is no longer the blocker.** Feature 006 consumes the screening and
    paper-result contracts. Its paper views remain qualified by the same missing
    scientific artifacts as the backend.
+5. **The real 20-well pivot re-run against the trucking-supplied development path is
+   pending.** The mode-choice MILP and orchestrator branch are mechanically tested, but
+   the saved 20-well study has not yet been re-screened end to end to confirm the four
+   carbon-price plans report `logistics_mode: "trucking"` with 20 selected wells and
+   positive economics, nor whether plan composition or best schedules shift across
+   carbon prices (the pivot question for the paper's Move 6).
 
 ### Mechanical evidence status
 
@@ -525,8 +579,9 @@ interactive panel may present the absent Figures 4, 5, 7, or 8 data as real.
 
 1. **The preset banks are absent.** Neither ready manifest/payload exists; the
    Feature 007 working bundle therefore reports `scenario_count=0`.
-2. **The MRST export has not started.** RAM preflight yielded zero safe workers, so
-   the required three-run benchmark and resumable 200/3,240 exports were not launched.
+2. **The paper-bank export has not started.** The required three-run benchmark now
+   exists, but the resumable 200/3,240 exports were not launched. The separate
+   20-well, one-common-schedule workflow smoke is UI evidence only.
 3. **No locked A/B/C results exist.** Arm A confirmations, 40 accepted Arm B runs,
    the Arm C screen, five Arm C MRST confirmations, and three DWSIM throughput checks
    have no accepted-result manifests.
