@@ -23,6 +23,7 @@ import {
   ReservoirGrid,
   reservoirVisualizationFromImport,
 } from "./ReservoirGrid";
+import { TimelineDriver } from "./TimelineDriver";
 import { cachedVisualizationFromImport, scenarioIdForWell } from "./wellPlates";
 import type { CellField, Coordinate, PredictionResult, ReservoirVisualization } from "../api/types";
 import { finiteRange, type StaticReservoirField } from "./reservoirGeometry";
@@ -539,6 +540,11 @@ function SceneContent({
       : reservoirRuntime,
   );
 
+  const driverPredictions = useMemo(
+    () => [selectedDetailed ? selectedPrediction : null],
+    [selectedDetailed, selectedPrediction],
+  );
+
   const fieldSpot = useMemo(() => {
     if (level !== "field" || !placement || !reservoir) return null;
     const coordinate = {
@@ -562,6 +568,7 @@ function SceneContent({
 
   return (
     <group>
+      <TimelineDriver predictions={driverPredictions} />
       {layers.terrain && (
         <Terrain
           projector={projector}

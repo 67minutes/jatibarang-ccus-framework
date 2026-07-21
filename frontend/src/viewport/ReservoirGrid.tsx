@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import type { ThreeEvent } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import * as THREE from "three";
 import type {
@@ -232,29 +232,11 @@ export function ReservoirGrid({
   const dynamicOpacity = useWorkspaceStore((state) => state.dynamicOpacity);
   const plumeThreshold = useWorkspaceStore((state) => state.plumeThreshold);
   const step = useWorkspaceStore((state) => state.timelineStep);
-  const playing = useWorkspaceStore((state) => state.timelinePlaying);
-  const setStep = useWorkspaceStore((state) => state.setTimelineStep);
-  const setFrameCount = useWorkspaceStore((state) => state.setTimelineFrameCount);
 
   const frames = useMemo(
     () => (prediction ? framesFromPrediction(prediction) : []),
     [prediction],
   );
-
-  useEffect(() => {
-    setFrameCount(frames.length);
-    return () => setFrameCount(0);
-  }, [frames.length, setFrameCount]);
-
-  const accumulator = useRef(0);
-  useFrame((_, delta) => {
-    if (!playing || frames.length === 0) return;
-    accumulator.current += delta;
-    if (accumulator.current > 0.18) {
-      accumulator.current = 0;
-      setStep((step + 1) % frames.length);
-    }
-  });
 
   if (!reservoir || !layers.reservoir) return null;
 
