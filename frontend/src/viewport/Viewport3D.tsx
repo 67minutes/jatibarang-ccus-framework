@@ -95,6 +95,8 @@ export function Viewport3D() {
     () => fieldFocusCoordinate(selection, wells, placement),
     [placement, selection, wells],
   );
+  const fieldFocusLat = fieldFocus?.latitude ?? null;
+  const fieldFocusLon = fieldFocus?.longitude ?? null;
 
   useEffect(() => {
     if (!readOnlySummary) return;
@@ -122,12 +124,15 @@ export function Viewport3D() {
       setFieldWindowLoading(false);
       return;
     }
-    if (!terrain || !fieldFocus || !reservoir) return;
+    if (!terrain || fieldFocusLat == null || fieldFocusLon == null || !reservoir) return;
 
     let cancelled = false;
     setFieldWindow(null);
     setFieldWindowLoading(true);
-    const bounds = fieldWindowBounds(fieldFocus, reservoir);
+    const bounds = fieldWindowBounds(
+      { latitude: fieldFocusLat, longitude: fieldFocusLon },
+      reservoir,
+    );
     void getTerrainWindow(terrain.terrain_id, bounds, 768)
       .then((windowData) => {
         if (cancelled) return;
@@ -150,7 +155,7 @@ export function Viewport3D() {
     return () => {
       cancelled = true;
     };
-  }, [fieldFocus, level, reservoir, terrain]);
+  }, [fieldFocusLat, fieldFocusLon, level, reservoir, terrain]);
 
   useEffect(() => {
     const exitOnEscape = (event: KeyboardEvent) => {
@@ -510,10 +515,9 @@ function SceneContent({
 
   // Locate the selected well to anchor the reservoir cutaway beneath it.
   const selection = useSelectionStore((s) => s.selection);
-  const fieldFocus = useMemo(
-    () => fieldFocusCoordinate(selection, fieldWells, placement),
-    [fieldWells, placement, selection],
-  );
+  const fieldFocus = fieldFocusCoordinate(selection, fieldWells, placement);
+  const fieldFocusLat = fieldFocus?.latitude ?? null;
+  const fieldFocusLon = fieldFocus?.longitude ?? null;
 
   const plates = useMemo(
     () =>
@@ -551,12 +555,21 @@ function SceneContent({
   );
 
   const fieldSpot = useMemo(() => {
-    if (level !== "field" || !fieldFocus || !placement || !reservoir) return null;
-    const [x, z] = projector.toXZ(fieldFocus);
+    if (
+      level !== "field" ||
+      fieldFocusLat == null ||
+      fieldFocusLon == null ||
+      !placement ||
+      !reservoir
+    ) {
+      return null;
+    }
+    const coordinate = { latitude: fieldFocusLat, longitude: fieldFocusLon };
+    const [x, z] = projector.toXZ(coordinate);
     return {
       xz: [x, z] as [number, number],
       groundY: projector.heightOf(
-        projector.elevationAt(fieldFocus),
+        projector.elevationAt(coordinate),
         exaggeration,
       ),
       rotation: [0, -placement.rotation_deg * DEG2RAD, 0] as [
@@ -565,7 +578,7 @@ function SceneContent({
         number,
       ],
     };
-  }, [exaggeration, fieldFocus, level, placement, projector, reservoir]);
+  }, [exaggeration, fieldFocusLat, fieldFocusLon, level, placement, projector, reservoir]);
 
   return (
     <group>
@@ -1437,14 +1450,16 @@ function CameraRig({
     return new THREE.Vector3(x, y + 0.08, z);
   }, [activeEntry, exaggeration, projector, selection.id]);
 
+  const fieldFocus = level === "field" ? fieldFocusCoordinate(selection, wells, placement) : null;
+  const fieldFocusLat = fieldFocus?.latitude ?? null;
+  const fieldFocusLon = fieldFocus?.longitude ?? null;
   const fieldTarget = useMemo(() => {
-    if (level !== "field") return null;
-    const coordinate = fieldFocusCoordinate(selection, wells, placement);
-    if (!coordinate) return null;
+    if (fieldFocusLat == null || fieldFocusLon == null) return null;
+    const coordinate = { latitude: fieldFocusLat, longitude: fieldFocusLon };
     const [x, z] = projector.toXZ(coordinate);
     const y = projector.heightOf(projector.elevationAt(coordinate), exaggeration);
     return new THREE.Vector3(x, y + 0.08, z);
-  }, [exaggeration, level, placement, projector, selection, wells]);
+  }, [exaggeration, fieldFocusLat, fieldFocusLon, projector]);
 
   const fieldOffset = useMemo(() => {
     const span = reservoir
