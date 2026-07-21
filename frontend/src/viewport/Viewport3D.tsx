@@ -24,7 +24,7 @@ import {
   reservoirVisualizationFromImport,
 } from "./ReservoirGrid";
 import { TimelineDriver } from "./TimelineDriver";
-import { collectWellPlates } from "./wellPlates";
+import { collectWellPlates, fieldFocusCoordinate } from "./wellPlates";
 import type { CellField, Coordinate, PredictionResult, ReservoirVisualization } from "../api/types";
 import { finiteRange, type StaticReservoirField } from "./reservoirGeometry";
 import { FieldOutline, pointInField } from "./FieldOutline";
@@ -91,6 +91,10 @@ export function Viewport3D() {
     () => (terrainData ? makeProjector(terrainData) : null),
     [terrainData],
   );
+  const fieldFocus = useMemo(
+    () => fieldFocusCoordinate(selection, wells, placement),
+    [placement, selection, wells],
+  );
 
   useEffect(() => {
     if (!readOnlySummary) return;
@@ -118,15 +122,12 @@ export function Viewport3D() {
       setFieldWindowLoading(false);
       return;
     }
-    if (!terrain || !placement || !reservoir) return;
+    if (!terrain || !fieldFocus || !reservoir) return;
 
     let cancelled = false;
     setFieldWindow(null);
     setFieldWindowLoading(true);
-    const bounds = fieldWindowBounds(
-      { latitude: placement.center_lat, longitude: placement.center_lon },
-      reservoir,
-    );
+    const bounds = fieldWindowBounds(fieldFocus, reservoir);
     void getTerrainWindow(terrain.terrain_id, bounds, 768)
       .then((windowData) => {
         if (cancelled) return;
@@ -149,7 +150,7 @@ export function Viewport3D() {
     return () => {
       cancelled = true;
     };
-  }, [level, placement, reservoir, terrain]);
+  }, [fieldFocus, level, reservoir, terrain]);
 
   useEffect(() => {
     const exitOnEscape = (event: KeyboardEvent) => {
@@ -509,6 +510,10 @@ function SceneContent({
 
   // Locate the selected well to anchor the reservoir cutaway beneath it.
   const selection = useSelectionStore((s) => s.selection);
+  const fieldFocus = useMemo(
+    () => fieldFocusCoordinate(selection, fieldWells, placement),
+    [fieldWells, placement, selection],
+  );
 
   const plates = useMemo(
     () =>
@@ -546,16 +551,12 @@ function SceneContent({
   );
 
   const fieldSpot = useMemo(() => {
-    if (level !== "field" || !placement || !reservoir) return null;
-    const coordinate = {
-      latitude: placement.center_lat,
-      longitude: placement.center_lon,
-    };
-    const [x, z] = projector.toXZ(coordinate);
+    if (level !== "field" || !fieldFocus || !placement || !reservoir) return null;
+    const [x, z] = projector.toXZ(fieldFocus);
     return {
       xz: [x, z] as [number, number],
       groundY: projector.heightOf(
-        projector.elevationAt(coordinate),
+        projector.elevationAt(fieldFocus),
         exaggeration,
       ),
       rotation: [0, -placement.rotation_deg * DEG2RAD, 0] as [
@@ -564,7 +565,7 @@ function SceneContent({
         number,
       ],
     };
-  }, [exaggeration, level, placement, projector, reservoir]);
+  }, [exaggeration, fieldFocus, level, placement, projector, reservoir]);
 
   return (
     <group>
@@ -1417,6 +1418,7 @@ function CameraRig({
   const exaggeration = useWorkspaceStore((s) => s.verticalExaggeration);
   const motion = useWorkspaceStore((s) => s.cameraMotion);
   const placement = useFieldStore((state) => state.placement);
+  const wells = useFieldStore((state) => state.wells);
   const reservoir = useFieldStore((state) => state.reservoir);
 
   const selectedHasReservoir = useMemo(() => {
@@ -1436,15 +1438,13 @@ function CameraRig({
   }, [activeEntry, exaggeration, projector, selection.id]);
 
   const fieldTarget = useMemo(() => {
-    if (level !== "field" || !placement) return null;
-    const coordinate = {
-      latitude: placement.center_lat,
-      longitude: placement.center_lon,
-    };
+    if (level !== "field") return null;
+    const coordinate = fieldFocusCoordinate(selection, wells, placement);
+    if (!coordinate) return null;
     const [x, z] = projector.toXZ(coordinate);
     const y = projector.heightOf(projector.elevationAt(coordinate), exaggeration);
     return new THREE.Vector3(x, y + 0.08, z);
-  }, [exaggeration, level, placement, projector]);
+  }, [exaggeration, level, placement, projector, selection, wells]);
 
   const fieldOffset = useMemo(() => {
     const span = reservoir
