@@ -15,6 +15,7 @@ const API_PATHS = [
   "/paper",
   "/terrain",
   "/reservoir",
+  "/roads",
   "/docs",
   "/openapi.json",
 ];
