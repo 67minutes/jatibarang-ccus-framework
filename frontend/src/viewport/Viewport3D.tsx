@@ -23,6 +23,7 @@ import {
   ReservoirGrid,
   reservoirVisualizationFromImport,
 } from "./ReservoirGrid";
+import { cachedVisualizationFromImport, scenarioIdForWell } from "./wellPlates";
 import type { CellField, Coordinate, PredictionResult, ReservoirVisualization } from "../api/types";
 import { finiteRange, type StaticReservoirField } from "./reservoirGeometry";
 import { FieldOutline, pointInField } from "./FieldOutline";
@@ -490,11 +491,8 @@ function SceneContent({
   const placement = useFieldStore((s) => s.placement);
   const reservoir = useFieldStore((s) => s.reservoir);
   const reservoirRuntime = useFieldStore((s) => s.reservoirRuntime);
+  const reservoirRuntimes = useFieldStore((s) => s.reservoirRuntimes);
   const fieldWells = useFieldStore((s) => s.wells);
-  const importedReservoir = useMemo(
-    () => reservoirVisualizationFromImport(reservoirRuntime),
-    [reservoirRuntime],
-  );
 
   const plan = activeEntry ? selectPlan(activeEntry.result, carbonPriceId) : null;
   const scene = useMemo<Scene | null>(
@@ -518,6 +516,28 @@ function SceneContent({
     const [x, z] = projector.toXZ(coord);
     return { xz: [x, z] as [number, number], groundY: projector.heightOf(projector.elevationAt(coord), exaggeration) };
   }, [activeEntry, selection, projector, exaggeration]);
+
+  const detailedKeys = useMemo(
+    () => Object.keys(activeEntry?.result.detailed_reservoirs ?? {}),
+    [activeEntry],
+  );
+  const selectedScenarioId =
+    selection.kind === "well" && selection.id
+      ? scenarioIdForWell(detailedKeys, selection.id, selection.scenarioId)
+      : null;
+  const selectedDetailed = selectedScenarioId
+    ? (activeEntry?.result.detailed_reservoirs?.[selectedScenarioId] ?? null)
+    : null;
+  const selectedPrediction = selectedScenarioId
+    ? (activeEntry?.result.detailed_predictions?.[selectedScenarioId] ?? null)
+    : null;
+  // The field plate follows the SELECTED well's relinked artifact — never
+  // silently substitute the primary model for another well.
+  const fieldFallback = cachedVisualizationFromImport(
+    selection.kind === "well" && selection.id
+      ? (reservoirRuntimes[selection.id] ?? reservoirRuntime)
+      : reservoirRuntime,
+  );
 
   const fieldSpot = useMemo(() => {
     if (level !== "field" || !placement || !reservoir) return null;
@@ -600,20 +620,23 @@ function SceneContent({
           showNodes={!placement}
         />
       )}
-      {level === "basin" && wellSpot && (
+      {level === "basin" && wellSpot && selectedDetailed && (
         <ReservoirGrid
           position={wellSpot.xz}
           groundY={wellSpot.groundY}
           metresPerSceneUnit={projector.metresPerSceneUnit}
+          reservoir={selectedDetailed}
+          prediction={selectedPrediction}
         />
       )}
-      {fieldSpot && (
+      {fieldSpot && (selectedDetailed ?? fieldFallback) && (
         <ReservoirGrid
           position={fieldSpot.xz}
           groundY={fieldSpot.groundY}
           metresPerSceneUnit={projector.metresPerSceneUnit}
           rotation={fieldSpot.rotation}
-          fallbackReservoir={importedReservoir}
+          reservoir={(selectedDetailed ?? fieldFallback)!}
+          prediction={selectedDetailed ? selectedPrediction : null}
         />
       )}
       <MeasurementOverlay projector={projector} exaggeration={exaggeration} />
@@ -1106,9 +1129,14 @@ function useSelectedReservoir(): {
   const selection = useSelectionStore((state) => state.selection);
   const level = useFieldStore((state) => state.level);
   const reservoirRuntime = useFieldStore((state) => state.reservoirRuntime);
+  const reservoirRuntimes = useFieldStore((state) => state.reservoirRuntimes);
+  const selectedRuntime =
+    selection.kind === "well" && selection.id
+      ? reservoirRuntimes[selection.id] ?? reservoirRuntime
+      : reservoirRuntime;
   const importedReservoir = useMemo(
-    () => reservoirVisualizationFromImport(reservoirRuntime),
-    [reservoirRuntime],
+    () => reservoirVisualizationFromImport(selectedRuntime),
+    [selectedRuntime],
   );
   const selectedWell = selection.kind === "well" && Boolean(selection.id);
   const detailKeys = activeEntry && selectedWell

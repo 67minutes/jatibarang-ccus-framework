@@ -9,8 +9,6 @@ import type {
   ReservoirVisualization,
 } from "../api/types";
 import type { ReservoirImportResponse } from "../api/client";
-import { useLedgerStore } from "../state/ledger.store";
-import { useSelectionStore } from "../state/selection.store";
 import { useWorkspaceStore } from "../state/workspace.store";
 import { frameAtStep, framesFromPrediction } from "./plume";
 import { gridToInstances, type PlumeFrame } from "./grid";
@@ -33,8 +31,10 @@ interface Props {
   groundY: number;
   metresPerSceneUnit: number;
   rotation?: [number, number, number];
-  /** Imported MRST geology shown before a detailed screening result exists. */
-  fallbackReservoir?: ReservoirVisualization | null;
+  /** Static geology for this plate — retained detailed fields or relinked import. */
+  reservoir: ReservoirVisualization;
+  /** Retained detailed prediction driving plume playback, when available. */
+  prediction?: PredictionResult | null;
 }
 
 const STATIC_FIELD_SPECS = {
@@ -222,10 +222,9 @@ export function ReservoirGrid({
   groundY,
   metresPerSceneUnit,
   rotation = [0, 0, 0],
-  fallbackReservoir = null,
+  reservoir,
+  prediction = null,
 }: Props) {
-  const activeEntry = useLedgerStore((state) => state.entryById(state.activeEntryId));
-  const selection = useSelectionStore((state) => state.selection);
   const layers = useWorkspaceStore((state) => state.layers);
   const staticField = useWorkspaceStore((state) => state.reservoirStaticField);
   const dynamicField = useWorkspaceStore((state) => state.colorField);
@@ -237,21 +236,10 @@ export function ReservoirGrid({
   const setStep = useWorkspaceStore((state) => state.setTimelineStep);
   const setFrameCount = useWorkspaceStore((state) => state.setTimelineFrameCount);
 
-  const scenarioId = useMemo(() => {
-    if (!activeEntry || selection.kind !== "well" || !selection.id) return null;
-    if (selection.scenarioId) return selection.scenarioId;
-    const available = Object.keys(activeEntry.result.detailed_reservoirs ?? {});
-    return available.find((id) => id === selection.id || id.startsWith(`${selection.id}--`)) ?? null;
-  }, [activeEntry, selection]);
-
-  const detailedReservoir = scenarioId
-    ? activeEntry?.result.detailed_reservoirs?.[scenarioId]
-    : undefined;
-  const reservoir = detailedReservoir ?? fallbackReservoir ?? undefined;
-  const prediction: PredictionResult | undefined = detailedReservoir && scenarioId
-    ? activeEntry?.result.detailed_predictions?.[scenarioId]
-    : undefined;
-  const frames = useMemo(() => (prediction ? framesFromPrediction(prediction) : []), [prediction]);
+  const frames = useMemo(
+    () => (prediction ? framesFromPrediction(prediction) : []),
+    [prediction],
+  );
 
   useEffect(() => {
     setFrameCount(frames.length);
