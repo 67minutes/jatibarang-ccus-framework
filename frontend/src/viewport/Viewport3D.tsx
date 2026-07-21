@@ -24,7 +24,7 @@ import {
   reservoirVisualizationFromImport,
 } from "./ReservoirGrid";
 import { TimelineDriver } from "./TimelineDriver";
-import { cachedVisualizationFromImport, scenarioIdForWell } from "./wellPlates";
+import { collectWellPlates } from "./wellPlates";
 import type { CellField, Coordinate, PredictionResult, ReservoirVisualization } from "../api/types";
 import { finiteRange, type StaticReservoirField } from "./reservoirGeometry";
 import { FieldOutline, pointInField } from "./FieldOutline";
@@ -491,7 +491,6 @@ function SceneContent({
   const activeTool = useWorkspaceStore((s) => s.activeTool);
   const placement = useFieldStore((s) => s.placement);
   const reservoir = useFieldStore((s) => s.reservoir);
-  const reservoirRuntime = useFieldStore((s) => s.reservoirRuntime);
   const reservoirRuntimes = useFieldStore((s) => s.reservoirRuntimes);
   const fieldWells = useFieldStore((s) => s.wells);
 
@@ -510,39 +509,40 @@ function SceneContent({
 
   // Locate the selected well to anchor the reservoir cutaway beneath it.
   const selection = useSelectionStore((s) => s.selection);
-  const wellSpot = useMemo(() => {
-    if (!activeEntry || selection.kind !== "well" || !selection.id) return null;
-    const coord = nodeCoordinateMap(activeEntry.request).get(selection.id);
-    if (!coord) return null;
-    const [x, z] = projector.toXZ(coord);
-    return { xz: [x, z] as [number, number], groundY: projector.heightOf(projector.elevationAt(coord), exaggeration) };
-  }, [activeEntry, selection, projector, exaggeration]);
 
-  const detailedKeys = useMemo(
-    () => Object.keys(activeEntry?.result.detailed_reservoirs ?? {}),
-    [activeEntry],
+  const plates = useMemo(
+    () =>
+      collectWellPlates({
+        wells: fieldWells,
+        runtimes: reservoirRuntimes,
+        detailedReservoirs: activeEntry?.result.detailed_reservoirs ?? {},
+        detailedPredictions: activeEntry?.result.detailed_predictions ?? {},
+        preferredScenarioId:
+          selection.kind === "well" ? (selection.scenarioId ?? null) : null,
+        selectedWellId: selection.kind === "well" ? selection.id : null,
+      }),
+    [activeEntry, fieldWells, reservoirRuntimes, selection],
   );
-  const selectedScenarioId =
-    selection.kind === "well" && selection.id
-      ? scenarioIdForWell(detailedKeys, selection.id, selection.scenarioId)
-      : null;
-  const selectedDetailed = selectedScenarioId
-    ? (activeEntry?.result.detailed_reservoirs?.[selectedScenarioId] ?? null)
-    : null;
-  const selectedPrediction = selectedScenarioId
-    ? (activeEntry?.result.detailed_predictions?.[selectedScenarioId] ?? null)
-    : null;
-  // The field plate follows the SELECTED well's relinked artifact — never
-  // silently substitute the primary model for another well.
-  const fieldFallback = cachedVisualizationFromImport(
-    selection.kind === "well" && selection.id
-      ? (reservoirRuntimes[selection.id] ?? reservoirRuntime)
-      : reservoirRuntime,
+
+  const platePositions = useMemo(
+    () =>
+      plates.map((plate) => {
+        const [x, z] = projector.toXZ(plate.coordinate);
+        return {
+          plate,
+          xz: [x, z] as [number, number],
+          groundY: projector.heightOf(
+            projector.elevationAt(plate.coordinate),
+            exaggeration,
+          ),
+        };
+      }),
+    [exaggeration, plates, projector],
   );
 
   const driverPredictions = useMemo(
-    () => [selectedDetailed ? selectedPrediction : null],
-    [selectedDetailed, selectedPrediction],
+    () => plates.map((plate) => plate.prediction),
+    [plates],
   );
 
   const fieldSpot = useMemo(() => {
@@ -627,25 +627,39 @@ function SceneContent({
           showNodes={!placement}
         />
       )}
-      {level === "basin" && wellSpot && selectedDetailed && (
-        <ReservoirGrid
-          position={wellSpot.xz}
-          groundY={wellSpot.groundY}
-          metresPerSceneUnit={projector.metresPerSceneUnit}
-          reservoir={selectedDetailed}
-          prediction={selectedPrediction}
-        />
-      )}
-      {fieldSpot && (selectedDetailed ?? fieldFallback) && (
-        <ReservoirGrid
-          position={fieldSpot.xz}
-          groundY={fieldSpot.groundY}
-          metresPerSceneUnit={projector.metresPerSceneUnit}
-          rotation={fieldSpot.rotation}
-          reservoir={(selectedDetailed ?? fieldFallback)!}
-          prediction={selectedDetailed ? selectedPrediction : null}
-        />
-      )}
+      {level === "basin" &&
+        platePositions.map(({ plate, xz, groundY }) => (
+          <ReservoirGrid
+            key={plate.wellId}
+            position={xz}
+            groundY={groundY}
+            metresPerSceneUnit={projector.metresPerSceneUnit}
+            rotation={[0, -(placement?.rotation_deg ?? 0) * DEG2RAD, 0]}
+            reservoir={plate.reservoir}
+            prediction={plate.prediction}
+          />
+        ))}
+      {fieldSpot &&
+        (() => {
+          const focused =
+            plates.find(
+              (plate) =>
+                plate.wellId ===
+                (selection.kind === "well" && selection.id
+                  ? selection.id
+                  : fieldWells[0]?.id),
+            ) ?? null;
+          return focused ? (
+            <ReservoirGrid
+              position={fieldSpot.xz}
+              groundY={fieldSpot.groundY}
+              metresPerSceneUnit={projector.metresPerSceneUnit}
+              rotation={fieldSpot.rotation}
+              reservoir={focused.reservoir}
+              prediction={focused.prediction}
+            />
+          ) : null;
+        })()}
       <MeasurementOverlay projector={projector} exaggeration={exaggeration} />
     </group>
   );
