@@ -242,9 +242,13 @@ export function ReservoirGrid({
 
   const frame = frameAtStep(frames, step);
   const scale = 1 / metresPerSceneUnit;
-  // The local datum is lifted only enough to avoid terrain z-fighting. A leader
-  // identifies that this is a local model, not its surveyed subsea elevation.
-  const datumY = groundY + 0.035;
+  // The local model floats a plate-proportional height above the terrain so it
+  // reads as a model rather than the ground itself; the datum leader and the
+  // corner tethers anchor it to the well it describes, not a surveyed elevation.
+  const hoverY =
+    0.35 * scale * Math.max(reservoir.grid.length_x_m, reservoir.grid.length_y_m);
+  const datumY = groundY + hoverY + 0.035;
+  const groundOffsetMetres = (datumY - groundY) / (scale * verticalExaggeration);
 
   return (
     <group
@@ -252,7 +256,12 @@ export function ReservoirGrid({
       rotation={rotation}
       scale={[scale, scale * verticalExaggeration, scale]}
     >
-      <LocalDatumLeader groundOffsetMetres={(datumY - groundY) / (scale * verticalExaggeration)} />
+      <LocalDatumLeader groundOffsetMetres={groundOffsetMetres} />
+      <CornerTethers
+        lengthX={reservoir.grid.length_x_m}
+        lengthY={reservoir.grid.length_y_m}
+        groundOffsetMetres={groundOffsetMetres}
+      />
       <StaticReservoir
         reservoir={reservoir}
         field={staticField}
@@ -582,5 +591,43 @@ function LocalDatumLeader({ groundOffsetMetres }: { groundOffsetMetres: number }
       <cylinderGeometry args={[1.8, 2.8, groundOffsetMetres, 8]} />
       <meshStandardMaterial color="#5f8f98" emissive="#173238" emissiveIntensity={0.35} />
     </mesh>
+  );
+}
+
+/** Thin lines from the plate's four corners down to the well's ground point. */
+function CornerTethers({
+  lengthX,
+  lengthY,
+  groundOffsetMetres,
+}: {
+  lengthX: number;
+  lengthY: number;
+  groundOffsetMetres: number;
+}) {
+  if (groundOffsetMetres <= 0) return null;
+  const halfX = lengthX / 2;
+  const halfY = lengthY / 2;
+  const corners: Array<[number, number]> = [
+    [-halfX, -halfY],
+    [halfX, -halfY],
+    [-halfX, halfY],
+    [halfX, halfY],
+  ];
+  return (
+    <>
+      {corners.map(([x, z]) => (
+        <Line
+          key={`${x}:${z}`}
+          points={[
+            [x, 0, z],
+            [0, -groundOffsetMetres, 0],
+          ]}
+          color="#5f8f98"
+          transparent
+          opacity={0.55}
+          lineWidth={1.2}
+        />
+      ))}
+    </>
   );
 }
