@@ -30,7 +30,20 @@ export async function pickStudyMemo(): Promise<StudyMemo | null> {
   if (!isStudyMemo(parsed)) {
     throw new Error("Selected file is not a compatible study memo.");
   }
-  await hydrateMemoFieldSetup(parsed);
+  // Re-linking terrain, reservoirs and the spatial archive takes several
+  // seconds for a field study; say so, or the open looks like it did nothing.
+  const ui = useUiStore.getState();
+  ui.dismissBanner("open-failed");
+  ui.pushBanner({
+    id: "memo-opening",
+    severity: "info",
+    message: `Opening ${file.name}… re-linking terrain, reservoirs and results.`,
+  });
+  try {
+    await hydrateMemoFieldSetup(parsed);
+  } finally {
+    useUiStore.getState().dismissBanner("memo-opening");
+  }
   return parsed;
 }
 
@@ -89,10 +102,18 @@ export async function hydrateMemoFieldSetup(memo: StudyMemo): Promise<void> {
         W01: memo.field_setup.reservoir,
       };
     const runtimes: Record<string, Awaited<ReturnType<typeof getReservoir>>> = {};
-    for (const [wellId, reference] of Object.entries(assignments).sort(
-      ([left], [right]) => left.localeCompare(right),
-    )) {
-      const runtime = await getReservoir(reference.model_id, reference.bank_id);
+    const entries = Object.entries(assignments).sort(([left], [right]) =>
+      left.localeCompare(right),
+    );
+    // Fetch in parallel (a 20-well study is 20 round trips), then verify in
+    // well order so the first mismatch reported is deterministic.
+    const fetched = await Promise.all(
+      entries.map(([, reference]) =>
+        getReservoir(reference.model_id, reference.bank_id),
+      ),
+    );
+    entries.forEach(([wellId, reference], index) => {
+      const runtime = fetched[index];
       const verified =
         runtime.sha256 === reference.sha256 &&
         (!reference.bank_sha256 ||
@@ -101,7 +122,7 @@ export async function hydrateMemoFieldSetup(memo: StudyMemo): Promise<void> {
         throw new Error(`reservoir relink hash mismatch for ${wellId}`);
       }
       runtimes[wellId] = runtime;
-    }
+    });
     const active = useFieldStore.getState().reservoir;
     const stillOpen = active?.model_id === memo.field_setup.reservoir.model_id;
     const primaryRuntime = Object.values(runtimes).find(
