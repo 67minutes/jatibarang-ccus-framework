@@ -15,14 +15,25 @@ SHA-256, schedule fingerprints, source classes, units, and whether the local pay
 is ready. Feature 005 rejects missing or mismatched data and never substitutes a cold
 start or synthetic seed.
 
-Current local state: both deterministic preset designs have been generated, but
-neither imported payload/manifest is complete. `GET /presets` therefore reports
-`ready=false`; no proxy result is substituted.
+Current paper-preset state: both deterministic designs exist, but neither the full
+200-scenario demo payload nor the 3,240-scenario full payload is complete and
+imported. `GET /presets` therefore reports `ready=false`; no proxy result is
+substituted.
 
-The July 17, 2026 execution preflight yielded zero safe workers under the locked
-concurrency formula because available RAM was below the 3 GiB reserve. Consequently,
-the required three-run benchmark and both the 200- and 3,240-scenario exports were not
-launched. This is a resumable execution gate, not evidence that either bank exists.
+The July 17, 2026 preflight yielded zero safe workers at that memory snapshot. Two
+bounded post-preflight runs were later completed without changing the paper gate:
+
+- real three-run timing benchmark: 3/3, `502.8629392 s`, manifest SHA-256
+  `502031ECF652A94FE35F3FB914F231881F845E0A845C04A2140564BD2B103927`;
+- one-common-schedule workflow smoke: 20/20 distinct well/geology runs,
+  `3264.4545564 s`, manifest SHA-256
+  `4FA5429375A577E823C05023833DA6847811248BA3975AA961A8AA19A57DB0C2`.
+
+The workflow smoke uses schedule fingerprint
+`A6DB6A445F5D8D416C69C7D5A2128818744D3E154E2FC638A981D55EC1897844`.
+Its compact runtime catalog has 20 distinct derived reservoirs and 20 launch-pad
+banks for workbench/E2E validation. It is not the 200- or 3,240-scenario paper bank,
+does not make either preset ready, and contains no raw MRST training corpus.
 
 The upstream exporter is invoked from MATLAB after generating `upstream_design.json`:
 

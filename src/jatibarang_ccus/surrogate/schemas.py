@@ -190,7 +190,7 @@ class TimelineStep(BaseModel):
     elapsed_days: float
     stage: Literal["inject", "soak", "produce"]
     cycle: int
-    origin: Literal["seed", "surrogate"]
+    origin: Literal["seed", "surrogate", "mrst"]
 
 
 class SpatialFrame(BaseModel):
@@ -199,7 +199,7 @@ class SpatialFrame(BaseModel):
     gas_saturation: Grid2D
     z_co2: Grid2D
     oil_saturation: Grid2D | None = None
-    origin: Literal["seed", "surrogate"]
+    origin: Literal["seed", "surrogate", "mrst"]
 
 
 class ProductionSeries(BaseModel):

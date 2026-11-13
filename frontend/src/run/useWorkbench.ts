@@ -10,7 +10,11 @@ import { useSelectionStore } from "../state/selection.store";
 import { useUiStore } from "../state/ui.store";
 import { useWorkspaceStore } from "../state/workspace.store";
 import { validateDraft } from "../compose/validation";
-import { exportRankingCsv, exportStudyMemo } from "../memo/export";
+import {
+  exportMrstResimulationPlan,
+  exportRankingCsv,
+  exportStudyMemo,
+} from "../memo/export";
 import { pickStudyMemo } from "../memo/import";
 import { carbonPriceAxis } from "../results/priceScrubber";
 import { useStudyStore } from "../state/study.store";
@@ -65,6 +69,16 @@ function currentFieldSetup(): FieldSetupMemo | null {
       well_ij: [...state.reservoir.well_ij],
       covered_fingerprints: [...state.reservoir.covered_fingerprints],
     },
+    reservoir_assignments: Object.fromEntries(
+      Object.entries(state.reservoirAssignments).map(([wellId, reference]) => [
+        wellId,
+        {
+          ...reference,
+          well_ij: [...reference.well_ij],
+          covered_fingerprints: [...reference.covered_fingerprints],
+        },
+      ]),
+    ),
     roads: state.roads ? { ...state.roads } : null,
     placement: { ...state.placement },
     wells: state.wells.map((well) => ({ ...well })),
@@ -115,6 +129,7 @@ export function prepareScreeningRequest(
       request = buildStudyRequest({
         field,
         imported,
+        importedByWell: useFieldStore.getState().reservoirRuntimes,
         base: draft,
         scheduleMode: "covered",
       });
@@ -326,6 +341,7 @@ export function useWorkbench(): void {
             buildStudyRequest({
               field,
               imported,
+              importedByWell: useFieldStore.getState().reservoirRuntimes,
               base: createDefaultStudyRequestBase(),
               scheduleMode: "grid",
             }),
@@ -360,6 +376,26 @@ export function useWorkbench(): void {
                 ...memo.request,
                 run_id: null,
               });
+            } else if (
+              !isLegacyMemo(memo) &&
+              memo.request_payload_mode === "artifact_referenced" &&
+              memo.request.mode === "inline" &&
+              memo.field_setup &&
+              useFieldStore.getState().reservoirRuntime
+            ) {
+              const field = currentFieldSetup();
+              const imported = useFieldStore.getState().reservoirRuntime;
+              if (field && imported) {
+                useComposeStore.getState().loadBase(
+                  buildStudyRequest({
+                    field,
+                    imported,
+                    importedByWell: useFieldStore.getState().reservoirRuntimes,
+                    base: memo.request,
+                    scheduleMode: "covered",
+                  }),
+                );
+              }
             }
             const ui = useUiStore.getState();
             ui.dismissBanner("memo-reservoir-relink");
@@ -402,6 +438,10 @@ export function useWorkbench(): void {
       exportRankingCsv: async () => {
         const entry = useLedgerStore.getState().activeEntry();
         if (entry) await exportRankingCsv(entry.result, entry.label);
+      },
+      exportMrstResimulationPlan: async () => {
+        const entry = useLedgerStore.getState().activeEntry();
+        if (entry) await exportMrstResimulationPlan(entry);
       },
       exportSnapshot: async () => {
         try {

@@ -29,6 +29,7 @@ interface ComposeState {
   setCarbonPrices: (prices: CarbonPriceScenario[]) => void;
   setCostCase: (cost: CostCase) => void;
   setSupplyScenarios: (scenarios: SupplyScenario[]) => void;
+  setEconomicAssumption: (key: EditableEconomicKey, value: number) => void;
   setAnnualBudget: (tonnes: number) => void;
   setProjectLife: (years: number) => void;
   setSelectionFiscalCase: (caseId: string) => void;
@@ -41,6 +42,11 @@ interface ComposeState {
   canUndo: () => boolean;
   canRedo: () => boolean;
 }
+
+export type EditableEconomicKey =
+  | "oil_price_usd_per_bbl"
+  | "lifting_cost_usd_per_bbl"
+  | "discount_rate";
 
 const HISTORY_LIMIT = 50;
 
@@ -68,6 +74,16 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
   setCostCase: (cost_case) => set((s) => mutate(s, (d) => ({ ...d, cost_case }))),
   setSupplyScenarios: (supply_scenarios) =>
     set((s) => mutate(s, (d) => ({ ...d, supply_scenarios }))),
+  setEconomicAssumption: (key, value) =>
+    set((s) =>
+      mutate(s, (d) => ({
+        ...d,
+        economic_assumptions: {
+          ...d.economic_assumptions,
+          [key]: value,
+        },
+      })),
+    ),
   setAnnualBudget: (annual_co2_budget_tonnes) =>
     set((s) => mutate(s, (d) => ({ ...d, annual_co2_budget_tonnes }))),
   setProjectLife: (project_life_years) =>

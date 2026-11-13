@@ -10,14 +10,23 @@ from rasterio.transform import from_bounds as transform_from_bounds
 
 from jatibarang_ccus.api.app import create_app
 from jatibarang_ccus.imports.launchpads import write_launchpad_bank
-from jatibarang_ccus.imports.mrst import load_mrst_reservoir
+from jatibarang_ccus.imports.mrst import load_mrst_reservoir, write_derived_reservoir
 from jatibarang_ccus.imports.roads import RoadsRegistry
 from jatibarang_ccus.imports.store import ImportStore
 from jatibarang_ccus.imports.terrain import TerrainRegistry
+from jatibarang_ccus.infrastructure.economics import evaluate_economic_batch
+from jatibarang_ccus.infrastructure.facility import evaluate_facility_portfolio
+from jatibarang_ccus.infrastructure.supply import evaluate_trucking_supply
+from jatibarang_ccus.screening.orchestrator import ScreeningOrchestrator, ScreeningServices
 from jatibarang_ccus.surrogate.schemas import SeedHistory
 
 from tests.screening.helpers import FakeRunner
 from tests.imports.test_roads import write_pbf
+from tests.screening.test_orchestration_integration import (
+    accepted_pipeline,
+    inline_request,
+    route_library,
+)
 
 
 class _FakeScreening:
@@ -117,6 +126,32 @@ def test_reservoir_import_returns_typed_payload(tmp_path: Path) -> None:
         assert bad.status_code == 422
 
 
+def test_derived_reservoir_omits_targets_but_preserves_runtime_contract(
+    tmp_path: Path,
+) -> None:
+    source = Path("data/validation_cases/case_0016.mat")
+    target = tmp_path / "case_0016.reservoir.npz"
+
+    digest = write_derived_reservoir(source, target)
+    raw = load_mrst_reservoir(source)
+    derived = load_mrst_reservoir(target)
+
+    assert derived.sha256 == digest
+    assert derived.targets == {}
+    assert derived.schedule == raw.schedule
+    assert derived.seed.schedule_fingerprint == raw.seed.schedule_fingerprint
+    assert derived.well_ij == raw.well_ij
+    assert derived.completion_ij == raw.completion_ij
+    assert derived.geology.permeability_md.values == raw.geology.permeability_md.values
+
+    with TestClient(_app(tmp_path)) as client:
+        response = client.post(
+            "/reservoir/import", json={"model_path": str(target)}
+        )
+    assert response.status_code == 200
+    assert response.json()["native_fingerprint"] == raw.seed.schedule_fingerprint
+
+
 def test_reservoir_import_returns_fingerprint_keyed_bank_seeds(tmp_path: Path) -> None:
     model = Path("data/validation_cases/case_0016.mat")
     bank_entry = load_mrst_reservoir(Path("data/validation_cases/case_0115.mat")).seed
@@ -144,6 +179,36 @@ def test_reservoir_import_returns_fingerprint_keyed_bank_seeds(tmp_path: Path) -
     assert restored.schedule_fingerprint == bank_entry.schedule_fingerprint
     stored_bank = tmp_path / "imports" / body["launchpads"]["bank_id"] / bank_path.name
     assert stored_bank.exists()
+
+
+def test_reservoir_catalog_import_is_well_keyed_and_rejects_duplicates(
+    tmp_path: Path,
+) -> None:
+    model = Path("data/validation_cases/case_0016.mat")
+    with TestClient(_app(tmp_path)) as client:
+        response = client.post(
+            "/reservoir/import-batch",
+            json={
+                "entries": [
+                    {"well_id": "W01", "model_path": str(model)},
+                    {"well_id": "W02", "model_path": str(model)},
+                ]
+            },
+        )
+        duplicate = client.post(
+            "/reservoir/import-batch",
+            json={
+                "entries": [
+                    {"well_id": "W01", "model_path": str(model)},
+                    {"well_id": "W01", "model_path": str(model)},
+                ]
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["count"] == 2
+    assert set(response.json()["reservoirs"]) == {"W01", "W02"}
+    assert duplicate.status_code == 422
 
 
 def test_reservoir_get_reloads_from_the_artifact_store(tmp_path: Path) -> None:
@@ -181,6 +246,63 @@ def test_reservoir_get_reloads_from_the_artifact_store(tmp_path: Path) -> None:
             params={"bank_id": "00000000deadbeef"},
         )
         assert missing_bank.status_code == 404
+
+
+def test_screening_spatial_archive_round_trips_with_hash_reference(tmp_path: Path) -> None:
+    orchestrator = ScreeningOrchestrator(
+        FakeRunner(),
+        services=ScreeningServices(
+            route_builder=route_library,
+            pipeline_solver=accepted_pipeline,
+            facility_evaluator=evaluate_facility_portfolio,
+            economic_evaluator=evaluate_economic_batch,
+            trucking_evaluator=evaluate_trucking_supply,
+            solver_checker=lambda _solver: None,
+        ),
+    )
+    result = orchestrator.run(inline_request())
+    payload = {
+        "request_fingerprint": result.request_fingerprint,
+        "detailed_predictions": {
+            key: value.model_dump(mode="json")
+            for key, value in result.detailed_predictions.items()
+        },
+        "detailed_reservoirs": {
+            key: value.model_dump(mode="json")
+            for key, value in result.detailed_reservoirs.items()
+        },
+    }
+
+    with TestClient(_app(tmp_path)) as client:
+        archived = client.post("/screening/spatial", json=payload)
+        assert archived.status_code == 200
+        reference = archived.json()
+        assert reference["scenario_count"] == len(result.detailed_predictions)
+        assert reference["compressed_bytes"] > 0
+
+        restored = client.get(f"/screening/spatial/{reference['artifact_id']}")
+        assert restored.status_code == 200
+        body = restored.json()
+        assert body["sha256"] == reference["sha256"]
+        assert body["payload"]["request_fingerprint"] == result.request_fingerprint
+        assert set(body["payload"]["detailed_predictions"]) == set(
+            result.detailed_predictions
+        )
+        scenario_id = next(iter(result.detailed_predictions))
+        assert body["payload"]["detailed_predictions"][scenario_id]["fields"]
+
+
+def test_screening_spatial_archive_rejects_misaligned_scenarios(tmp_path: Path) -> None:
+    with TestClient(_app(tmp_path)) as client:
+        response = client.post(
+            "/screening/spatial",
+            json={
+                "request_fingerprint": "A" * 64,
+                "detailed_predictions": {},
+                "detailed_reservoirs": {},
+            },
+        )
+    assert response.status_code == 422
 
 
 def test_roads_import_list_and_layers(
@@ -234,7 +356,7 @@ def test_path_taking_import_routes_refuse_non_loopback_clients(tmp_path: Path, d
 
     import httpx
 
-    async def remote_calls() -> tuple[int, int, int]:
+    async def remote_calls() -> tuple[int, int, int, int]:
         transport = httpx.ASGITransport(
             app=_app(tmp_path), client=("203.0.113.9", 4444)
         )
@@ -250,6 +372,22 @@ def test_path_taking_import_routes_refuse_non_loopback_clients(tmp_path: Path, d
                 "/roads/import",
                 json={"path": "C:/roads.osm.pbf", "terrain_id": "terrain-x"},
             )
-            return terrain.status_code, reservoir.status_code, roads.status_code
+            catalog = await remote.post(
+                "/reservoir/import-batch",
+                json={
+                    "entries": [
+                        {
+                            "well_id": "W01",
+                            "model_path": "data/validation_cases/case_0016.mat",
+                        }
+                    ]
+                },
+            )
+            return (
+                terrain.status_code,
+                reservoir.status_code,
+                roads.status_code,
+                catalog.status_code,
+            )
 
-    assert asyncio.run(remote_calls()) == (403, 403, 403)
+    assert asyncio.run(remote_calls()) == (403, 403, 403, 403)

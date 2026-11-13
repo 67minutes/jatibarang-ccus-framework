@@ -25,7 +25,15 @@ import type { StudyMetadata } from "../state/study.store";
  */
 
 export const STUDY_MEMO_KIND = "jatibarang.ccus.study-memo";
-export const STUDY_MEMO_VERSION = 3;
+export const STUDY_MEMO_VERSION = 4;
+const FIELD_SETUP_MEMO_VERSION = 3;
+
+/** Content-addressed companion containing detailed cell arrays for playback. */
+export interface SpatialResultRef {
+  artifact_id: string;
+  sha256: string;
+  request_fingerprint: string;
+}
 
 /**
  * Portable, lightweight field setup. Imported raster/model payloads remain
@@ -35,6 +43,7 @@ export const STUDY_MEMO_VERSION = 3;
 export interface FieldSetupMemo {
   terrain: TerrainRef;
   reservoir: ReservoirRef;
+  reservoir_assignments?: Record<string, ReservoirRef>;
   roads?: RoadsRef | null;
   placement: FieldPlacement;
   wells: PlacedWell[];
@@ -50,6 +59,7 @@ interface StudyMemoBase {
   label: string;
   study?: StudyMetadata;
   field_setup?: FieldSetupMemo;
+  spatial_result?: SpatialResultRef;
   fingerprint: string;
   result: ScreenResult;
 }
@@ -137,6 +147,19 @@ export function isStudyMemo(value: unknown): value is StudyMemo {
   ) {
     return false;
   }
+  if (memo.spatial_result !== undefined) {
+    if (!memo.spatial_result || typeof memo.spatial_result !== "object") {
+      return false;
+    }
+    const spatial = memo.spatial_result as Record<string, unknown>;
+    if (
+      typeof spatial.artifact_id !== "string" ||
+      typeof spatial.sha256 !== "string" ||
+      typeof spatial.request_fingerprint !== "string"
+    ) {
+      return false;
+    }
+  }
 
   if (memo.request_payload_mode === "artifact_referenced") {
     const request = memo.request as Record<string, unknown>;
@@ -161,7 +184,7 @@ export function isStudyMemo(value: unknown): value is StudyMemo {
 
 /** Version-2 and older memos remain readable but have no field-scene state. */
 export function isLegacyMemo(memo: Pick<StudyMemo, "memo_version">): boolean {
-  return memo.memo_version < STUDY_MEMO_VERSION;
+  return memo.memo_version < FIELD_SETUP_MEMO_VERSION;
 }
 
 export function memoToEntry(memo: StudyMemo, imported: boolean): LedgerEntry {
@@ -195,6 +218,7 @@ export function entryToMemo(
   appVersion: string,
   apiContractVersion: string,
   fieldSetup?: FieldSetupMemo,
+  spatialResult?: SpatialResultRef,
 ): StudyMemo {
   if (entry.requestPayloadMode === "artifact_referenced") {
     const request = structuredClone(entry.request);
@@ -210,6 +234,7 @@ export function entryToMemo(
       label: entry.label,
       study: entry.study,
       field_setup: fieldSetup,
+      spatial_result: spatialResult,
       request_payload_mode: "artifact_referenced",
       result_payload_mode: "summary",
       request: artifactRequestSummary(request),
@@ -229,6 +254,7 @@ export function entryToMemo(
       label: entry.label,
       study: entry.study,
       field_setup: fieldSetup,
+      spatial_result: spatialResult,
       request_payload_mode: "artifact_referenced",
       result_payload_mode: "summary",
       request: artifactRequestSummary(request),
@@ -246,6 +272,7 @@ export function entryToMemo(
     label: entry.label,
     study: entry.study,
     field_setup: fieldSetup,
+    spatial_result: spatialResult,
     request_payload_mode: "embedded",
     result_payload_mode: "full",
     request,

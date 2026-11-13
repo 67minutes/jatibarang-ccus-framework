@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Html, Line } from "@react-three/drei";
+import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { useFieldStore } from "../state/field.store";
 import type { LayerVisibility } from "../state/workspace.store";
@@ -15,6 +15,50 @@ interface ProjectedPlace {
   key: string;
   name: string;
   position: THREE.Vector3;
+}
+
+export function lineSegmentPositions(lines: THREE.Vector3[][]): Float32Array {
+  const segmentCount = lines.reduce(
+    (count, points) => count + Math.max(points.length - 1, 0),
+    0,
+  );
+  const values = new Float32Array(segmentCount * 6);
+  let offset = 0;
+  for (const points of lines) {
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const start = points[index];
+      const end = points[index + 1];
+      values[offset] = start.x;
+      values[offset + 1] = start.y;
+      values[offset + 2] = start.z;
+      values[offset + 3] = end.x;
+      values[offset + 4] = end.y;
+      values[offset + 5] = end.z;
+      offset += 6;
+    }
+  }
+  return values;
+}
+
+function SegmentLayer({
+  positions,
+  color,
+}: {
+  positions: Float32Array;
+  color: string;
+}) {
+  if (positions.length === 0) return null;
+  return (
+    <lineSegments>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          args={[positions, 3]}
+        />
+      </bufferGeometry>
+      <lineBasicMaterial color={color} transparent opacity={0.82} />
+    </lineSegments>
+  );
 }
 
 function drapeLine(
@@ -68,21 +112,22 @@ export function MapContextLayers({
   const roadLayers = useFieldStore((state) => state.roadLayers);
   const projected = useMemo(() => {
     if (!roadLayers) {
-      return { roads: [], coastline: [], places: [] };
+      return {
+        majorRoads: new Float32Array(),
+        minorRoads: new Float32Array(),
+        coastline: new Float32Array(),
+        places: [] as ProjectedPlace[],
+      };
     }
     const roads = roadLayers.roads
       .filter((road) => road.points.length >= 2)
-      .map((road, index) => ({
-        key: `road-${road.class}-${index}`,
+      .map((road) => ({
         class: road.class,
         points: drapeLine(road.points, projector, exaggeration, 0.02),
       }));
     const coastline = roadLayers.coastline
       .filter((line) => line.length >= 2)
-      .map((line, index) => ({
-        key: `coastline-${index}`,
-        points: drapeLine(line, projector, exaggeration, 0.02),
-      }));
+      .map((line) => drapeLine(line, projector, exaggeration, 0.02));
     const places: ProjectedPlace[] = roadLayers.places.map((place, index) => {
       const coordinate = { latitude: place.lat, longitude: place.lon };
       const [x, z] = projector.toXZ(coordinate);
@@ -97,28 +142,30 @@ export function MapContextLayers({
         position: new THREE.Vector3(x, y, z),
       };
     });
-    return { roads, coastline, places };
+    return {
+      majorRoads: lineSegmentPositions(
+        roads.filter((road) => road.class === "major").map((road) => road.points),
+      ),
+      minorRoads: lineSegmentPositions(
+        roads.filter((road) => road.class !== "major").map((road) => road.points),
+      ),
+      coastline: lineSegmentPositions(coastline),
+      places,
+    };
   }, [exaggeration, projector, roadLayers]);
 
   if (!roadLayers) return null;
   return (
     <group>
-      {layers.roads && projected.roads.map((road) => (
-        <Line
-          key={road.key}
-          points={road.points}
-          color={road.class === "major" ? "#9aa0a8" : "#5a616b"}
-          lineWidth={road.class === "major" ? 1.6 : 1}
-        />
-      ))}
-      {layers.coastline && projected.coastline.map((line) => (
-        <Line
-          key={line.key}
-          points={line.points}
-          color="#4e86a0"
-          lineWidth={1.4}
-        />
-      ))}
+      {layers.roads ? (
+        <>
+          <SegmentLayer positions={projected.minorRoads} color="#5a616b" />
+          <SegmentLayer positions={projected.majorRoads} color="#9aa0a8" />
+        </>
+      ) : null}
+      {layers.coastline ? (
+        <SegmentLayer positions={projected.coastline} color="#4e86a0" />
+      ) : null}
       {layers.places && projected.places.map((place) => (
         <Html
           key={place.key}

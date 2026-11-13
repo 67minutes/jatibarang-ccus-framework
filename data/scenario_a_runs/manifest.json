@@ -1,0 +1,47 @@
+{
+  "schema_version": "feature007-mrst-manifest-v1",
+  "arm": "A",
+  "design_sha256": "2BF4706484A99A4A0660CB2B597AD1844FC1EC92AE856E4648E1AFFBF152506D",
+  "target_accepted": 2,
+  "accepted_runs": 2,
+  "failed_runs": 0,
+  "failed_hashes": [],
+  "generator_sha256_before": "A8F7AFF41CC261548C3E1B2406ACC5C0F90368569B7D3937DE4556D2E644D2E6",
+  "generator_sha256_after": "86DEF9B7B8CBE7EA80748246D0FE9FF90208B887F595020017826FFE16918251",
+  "raw_training_corpus_copied": false,
+  "resumable": true,
+  "entries": [
+    {
+      "slot_id": "arm-a-low",
+      "attempt_id": "arm-a-low-primary",
+      "candidate_id": "W09",
+      "source_case_id": "case_0090",
+      "status": "accepted",
+      "runtime_seconds": 239.5630831,
+      "output_file": "arm-a-low-primary.mat",
+      "output_sha256": "236F6B9BB673D18AD4226138E0AFD06091C54972EE0D7B8AF377FAB6DD0D6CA1",
+      "solver_converged": true,
+      "expected_step_count": 36,
+      "actual_step_count": 36,
+      "finite_arrays": true,
+      "sanity_passed": true,
+      "failure_reason": ""
+    },
+    {
+      "slot_id": "arm-a-median",
+      "attempt_id": "arm-a-median-primary",
+      "candidate_id": "W12",
+      "source_case_id": "case_0109",
+      "status": "accepted",
+      "runtime_seconds": 256.0605909,
+      "output_file": "arm-a-median-primary.mat",
+      "output_sha256": "030DEEF70D8A84327D4B4C102CD770E6B7010216F9971C92ADAC41864EEF6A8F",
+      "solver_converged": true,
+      "expected_step_count": 36,
+      "actual_step_count": 36,
+      "finite_arrays": true,
+      "sanity_passed": true,
+      "failure_reason": ""
+    }
+  ]
+}

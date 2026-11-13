@@ -19,6 +19,9 @@ corpus from `boreyes2026`.
 - `validation_cases/`: five selected MRST full-field cases used by the Feature 001
   validator; binary payloads are ignored while the manifest and README are tracked.
 - `scenario_b_runs/`: limited-simulation optimization arm outputs, ignored.
+- `imports/`: machine-local, content-addressed terrain/reservoir/spatial-result and
+  OSM graph/layer caches. The official Java PBF download and derived caches are
+  ignored; the tracked README records hashes, attribution, and relink behavior.
 - `screening_presets/`: ignored Feature 005 derived payload banks plus tracked policy
   documentation. `feature005_seed_design.json` freezes the normalized-maximin geology
   and schedule selection rules. The upstream exporter writes only fixed-run derived

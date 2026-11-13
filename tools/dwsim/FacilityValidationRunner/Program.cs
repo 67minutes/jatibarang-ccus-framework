@@ -126,9 +126,18 @@ namespace FacilityValidationRunner
 
             var caseDocument = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(casesPath));
             var cases = (Newtonsoft.Json.Linq.JArray)caseDocument["cases"];
-            if (cases == null || cases.Count != 8)
+            var expectedCaseCount = caseDocument["expected_case_count"] == null
+                ? 8
+                : (int)caseDocument["expected_case_count"];
+            if (expectedCaseCount < 1)
             {
-                throw new InvalidDataException("Feature 003 requires exactly eight validation cases.");
+                throw new InvalidDataException("expected_case_count must be positive.");
+            }
+            if (cases == null || cases.Count != expectedCaseCount)
+            {
+                throw new InvalidDataException(
+                    "Validation case count does not match expected_case_count: "
+                    + expectedCaseCount.ToString(CultureInfo.InvariantCulture));
             }
 
             var originalDirectory = Environment.CurrentDirectory;

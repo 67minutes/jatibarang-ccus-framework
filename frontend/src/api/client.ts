@@ -191,6 +191,25 @@ export function importReservoir(
   });
 }
 
+export interface ReservoirCatalogEntry {
+  well_id: string;
+  model_path: string;
+  bank_path?: string | null;
+}
+
+export interface ReservoirCatalogImportResponse {
+  reservoirs: Record<string, ReservoirImportResponse>;
+  count: number;
+}
+
+export function importReservoirCatalog(
+  entries: ReservoirCatalogEntry[],
+): Promise<ReservoirCatalogImportResponse> {
+  return postJson<ReservoirCatalogImportResponse>("/reservoir/import-batch", {
+    entries,
+  });
+}
+
 export function getReservoir(
   modelId: string,
   bankId?: string | null,
@@ -198,6 +217,46 @@ export function getReservoir(
   const query = bankId ? `?bank_id=${encodeURIComponent(bankId)}` : "";
   return getJson<ReservoirImportResponse>(
     `/reservoir/${encodeURIComponent(modelId)}${query}`,
+  );
+}
+
+export interface SpatialResultArchivePayload {
+  request_fingerprint: string;
+  detailed_predictions: ScreenResult["detailed_predictions"];
+  detailed_reservoirs: ScreenResult["detailed_reservoirs"];
+}
+
+export interface SpatialResultArchiveRef {
+  artifact_id: string;
+  sha256: string;
+  request_fingerprint: string;
+  scenario_count: number;
+  compressed_bytes: number;
+}
+
+export interface SpatialResultArchiveResponse {
+  artifact_id: string;
+  sha256: string;
+  payload: SpatialResultArchivePayload;
+}
+
+/** Persist the heavy cell arrays separately from the portable study memo. */
+export function archiveSpatialResult(
+  result: ScreenResult,
+): Promise<SpatialResultArchiveRef> {
+  return postJson<SpatialResultArchiveRef>("/screening/spatial", {
+    request_fingerprint: result.request_fingerprint,
+    detailed_predictions: result.detailed_predictions,
+    detailed_reservoirs: result.detailed_reservoirs,
+  } satisfies SpatialResultArchivePayload);
+}
+
+/** Re-link one saved memo to its content-addressed detailed fields. */
+export function getSpatialResult(
+  artifactId: string,
+): Promise<SpatialResultArchiveResponse> {
+  return getJson<SpatialResultArchiveResponse>(
+    `/screening/spatial/${encodeURIComponent(artifactId)}`,
   );
 }
 

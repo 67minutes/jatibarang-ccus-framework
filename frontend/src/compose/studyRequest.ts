@@ -3,6 +3,7 @@ import type { InlineScreenRequest, OperationalGrid } from "../api/types";
 import type { FieldSetupMemo } from "../memo/studyMemo";
 import {
   coveredGridSchedules,
+  comboFingerprint,
   nativeScheduleAvailability,
   type GridScheduleCoverage,
   type NativeScheduleAvailability,
@@ -30,6 +31,7 @@ export interface StudySchedulePlan {
 export interface BuildStudyRequestOptions {
   field: FieldSetupMemo;
   imported: ReservoirImportResponse;
+  importedByWell?: Record<string, ReservoirImportResponse>;
   base: StudyRequestBase;
   /** Keep the editable grid for a draft, or limit a submitted request. */
   scheduleMode?: "grid" | "covered";
@@ -191,6 +193,7 @@ const PRODUCED_CO2 = {
 export function buildStudyRequest({
   field,
   imported,
+  importedByWell,
   base,
   scheduleMode = "covered",
 }: BuildStudyRequestOptions): InlineScreenRequest {
@@ -201,23 +204,86 @@ export function buildStudyRequest({
     throw new Error("The runtime reservoir payload does not match this study.");
   }
 
-  const catalog = seedCatalog(imported);
+  const runtimeForWell = Object.fromEntries(
+    field.wells.map((well) => [
+      well.id,
+      importedByWell?.[well.id] ?? imported,
+    ]),
+  );
+  const distinctRuntimes = [
+    ...new Map(
+      Object.values(runtimeForWell).map((runtime) => [runtime.model_id, runtime]),
+    ).values(),
+  ];
+  const catalogs = new Map(
+    distinctRuntimes.map((runtime) => [runtime.model_id, seedCatalog(runtime)]),
+  );
+  const commonFingerprints = distinctRuntimes
+    .map((runtime) => new Set(catalogs.get(runtime.model_id)?.fingerprints ?? []))
+    .reduce((common, current) =>
+      new Set([...common].filter((fingerprint) => current.has(fingerprint))),
+    );
+  const catalog = catalogs.get(imported.model_id);
+  if (!catalog) throw new Error("The primary reservoir is absent from the study catalog.");
   const grid = base.operational_grid;
-  if (!grid) throw new Error("An operational grid is required for this study.");
-  const plan = studySchedulePlan(grid, imported);
-  if (scheduleMode === "covered" && plan.schedules.length === 0) {
+  const explicitSchedules = (base.schedules ?? []) as OperatingScheduleInput[];
+  if (!grid && explicitSchedules.length === 0) {
+    throw new Error("An operational grid or explicit schedule list is required for this study.");
+  }
+  const primaryPlan = grid ? studySchedulePlan(grid, imported) : null;
+  const commonCoverage = grid
+    ? coveredGridSchedules(grid, [...commonFingerprints])
+    : null;
+  const commonNative = Boolean(
+    commonFingerprints.has(imported.native_fingerprint) &&
+      primaryPlan?.native.available,
+  );
+  const plan = grid && primaryPlan && commonCoverage
+    ? {
+        ...primaryPlan,
+        coverage: commonCoverage,
+        native: { ...primaryPlan.native, available: commonNative },
+        schedules:
+          commonCoverage.covered > 0
+            ? commonCoverage.enabled
+            : commonNative
+              ? primaryPlan.schedules
+              : [],
+        usesNativeFallback: commonCoverage.covered === 0 && commonNative,
+      }
+    : null;
+  const availableFingerprints = commonFingerprints;
+  const coveredExplicitSchedules = explicitSchedules.filter((schedule) =>
+    availableFingerprints.has(
+      comboFingerprint(schedule, schedule.injection_duration_days),
+    ),
+  );
+  if (
+    scheduleMode === "covered" &&
+    (plan ? plan.schedules.length === 0 : coveredExplicitSchedules.length === 0)
+  ) {
     throw new NoCoveredSchedulesError();
   }
 
-  const useGrid =
-    scheduleMode === "grid" || plan.coverage.covered === plan.coverage.total;
-  const candidates = field.wells.map((well) => ({
-    candidate_id: well.id,
-    location: { latitude: well.lat, longitude: well.lon },
-    geology_id: imported.model_id,
-    seed_by_schedule_fingerprint: { ...catalog.seedByFingerprint },
-    produced_co2: structuredClone(PRODUCED_CO2),
-  }));
+  const useGrid = Boolean(
+    grid &&
+      (scheduleMode === "grid" || plan?.coverage.covered === plan?.coverage.total),
+  );
+  const submittedSchedules = grid ? plan?.schedules ?? [] : coveredExplicitSchedules;
+  const candidates = field.wells.map((well) => {
+    const runtime = runtimeForWell[well.id];
+    const runtimeCatalog = catalogs.get(runtime.model_id);
+    if (!runtimeCatalog) {
+      throw new Error(`No reservoir catalog entry is available for ${well.id}.`);
+    }
+    return {
+      candidate_id: well.id,
+      location: { latitude: well.lat, longitude: well.lon },
+      geology_id: runtime.model_id,
+      seed_by_schedule_fingerprint: { ...runtimeCatalog.seedByFingerprint },
+      produced_co2: structuredClone(PRODUCED_CO2),
+    };
+  });
   const sources = field.sources.map((source) => ({
     id: source.id,
     name: source.name,
@@ -232,12 +298,19 @@ export function buildStudyRequest({
   return {
     mode: "inline",
     run_id: null,
-    geologies: { [imported.model_id]: imported.geology },
-    seeds: catalog.seeds,
+    geologies: Object.fromEntries(
+      distinctRuntimes.map((runtime) => [runtime.model_id, runtime.geology]),
+    ),
+    seeds: Object.assign(
+      {},
+      ...[...catalogs.values()].map((item) => item.seeds),
+    ),
     candidates,
     sources,
-    operational_grid: useGrid ? structuredClone(grid) : null,
-    schedules: useGrid ? null : plan.schedules.map((schedule) => ({ ...schedule })),
+    operational_grid: useGrid && grid ? structuredClone(grid) : null,
+    schedules: useGrid
+      ? null
+      : submittedSchedules.map((schedule) => ({ ...schedule })),
     annual_co2_budget_tonnes: base.annual_co2_budget_tonnes,
     carbon_prices: structuredClone(base.carbon_prices),
     fiscal_cases: structuredClone(base.fiscal_cases),

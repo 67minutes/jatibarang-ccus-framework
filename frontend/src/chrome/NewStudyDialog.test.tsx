@@ -6,6 +6,7 @@ import { DEFAULT_OPERATIONAL_GRID } from "../compose/defaults";
 import { useUiStore } from "../state/ui.store";
 import {
   launchPadCoveragePreview,
+  commonCatalogGridCoverage,
   NewStudyDialog,
   reservoirRefFromImport,
 } from "./NewStudyDialog";
@@ -134,6 +135,36 @@ describe("NewStudyDialog", () => {
     expect(preview.error).toBeNull();
     expect(preview.plan?.coverage).toMatchObject({ covered: 2, total: 162 });
     expect(preview.plan?.native).toMatchObject({ available: true, onGrid: false });
+  });
+
+  it("intersects launch-pad coverage across a per-well catalog", () => {
+    const [first, second] = scheduleCombos(DEFAULT_OPERATIONAL_GRID);
+    const firstFingerprint = comboFingerprint(first, 45);
+    const secondFingerprint = comboFingerprint(second, 45);
+    const response = {
+      count: 2,
+      reservoirs: {
+        W01: {
+          ...importedReservoir,
+          launchpads: {
+            bank_id: "bank-a",
+            bank_sha256: "D".repeat(64),
+            covered_fingerprints: [firstFingerprint, secondFingerprint],
+          },
+        },
+        W02: {
+          ...importedReservoir,
+          model_id: "model-b",
+          launchpads: {
+            bank_id: "bank-b",
+            bank_sha256: "E".repeat(64),
+            covered_fingerprints: [secondFingerprint],
+          },
+        },
+      },
+    };
+
+    expect(commonCatalogGridCoverage(response)).toEqual({ covered: 1, total: 162 });
   });
 
   it("keeps the preview safe when an older response lacks native schedule fields", () => {

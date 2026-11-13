@@ -56,6 +56,16 @@ data/scenario_b_runs/*
 !data/scenario_b_runs/README.md
 !data/scenario_b_runs/manifest.json
 
+data/scenario_a_runs/*
+!data/scenario_a_runs/.gitkeep
+!data/scenario_a_runs/README.md
+!data/scenario_a_runs/manifest.json
+
+data/scenario_c_topk_runs/*
+!data/scenario_c_topk_runs/.gitkeep
+!data/scenario_c_topk_runs/README.md
+!data/scenario_c_topk_runs/manifest.json
+
 # Derived Feature 005 geology/seed banks. Keep manifests and documentation only.
 data/screening_presets/*
 !data/screening_presets/.gitkeep

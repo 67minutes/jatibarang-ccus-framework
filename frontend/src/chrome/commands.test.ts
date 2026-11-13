@@ -63,6 +63,7 @@ describe("command inventory", () => {
         saveStudy: vi.fn(),
         saveStudyAs: vi.fn(),
         exportRankingCsv: vi.fn(),
+        exportMrstResimulationPlan: vi.fn(),
         hasActiveResult: () => true,
       },
     });
@@ -71,5 +72,6 @@ describe("command inventory", () => {
     expect(isCommandEnabled("file.saveAs")).toBe(false);
     expect(isCommandEnabled("file.exportMemo")).toBe(false);
     expect(isCommandEnabled("file.exportRanking")).toBe(true);
+    expect(isCommandEnabled("file.exportMrstResimulation")).toBe(true);
   });
 });

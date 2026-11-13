@@ -137,7 +137,7 @@ function memo(
   };
 }
 
-describe("memo v3", () => {
+describe("study memos", () => {
   beforeEach(() => {
     useFieldStore.getState().reset();
     useUiStore.setState({ banners: [] });
@@ -145,7 +145,7 @@ describe("memo v3", () => {
   });
 
   it("flags older memos as legacy", () => {
-    expect(STUDY_MEMO_VERSION).toBe(3);
+    expect(STUDY_MEMO_VERSION).toBe(4);
     expect(isLegacyMemo({ memo_version: 2 })).toBe(true);
     expect(isLegacyMemo({ memo_version: 3 })).toBe(false);
   });
@@ -196,6 +196,7 @@ describe("memo v3", () => {
     expect(snapshot).toEqual({
       terrain,
       reservoir,
+      reservoir_assignments: { W01: reservoir },
       roads: null,
       placement,
       wells: useFieldStore.getState().wells,
@@ -382,6 +383,61 @@ describe("memo v3", () => {
 
     expect(useFieldStore.getState().reservoirRuntime).toEqual(
       reservoirRuntime,
+    );
+  });
+
+  it("relinks hash-addressed detailed fields before the memo enters the ledger", async () => {
+    const opened = memo(4, setup);
+    opened.result = {
+      detailed_predictions: {
+        "W01--native": { scenario_id: "W01--native", fields: null },
+      },
+      detailed_reservoirs: {},
+    } as unknown as ScreenResult;
+    opened.spatial_result = {
+      artifact_id: "archive-1",
+      sha256: "D".repeat(64),
+      request_fingerprint: opened.fingerprint,
+    };
+    const detailedPredictions = {
+      "W01--native": {
+        scenario_id: "W01--native",
+        fields: [{ step_index: 0 }],
+      },
+    } as unknown as ScreenResult["detailed_predictions"];
+    const detailedReservoirs = {
+      "W01--native": { scenario_id: "W01--native" },
+    } as unknown as ScreenResult["detailed_reservoirs"];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.startsWith("/reservoir/")) {
+          return new Response(JSON.stringify(reservoirRuntime));
+        }
+        if (url.startsWith("/screening/spatial/")) {
+          return new Response(
+            JSON.stringify({
+              artifact_id: "archive-1",
+              sha256: "D".repeat(64),
+              payload: {
+                request_fingerprint: opened.fingerprint,
+                detailed_predictions: detailedPredictions,
+                detailed_reservoirs: detailedReservoirs,
+              },
+            }),
+          );
+        }
+        return new Response(JSON.stringify(overview));
+      }),
+    );
+
+    await hydrateMemoFieldSetup(opened);
+
+    expect(opened.result.detailed_predictions).toEqual(detailedPredictions);
+    expect(opened.result.detailed_reservoirs).toEqual(detailedReservoirs);
+    expect(useUiStore.getState().banners).not.toContainEqual(
+      expect.objectContaining({ id: "memo-spatial-relink" }),
     );
   });
 

@@ -25,8 +25,10 @@ FastAPI app (one process, one port, no CORS). react-three-fiber/three
 
 ## Reservoir and paper-result workspace
 
-- The primary reservoir is the 64 x 64 x 1, 900 x 600 x 6 m local proxy grid,
-  warped by structure and colored by log10 permeability by default.
+- New studies may load one reservoir or a contiguous W01-W20 catalog of distinct,
+  compact derived MRST reservoirs. Each remains a 64 x 64 x 1,
+  900 x 600 x 6 m local sector, warped by structure and colored by log10
+  permeability by default.
 - Porosity, facies, barriers, fractures, wells/completions, one dynamic response,
   terrain, routes, boosters, and optional legacy SECARB columns are independently
   layered.
@@ -35,6 +37,21 @@ FastAPI app (one process, one port, no CORS). react-three-fiber/three
 - Pressure means delta-P from the final warm-start frame; oil means baseline
   depletion; gas saturation and `z_co2` are thresholded occupancy.
 - Missing fields are disabled. They are never relabeled or replaced by demo data.
+- Before screening, selecting a well shows that well's imported static model. After
+  screening, the retained top-K scenarios expose dynamic plume playback. Memo v4
+  stores those heavy fields in a gzip-compressed, SHA-verified spatial archive so a
+  save/reopen cycle retains playback without embedding arrays in the memo JSON.
+- The Inspector names the selected well's source artifact, model ID, and SHA-256
+  prefix. Compose exposes engineer-controlled oil price, lifting cost, and discount
+  rate with validation and undo/redo.
+- The initial scene is an offline Blue Marble/Natural Earth globe. Basin context can
+  display imported OSM roads, coastline, and place labels; trucking legs follow the
+  cached road graph and carry explicit `osm_road_network:*` provenance.
+- An explicit `no_viable_network` result remains unselected and has no final
+  development economics. The map may still carry geometry-only road-route previews;
+  MRST export labels its top-K candidates as
+  `pre_logistics_non_development_ranking` with
+  `development_selection_claimed=false`.
 - Left, right, and bottom regions are pointer/keyboard split panes with reset and
   collapse/restore, without browser persistence.
 - The APECX Paper Results tree and dashboard consume `/paper/results` bundle status
@@ -105,6 +122,6 @@ study through the real import and screening flow documented in
 
 The `working` Feature 007 bundle is partial and unfrozen: `scenario_count=0`,
 mechanical `BLOCKED`, scientific `NOT_RUN`. Figures 1, 2, 3, and 6 are ready;
-Figures 4, 5, 7, and 8 are blocked. The MRST bank has not been launched because the
-locked RAM preflight yielded zero safe workers, and no `submitted` or `full_3240`
-bundle exists.
+Figures 4, 5, 7, and 8 are blocked. A three-run MRST timing benchmark and a separate
+one-schedule UI workflow smoke do not make either paper preset ready; the 200/3,240
+paper banks have not been launched, and no `submitted` or `full_3240` bundle exists.

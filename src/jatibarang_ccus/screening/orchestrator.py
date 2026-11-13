@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import Event
 import tempfile
 from time import perf_counter
-from typing import Any, Callable, Iterable, Iterator, Mapping
+from typing import Any, Callable, Iterable, Iterator, Mapping, MutableMapping
 from uuid import uuid4
 
 import numpy as np
@@ -60,11 +60,14 @@ from .adapters import (
     facility_well_from_prediction,
     interference_report,
     pipeline_demand_from_prediction,
+    prediction_source_class,
 )
 from .presets import CompactPresetBank, PresetRegistry, _sha256, materialize_inline_scenarios
 from .progress import RunRegistry
 from .schemas import (
     CarbonPricePlan,
+    CachePopulationMetrics,
+    CachePopulationResult,
     CrossPriceComparison,
     CrossPriceTransition,
     HealthResponse,
@@ -91,7 +94,7 @@ from .schemas import (
 )
 
 
-SURROGATE_CHUNK_SIZE = 256
+SURROGATE_CHUNK_SIZE = 64
 ECONOMIC_CHUNK_SIZE = 256
 LEGACY_TERRAIN_ID = "jatibarang_srtm_v1"
 
@@ -631,6 +634,158 @@ class ScreeningOrchestrator:
             )
         return ScreenResult.model_validate(terminal.payload["result"])
 
+    def run_and_populate_prediction_cache(
+        self,
+        request: PresetScreenRequest,
+        prediction_cache: MutableMapping[str, PredictionResult],
+    ) -> CachePopulationResult:
+        """Run a preset while durably storing only missing compact predictions."""
+
+        if request.detailed_top_k != 0:
+            raise ValueError(
+                "prediction-cache population requires detailed_top_k=0"
+            )
+        resolved = self._resolve_request(request)
+        if not isinstance(resolved, CompactPresetBank):
+            raise TypeError("prediction-cache population requires a compact preset")
+        run_id = request.run_id or uuid4().hex
+        terminal: ProgressEvent | None = None
+        metrics: dict[str, int | float] = {
+            "predicted_count": 0,
+            "reused_count": 0,
+            "prediction_seconds": 0.0,
+            "reuse_seconds": 0.0,
+        }
+        try:
+            for event in self._execute(
+                run_id,
+                request,
+                resolved,
+                Event(),
+                prediction_cache=prediction_cache,
+                populate_prediction_cache=True,
+                cache_metrics=metrics,
+            ):
+                if event.event in {"result", "error", "cancelled"}:
+                    terminal = event
+        finally:
+            resolved.close()
+        if terminal is None or terminal.event != "result":
+            raise RuntimeError(
+                terminal.message
+                if terminal is not None
+                else "cache-populating screening ended without a result"
+            )
+        content_hash = getattr(prediction_cache, "content_sha256", None)
+        cache_sha = (
+            str(content_hash())
+            if callable(content_hash)
+            else hashlib.sha256(
+                "\n".join(sorted(prediction_cache)).encode("ascii")
+            ).hexdigest().upper()
+        )
+        return CachePopulationResult(
+            screen_result=ScreenResult.model_validate(terminal.payload["result"]),
+            cache=CachePopulationMetrics(
+                predicted_count=metrics["predicted_count"],
+                reused_count=metrics["reused_count"],
+                prediction_seconds=metrics["prediction_seconds"],
+                reuse_seconds=metrics["reuse_seconds"],
+                cache_entry_count=len(prediction_cache),
+                cache_content_sha256=cache_sha,
+            ),
+        )
+
+    def run_preset_with_prediction_cache(
+        self,
+        request: PresetScreenRequest,
+        prediction_cache: Mapping[str, PredictionResult],
+        *,
+        candidate_realization_map: Mapping[str, str] | None = None,
+    ) -> ScreenResult:
+        """Re-solve a compact preset assignment with zero surrogate calls."""
+
+        if request.detailed_top_k != 0:
+            raise ValueError(
+                "cached preset re-solves require detailed_top_k=0"
+            )
+        resolved = self._resolve_request(request)
+        if not isinstance(resolved, CompactPresetBank):
+            raise TypeError("cached preset re-solves require a compact preset")
+        run_id = request.run_id or uuid4().hex
+        terminal: ProgressEvent | None = None
+        try:
+            for event in self._execute(
+                run_id,
+                request,
+                resolved,
+                Event(),
+                prediction_cache=prediction_cache,
+                candidate_realization_map=(
+                    dict(candidate_realization_map)
+                    if candidate_realization_map is not None
+                    else None
+                ),
+            ):
+                if event.event in {"result", "error", "cancelled"}:
+                    terminal = event
+        finally:
+            resolved.close()
+        if terminal is None or terminal.event != "result":
+            raise RuntimeError(
+                terminal.message
+                if terminal is not None
+                else "cached preset screening ended without a result"
+            )
+        return ScreenResult.model_validate(terminal.payload["result"])
+
+    def run_materialized_with_prediction_cache(
+        self,
+        request: PresetScreenRequest,
+        materialized_scenarios: Iterable[MaterializedScenario],
+        prediction_cache: Mapping[str, PredictionResult],
+    ) -> ScreenResult:
+        """Run the shared downstream path over an exact offline scenario set.
+
+        This is used by Arm B, whose two MRST schedules per geology are not a
+        Cartesian preset grid. The supplied scenarios still originate from the
+        hash-verified compact preset; only their prediction values are swapped.
+        """
+
+        if request.detailed_top_k != 0:
+            raise ValueError(
+                "materialized cache re-solves require detailed_top_k=0"
+            )
+        resolved = self._resolve_request(request)
+        if not isinstance(resolved, CompactPresetBank):
+            raise TypeError("materialized cache re-solves require a compact preset")
+        scenarios = list(materialized_scenarios)
+        if not scenarios:
+            resolved.close()
+            raise ValueError("materialized cache re-solve requires scenarios")
+        run_id = request.run_id or uuid4().hex
+        terminal: ProgressEvent | None = None
+        try:
+            for event in self._execute(
+                run_id,
+                request,
+                resolved,
+                Event(),
+                prediction_cache=prediction_cache,
+                materialized_scenarios=scenarios,
+            ):
+                if event.event in {"result", "error", "cancelled"}:
+                    terminal = event
+        finally:
+            resolved.close()
+        if terminal is None or terminal.event != "result":
+            raise RuntimeError(
+                terminal.message
+                if terminal is not None
+                else "materialized cached screening ended without a result"
+            )
+        return ScreenResult.model_validate(terminal.payload["result"])
+
     def _economic_results(
         self,
         portfolios: list[PortfolioEconomicInput],
@@ -660,6 +815,10 @@ class ScreeningOrchestrator:
         token: Event,
         *,
         prediction_cache: Mapping[str, PredictionResult] | None = None,
+        populate_prediction_cache: bool = False,
+        candidate_realization_map: Mapping[str, str] | None = None,
+        cache_metrics: dict[str, int | float] | None = None,
+        materialized_scenarios: Sequence[MaterializedScenario] | None = None,
     ) -> Iterator[ProgressEvent]:
         sequence = 0
         overall_started = perf_counter()
@@ -679,7 +838,10 @@ class ScreeningOrchestrator:
         yield event("run_started", "resolve", message="screening request accepted")
 
         stage_started = perf_counter()
-        if isinstance(request, CompactPresetBank):
+        if materialized_scenarios is not None:
+            materialized = list(materialized_scenarios)
+            logical_scenario_count = len(materialized)
+        elif isinstance(request, CompactPresetBank):
             logical_scenario_count = request.logical_scenario_count
         else:
             materialized = materialize_inline_scenarios(request)
@@ -707,42 +869,126 @@ class ScreeningOrchestrator:
         scenarios: list[_ScenarioRecord] = []
         prediction_by_scenario: dict[str, Any] = {}
         if cached_mode:
-            if isinstance(request, CompactPresetBank):
-                raise TypeError("prediction-cache re-solves require an inline request")
-            unique: dict[str, MaterializedScenario] = {}
-            for item in materialized:
-                unique.setdefault(item.input_fingerprint, item)
-            missing = sorted(set(unique) - set(prediction_cache))
-            if missing:
-                preview = ", ".join(missing[:3])
-                raise ValueError(
-                    f"prediction cache is missing {len(missing)} input fingerprints: {preview}"
+            if populate_prediction_cache and not isinstance(
+                prediction_cache, MutableMapping
+            ):
+                raise TypeError(
+                    "prediction-cache population requires a mutable mapping"
                 )
-            compact_by_fingerprint = {
-                fingerprint: PredictionResult.model_validate(prediction_cache[fingerprint])
-                for fingerprint in unique
-            }
-            prediction_by_scenario = {
-                item.scenario_id: compact_by_fingerprint[item.input_fingerprint].model_copy(
-                    update={"scenario_id": item.scenario_id}
+            scenario_iterator = (
+                iter(materialized)
+                if materialized_scenarios is not None
+                else
+                request.iter_scenarios(
+                    dict(candidate_realization_map)
+                    if candidate_realization_map is not None
+                    else None
                 )
-                for item in materialized
-            }
-            scenarios = [
-                _ScenarioRecord(
-                    scenario_id=item.scenario_id,
-                    candidate_id=item.candidate_id,
-                    geology_id=item.geology_id,
-                    location=item.location,
-                    produced_co2=item.produced_co2,
-                    schedule=item.schedule,
-                    input_fingerprint=item.input_fingerprint,
-                    seed_source_class=item.predict_request.seed.source_class,
-                    seed_source_id=item.predict_request.seed.source_id,
+                if isinstance(request, CompactPresetBank)
+                else iter(materialized)
+            )
+            loaded_fingerprints: set[str] = set()
+            completed = 0
+            for materialized_chunk in _iter_chunks(
+                scenario_iterator,
+                SURROGATE_CHUNK_SIZE,
+            ):
+                pending: dict[str, MaterializedScenario] = {}
+                for item in materialized_chunk:
+                    pending.setdefault(item.input_fingerprint, item)
+                    scenarios.append(
+                        _ScenarioRecord(
+                            scenario_id=item.scenario_id,
+                            candidate_id=item.candidate_id,
+                            geology_id=item.geology_id,
+                            location=item.location,
+                            produced_co2=item.produced_co2,
+                            schedule=item.schedule,
+                            input_fingerprint=item.input_fingerprint,
+                            seed_source_class=item.predict_request.seed.source_class,
+                            seed_source_id=item.predict_request.seed.source_id,
+                        )
+                    )
+                new_items: list[tuple[str, MaterializedScenario]] = []
+                for fingerprint, item in pending.items():
+                    if fingerprint in loaded_fingerprints:
+                        continue
+                    cache_lookup_started = perf_counter()
+                    if fingerprint in prediction_cache:
+                        compact_by_fingerprint[fingerprint] = (
+                            PredictionResult.model_validate(
+                                prediction_cache[fingerprint]
+                            )
+                        )
+                        if cache_metrics is not None:
+                            cache_metrics["reused_count"] += 1
+                            cache_metrics["reuse_seconds"] += (
+                                perf_counter() - cache_lookup_started
+                            )
+                    elif populate_prediction_cache:
+                        new_items.append((fingerprint, item))
+                    else:
+                        raise ValueError(
+                            "prediction cache is missing input fingerprint: "
+                            f"{fingerprint}"
+                        )
+                    loaded_fingerprints.add(fingerprint)
+                if new_items:
+                    prediction_started = perf_counter()
+                    compiled = [
+                        compile_request(
+                            item.predict_request,
+                            self.runner.checkpoint["stats"],
+                        )
+                        for _fingerprint, item in new_items
+                    ]
+                    predictions = self.runner.predict_compiled_batch(
+                        compiled,
+                        microbatch_size=16,
+                    )
+                    for (
+                        (fingerprint, _scenario),
+                        compiled_item,
+                        prediction,
+                    ) in zip(new_items, compiled, predictions, strict=True):
+                        compact = build_prediction_result(
+                            compiled_item,
+                            prediction,
+                            self.runner,
+                            include_fields=False,
+                        )
+                        compact_by_fingerprint[fingerprint] = compact
+                        prediction_cache[fingerprint] = compact
+                        loaded_fingerprints.add(fingerprint)
+                        if cache_metrics is not None:
+                            cache_metrics["predicted_count"] += 1
+                    if cache_metrics is not None:
+                        cache_metrics["prediction_seconds"] += (
+                            perf_counter() - prediction_started
+                        )
+                for item in materialized_chunk:
+                    compact = compact_by_fingerprint[
+                        item.input_fingerprint
+                    ]
+                    prediction_by_scenario[item.scenario_id] = (
+                        compact
+                        if compact.scenario_id == item.scenario_id
+                        else compact.model_copy(
+                            update={"scenario_id": item.scenario_id}
+                        )
+                    )
+                completed += len(materialized_chunk)
+                yield event(
+                    "progress",
+                    "surrogate",
+                    completed=completed,
+                    total=logical_scenario_count,
                 )
-                for item in materialized
-            ]
-            del materialized, unique
+                cancelled()
+            if materialized_scenarios is not None or not isinstance(
+                request, CompactPresetBank
+            ):
+                del materialized
         elif isinstance(request, CompactPresetBank):
             completed = 0
             for materialized_chunk in _iter_chunks(
@@ -840,6 +1086,11 @@ class ScreeningOrchestrator:
         # the result contract, not a live runner call counter. Cached mode keeps
         # that cardinality while its provenance records zero surrogate calls.
         unique_inference_count = len(compact_by_fingerprint)
+        if cached_mode:
+            # Downstream work is scenario-keyed. Keeping this second dictionary
+            # would retain another 3,240 references (and, for remapped
+            # assignments, the source-realization objects) for no purpose.
+            compact_by_fingerprint.clear()
         stages["surrogate"] = perf_counter() - stage_started
         yield event(
             "stage_completed",
@@ -847,7 +1098,12 @@ class ScreeningOrchestrator:
             completed=unique_inference_count,
             total=unique_inference_count,
             message=(
-                f"{logical_scenario_count} immutable Feature 007 rollout-cache hits"
+                (
+                    f"{cache_metrics['predicted_count']} predictions stored and "
+                    f"{cache_metrics['reused_count']} reused"
+                )
+                if populate_prediction_cache and cache_metrics is not None
+                else f"{logical_scenario_count} immutable Feature 007 rollout-cache hits"
                 if cached_mode
                 else f"{logical_scenario_count - unique_inference_count} request-local cache hits"
             ),
@@ -869,9 +1125,9 @@ class ScreeningOrchestrator:
             )
             provenance = [
                 EconomicProvenance(
-                    source_class="surrogate_prediction",
+                    source_class=prediction_source_class(prediction),
                     source_id=scenario.scenario_id,
-                    notes="Feature 005 preliminary schedule economics.",
+                    notes="Shared preliminary schedule economics.",
                 )
             ]
             portfolio = PortfolioEconomicInput(
@@ -1420,8 +1676,34 @@ class ScreeningOrchestrator:
                         source_module="feature005",
                         scenario_ids=[best[(carbon.scenario_id, item)].scenario_id for item in selected],
                         message="selected wells contain geodesic influence-radius overlaps",
+                        )
                     )
+            route_segments_by_id = {
+                segment.id: segment for segment in route_library.segments
+            }
+            selected_route_geometries = []
+            for built in pipeline.built_segments:
+                routed = route_segments_by_id.get(built.segment_id)
+                if routed is None:
+                    continue
+                selected_route_geometries.append(
+                    {
+                        "segment_id": built.segment_id,
+                        "from_node": built.from_node,
+                        "to_node": built.to_node,
+                        "geometry": [
+                            point.model_dump(mode="json")
+                            for point in routed.geometry
+                        ],
+                        "elevation_m": list(routed.elevation_m),
+                        "terrain_sha256": routed.terrain_sha256,
+                        "route_method": routed.method,
+                    }
                 )
+            pipeline.route_provenance = {
+                **pipeline.route_provenance,
+                "selected_route_geometries": selected_route_geometries,
+            }
             plans.append(
                 CarbonPricePlan(
                     carbon_price_scenario_id=carbon.scenario_id,
@@ -1484,20 +1766,35 @@ class ScreeningOrchestrator:
                         "candidate_id": strategy.candidate_id,
                         "prices": [],
                         "npv": None,
+                        "designated_price": None,
                         "reasons": ["selected_by_feature002"],
                     },
                 )
                 entry["prices"].append(plan.carbon_price_scenario_id)
                 if strategy.designated_economics is not None:
                     value = float(strategy.designated_economics["npv_usd"])
-                    entry["npv"] = value if entry["npv"] is None else max(entry["npv"], value)
+                    if (
+                        entry["npv"] is None
+                        or value > entry["npv"]
+                        or (
+                            value == entry["npv"]
+                            and (
+                                entry["designated_price"] is None
+                                or plan.carbon_price_scenario_id
+                                < entry["designated_price"]
+                            )
+                        )
+                    ):
+                        entry["npv"] = value
+                        entry["designated_price"] = (
+                            plan.carbon_price_scenario_id
+                        )
                 if strategy.prediction.confidence.low_confidence_reasons:
                     entry["reasons"].append("low_surrogate_confidence")
         ranked = sorted(
             shortlist_candidates.items(),
             key=lambda item: (
                 -(item[1]["npv"] if item[1]["npv"] is not None else float("-inf")),
-                item[1]["candidate_id"],
                 item[0],
             ),
         )[: request.shortlist_top_k]
@@ -1507,6 +1804,7 @@ class ScreeningOrchestrator:
                 candidate_id=value["candidate_id"],
                 scenario_id=scenario_id,
                 carbon_price_scenario_ids=value["prices"],
+                designated_carbon_price_scenario_id=value["designated_price"],
                 designated_npv_usd=value["npv"],
                 reasons=list(dict.fromkeys(value["reasons"])),
             )
@@ -1597,6 +1895,9 @@ class ScreeningOrchestrator:
                 "produced_co2_composition": "explicit_per_candidate_provenance_tagged_assumption",
                 "pipeline_minimum_selected_wells": 0,
                 "surrogate_evaluation_mode": (
+                    "runtime_surrogate_inference_with_durable_cache"
+                    if populate_prediction_cache
+                    else
                     "immutable_prediction_cache_zero_surrogate_calls"
                     if cached_mode
                     else "runtime_surrogate_inference"

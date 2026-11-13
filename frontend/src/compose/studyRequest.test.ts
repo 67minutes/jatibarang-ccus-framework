@@ -165,6 +165,41 @@ describe("buildStudyRequest", () => {
     expect(request.schedules).toEqual([schedule(combos[0]), schedule(combos[1])]);
   });
 
+  it("maps distinct per-well geologies and submits only common bank coverage", () => {
+    const combos = scheduleCombos(DEFAULT_OPERATIONAL_GRID);
+    const primary = runtime(firstCombo, [{ combo: combos[1] }]);
+    const secondary = {
+      ...runtime(combos[2], [{ combo: combos[1] }]),
+      model_id: "model-def",
+      sha256: "D".repeat(64),
+      source_file: "case_0021.reservoir.npz",
+      geology: { length_x_m: 880, length_y_m: 620, thickness_m: 7 },
+    } satisfies ReservoirImportResponse;
+
+    const request = buildStudyRequest({
+      field: field(primary),
+      imported: primary,
+      importedByWell: { W01: primary, W02: secondary },
+      base: createDefaultStudyRequestBase(),
+      scheduleMode: "covered",
+    });
+
+    expect(Object.keys(request.geologies).sort()).toEqual(["model-abc", "model-def"]);
+    const candidates = request.candidates as Array<{
+      candidate_id: string;
+      geology_id: string;
+    }>;
+    expect(candidates.map((item) => [item.candidate_id, item.geology_id])).toEqual([
+      ["W01", "model-abc"],
+      ["W02", "model-def"],
+    ]);
+    expect(request.operational_grid).toBeNull();
+    expect(request.schedules).toEqual([schedule(combos[1])]);
+    expect(Object.keys(request.seeds)).toContain(
+      `launchpad:model-def:${comboFingerprint(combos[1], 45)}`,
+    );
+  });
+
   it("reports zero grid coverage and runs the real off-grid native schedule", () => {
     const native = {
       injection_rate_m3_day: 8687.177439504216,
@@ -186,6 +221,24 @@ describe("buildStudyRequest", () => {
     expect(plan.usesNativeFallback).toBe(true);
     expect(request.operational_grid).toBeNull();
     expect(request.schedules).toEqual([schedule(native)]);
+  });
+
+  it("rebuilds an artifact-referenced memo from its covered explicit schedules", () => {
+    const combos = scheduleCombos(DEFAULT_OPERATIONAL_GRID);
+    const imported = runtime(firstCombo, [{ combo: combos[1] }]);
+    const base = createDefaultStudyRequestBase();
+    base.operational_grid = null;
+    base.schedules = [schedule(combos[0]), schedule(combos[1]), schedule(combos[2])];
+
+    const request = buildStudyRequest({
+      field: field(imported),
+      imported,
+      base,
+      scheduleMode: "covered",
+    });
+
+    expect(request.operational_grid).toBeNull();
+    expect(request.schedules).toEqual([schedule(combos[0]), schedule(combos[1])]);
   });
 
   it("carries the optional road-network reference into the request", () => {

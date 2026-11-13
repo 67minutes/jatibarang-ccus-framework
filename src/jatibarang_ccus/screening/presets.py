@@ -157,14 +157,51 @@ class CompactPresetBank:
             thickness_m=float(scalars[4]),
         )
 
-    def iter_scenarios(self) -> Iterator[MaterializedScenario]:
+    def iter_scenarios(
+        self,
+        candidate_realization_map: dict[str, str] | None = None,
+    ) -> Iterator[MaterializedScenario]:
+        """Yield scenarios, optionally relabeling physical wells to realizations.
+
+        The physical candidate contributes location and produced-fluid
+        assumptions. The assigned realization contributes geology and seed
+        history. This is the compact Feature 007 field-scenario view and avoids
+        constructing an enormous inline request.
+        """
+
         seed_frames = self._payload["seed_frames"]
         oil = self._payload["seed_oil_delta"]
         gas = self._payload["seed_gas_delta"]
-        for candidate_index, candidate in enumerate(self.metadata.candidates):
-            geology = self._geology(candidate_index)
+        candidate_index_by_id = {
+            candidate.candidate_id: index
+            for index, candidate in enumerate(self.metadata.candidates)
+        }
+        if candidate_realization_map is not None:
+            physical_ids = set(candidate_index_by_id)
+            if set(candidate_realization_map) != physical_ids:
+                missing = sorted(physical_ids - set(candidate_realization_map))
+                extra = sorted(set(candidate_realization_map) - physical_ids)
+                raise ValueError(
+                    "candidate realization map must cover every preset candidate "
+                    f"(missing={missing}, extra={extra})"
+                )
+            unknown = sorted(
+                set(candidate_realization_map.values()) - physical_ids
+            )
+            if unknown:
+                raise ValueError(
+                    f"candidate realization map references unknown candidates: {unknown}"
+                )
+        for candidate in self.metadata.candidates:
+            source_candidate_id = (
+                candidate_realization_map[candidate.candidate_id]
+                if candidate_realization_map is not None
+                else candidate.candidate_id
+            )
+            source_index = candidate_index_by_id[source_candidate_id]
+            geology = self._geology(source_index)
             for schedule_index, schedule in enumerate(self.metadata.schedules):
-                active = seed_frames[candidate_index, schedule_index]
+                active = seed_frames[source_index, schedule_index]
                 frames = [
                     ReservoirState(
                         pressure_bar=Grid2D.from_array(active[index, 0].reshape(64, 64)),
@@ -177,10 +214,13 @@ class CompactPresetBank:
                 seed = SeedHistory(
                     initial_state=frames[0],
                     frames=frames,
-                    oil_delta_m3=oil[candidate_index, schedule_index].astype(float).tolist(),
-                    gas_delta_m3=gas[candidate_index, schedule_index].astype(float).tolist(),
+                    oil_delta_m3=oil[source_index, schedule_index].astype(float).tolist(),
+                    gas_delta_m3=gas[source_index, schedule_index].astype(float).tolist(),
                     source_class="derived_seed",
-                    source_id=f"{self.metadata.preset_id}:{candidate.candidate_id}:{fingerprint[:12]}",
+                    source_id=(
+                        f"{self.metadata.preset_id}:{source_candidate_id}:"
+                        f"{fingerprint[:12]}"
+                    ),
                     schedule_fingerprint=fingerprint,
                 )
                 scenario_id = f"{candidate.candidate_id}--{fingerprint[:12]}"
@@ -193,7 +233,7 @@ class CompactPresetBank:
                 yield MaterializedScenario(
                     scenario_id=scenario_id,
                     candidate_id=candidate.candidate_id,
-                    geology_id=f"{self.metadata.preset_id}:{candidate.candidate_id}",
+                    geology_id=f"{self.metadata.preset_id}:{source_candidate_id}",
                     location=candidate.location,
                     produced_co2=candidate.produced_co2,
                     schedule=schedule,

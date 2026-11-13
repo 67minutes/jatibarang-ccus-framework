@@ -211,6 +211,48 @@ def write_upstream_design(payload: dict[str, Any], output: Path) -> None:
     output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
+def build_workflow_smoke_design(full_design_path: Path) -> dict[str, Any]:
+    """Select one central common schedule for a real 20-well UI smoke bank.
+
+    This derived design is deliberately not a paper preset.  It provides the
+    smallest honest common-schedule bank that can exercise the complete blank
+    study workflow while the 3,240-run paper bank is still exporting.
+    """
+
+    payload = json.loads(Path(full_design_path).read_text(encoding="utf-8"))
+    target = {
+        "injection_rate_m3_day": 9000.0,
+        "injection_reference_pressure_bar": 1.01325,
+        "injection_reference_temperature_c": 15.0,
+        "injection_duration_days": 45.0,
+        "soak_duration_days": 30.0,
+        "production_duration_days": 190.0,
+        "production_bhp_psi": 675.0,
+        "cycles": 4,
+    }
+    matches = [
+        item
+        for item in payload.get("schedules", [])
+        if item.get("values") == target
+    ]
+    if len(matches) != 1:
+        raise ValueError("full design does not contain the locked workflow smoke schedule")
+    geologies = payload.get("geologies", [])
+    if len(geologies) != 20:
+        raise ValueError("workflow smoke design requires the locked 20 geologies")
+    payload.update(
+        {
+            "preset_id": "jatibarang_workflow_smoke_v1",
+            "schedules": matches,
+            "logical_scenarios": 20,
+            "purpose": "end_to_end_ui_smoke_not_paper_evidence",
+        }
+    )
+    payload.pop("design_sha256", None)
+    payload["design_sha256"] = _json_sha256(payload)
+    return payload
+
+
 def _grid(values: np.ndarray) -> Grid2D:
     return Grid2D.from_array(np.asarray(values, dtype=np.float32))
 
@@ -477,6 +519,9 @@ def _parser() -> argparse.ArgumentParser:
     design.add_argument("--source-manifest", type=Path, default=DEFAULT_SOURCE_MANIFEST)
     design.add_argument("--rules", type=Path, default=DEFAULT_DESIGN_RULES)
     design.add_argument("--output", type=Path)
+    workflow = subparsers.add_parser("workflow-design")
+    workflow.add_argument("--full-design", type=Path, required=True)
+    workflow.add_argument("--output", type=Path, required=True)
     importer = subparsers.add_parser("import")
     importer.add_argument("--design", type=Path, required=True)
     importer.add_argument("--seed-root", type=Path, required=True)
@@ -496,6 +541,11 @@ def main(argv: list[str] | None = None) -> int:
         output = args.output or DEFAULT_PRESET_ROOT / args.preset / "upstream_design.json"
         write_upstream_design(payload, output)
         print(json.dumps({"output": str(output), "design_sha256": payload["design_sha256"]}))
+        return 0
+    if args.command == "workflow-design":
+        payload = build_workflow_smoke_design(args.full_design)
+        write_upstream_design(payload, args.output)
+        print(json.dumps({"output": str(args.output), "design_sha256": payload["design_sha256"]}))
         return 0
     manifest = import_seed_bank(
         design_path=args.design,

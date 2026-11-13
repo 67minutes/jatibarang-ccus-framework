@@ -293,8 +293,27 @@ class ValidationShortlistItem(BaseModel):
     candidate_id: str
     scenario_id: str
     carbon_price_scenario_ids: list[str]
+    designated_carbon_price_scenario_id: str | None = None
     designated_npv_usd: float | None = None
     reasons: list[str]
+
+
+class CachePopulationMetrics(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    predicted_count: int = Field(ge=0)
+    reused_count: int = Field(ge=0)
+    prediction_seconds: float = Field(default=0, ge=0)
+    reuse_seconds: float = Field(default=0, ge=0)
+    cache_entry_count: int = Field(ge=0)
+    cache_content_sha256: str = Field(min_length=64, max_length=64)
+
+
+class CachePopulationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    screen_result: "ScreenResult"
+    cache: CachePopulationMetrics
 
 
 class RunTimings(BaseModel):

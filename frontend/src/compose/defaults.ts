@@ -11,6 +11,7 @@ export type StudyRequestBase = Pick<
   | "economic_assumptions"
   | "annual_co2_budget_tonnes"
   | "operational_grid"
+  | "schedules"
   | "cost_case"
   | "supply_scenarios"
   | "project_life_years"
@@ -210,6 +211,7 @@ export const DEFAULT_STUDY_REQUEST_BASE: StudyRequestBase = {
   economic_assumptions: DEFAULT_ECONOMIC_ASSUMPTIONS,
   annual_co2_budget_tonnes: 320000.0,
   operational_grid: DEFAULT_OPERATIONAL_GRID,
+  schedules: null,
   cost_case: "base",
   supply_scenarios: ["optimized_pipeline", "trucking_counterfactual"],
   project_life_years: 8,

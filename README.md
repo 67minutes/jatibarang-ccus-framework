@@ -10,9 +10,11 @@ artifacts are consumed here; the 177-case MRST training corpus stays in
 
 ## Current Status
 
-Features 001-005 and the Feature 006 workbench are implemented. Feature 007 now has
-a deterministic canonical-bundle pipeline and a partial working evidence bundle; its
-scientific A/B/C execution is not yet complete.
+Features 001-005 and the Feature 006 workbench are implemented. Feature 006 now boots
+at an offline Earth view, accepts hash-addressed OSM routing plus distinct derived
+MRST reservoirs for W01-W20, and preserves top-K plume playback in v4 study memos.
+Feature 007 has a deterministic canonical-bundle pipeline and cache-only field-scenario
+re-solve orchestration, but its scientific A/B/C execution is not yet complete.
 Feature 001 is the
 subsurface surrogate inference service. Feature 002 builds cached, exclusion-aware
 multi-source route libraries, optimizes pipeline topology and boosters with Pyomo/CBC,
@@ -35,10 +37,11 @@ FastAPI.
 
 The production Feature 005 path no longer calls the analytic `_evaluate_candidate()`
 proxy. The legacy Phase 1 abstract-number command remains available for provenance,
-but `/screen` uses Features 001-004 through their stable typed contracts. The real
-`jatibarang_demo_v1` and `jatibarang_full_v1` MRST-derived payloads are not yet
-materialized locally, so preset promotion is explicitly **BLOCKED** while inline and
-synthetic integration evidence pass. A Feature 007 `working` bundle now verifies the
+but `/screen` uses Features 001-004 through their stable typed contracts. The complete
+200-scenario `jatibarang_demo_v1` and 3,240-scenario `jatibarang_full_v1`
+MRST-derived payloads are not yet materialized locally, so preset promotion is
+explicitly **BLOCKED** while inline, synthetic integration, and the separate 20-well
+workflow smoke pass. A Feature 007 `working` bundle now verifies the
 hashes of the evidence that exists, but remains partial and unfrozen with scenario
 count zero, mechanical status `BLOCKED`, and scientific status `NOT_RUN`. Final A/B/C
 execution and paper-number promotion still belong to Feature 007. See
@@ -121,6 +124,9 @@ final-paper economics.
   the fixed upstream MRST seed exports have not been completed and imported.
 - Bounded upstream exporter smoke: **PASS**, one eight-frame derived seed in `68.077 s`;
   this is producer evidence only and does not make the demo bank ready.
+- W01-W20 workflow smoke: **PASS**, 20/20 distinct derived reservoirs and launch-pad
+  banks for one common schedule in `3264.455 s`. This validates the workbench flow;
+  it is not a promoted 200/3,240 paper preset.
 - Mechanical preset-promotion verdict: **BLOCKED, no fabricated result**. The
   hash-verified dependency evidence is in
   [`paper/validation/feature005/`](paper/validation/feature005/).
@@ -140,8 +146,14 @@ final-paper economics.
   frozen-surrogate output, residuals, static geology, and provenance to the paper API.
 - Arm B's deterministic design contains exactly 40 primary schedules over 20
   geologies plus 3,200 replacements; accepted A/B/C results remain zero.
-- MRST bank execution: **NOT LAUNCHED**. Preflight yielded zero safe workers under
-  the locked RAM formula. No `submitted` or `full_3240` bundle exists.
+- MRST timing benchmark: **PASS**, 3/3 real exports in `502.863 s` total
+  (`167.621 s/run`). This does not make a preset ready.
+- Paper-bank execution: **NOT LAUNCHED** for the 200- and 3,240-scenario designs.
+  No `submitted` or `full_3240` bundle exists.
+- Arm C field-scenario orchestration: **IMPLEMENTED** for 20 seeded independent
+  assignments plus 20 correlated sweeps, grouped by assignment x carbon price with
+  zero surrogate calls during cache-only downstream re-solves. The working bundle's
+  assignment table has 800 well-level rows; actual Arm C result counts remain zero.
 - Bundle status and commands:
   [`paper/results/feature007/`](paper/results/feature007/).
 

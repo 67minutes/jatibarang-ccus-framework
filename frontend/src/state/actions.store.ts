@@ -16,6 +16,7 @@ export interface WorkbenchActions {
   saveStudy?: () => void;
   saveStudyAs?: () => void;
   exportRankingCsv?: () => void;
+  exportMrstResimulationPlan?: () => void;
   exportSnapshot?: () => void;
   screen?: () => void;
   cancelRun?: () => void;

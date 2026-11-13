@@ -1,7 +1,7 @@
 # Earth View + OSM Road Routing — Design
 
 **Date:** 2026-07-18
-**Status:** approved (design Q&A with owner, 2026-07-18)
+**Status:** implemented and verified (2026-07-19)
 **Owner flow:** boot on the earth → dive into a basin → place field → import roads once → screen with road-accurate trucking
 **Builds on:** `2026-07-17-blank-slate-field-workflow-design.md` (implemented)
 
@@ -192,3 +192,28 @@ correction:
 - Travel-time or truck-class routing weights (length-only shortest path).
 - Multi-terrain earth browsing beyond footprint display + dive.
 - Regenerating paper tables/figures (owner reruns after landing).
+
+## 12. Implementation record (2026-07-19)
+
+The design is implemented in the current worktree. The accepted Java import is the
+official Geofabrik extract, registered as `roads-3a57ea2910f5f161` with 8,599,655
+nodes and 8,900,434 edges. Subang-to-W01-W20 paths are exact network routes with
+`osm_road_network:*` provenance. The offline globe, compass, map layers, loopback
+import routes, reservoir relink, and road/great-circle fallbacks all passed unit and
+manual browser verification.
+
+Three bounded implementation changes supersede original sizing assumptions without
+changing the owner flow:
+
+- cache schema 4 uses compact NumPy/CSR routing arrays instead of a province-scale
+  NetworkX object, because the latter exceeded 7 GB during the real Java import;
+- study memo v4 stores top-K spatial fields in a SHA-verified backend archive and
+  relinks all W01-W20 reservoir/model-bank pairs, rather than retaining memo v3;
+- an explicit non-development result carries geometry-only candidate trucking
+  previews so the map can show exact roads without inventing a selected portfolio or
+  final development economics.
+
+The final 1920 x 1080 QA flow reopened a saved 20-well memo, restored W01 and W02
+plume playback from distinct MRST-derived artifacts, kept screening enabled, and
+exported a five-entry MRST confirmation plan explicitly labeled as a pre-logistics
+non-development ranking.

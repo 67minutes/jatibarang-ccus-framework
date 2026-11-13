@@ -225,6 +225,37 @@ def uncertainty_from_prediction(
     basis: dict[str, Any],
 ) -> EconomicUncertaintyProfile:
     defaults = basis["default_uncertainty"]
+    source_class = str(
+        prediction.provenance.get("source_class", "surrogate_prediction")
+    )
+    if source_class in {"mrst", "mrst_truth"}:
+        return EconomicUncertaintyProfile(
+            periods=[
+                AnnualUncertainty(
+                    year=period.year,
+                    oil_error_fraction=0.0,
+                    gas_error_fraction=0.0,
+                    co2_mass_error_fraction=0.0,
+                )
+                for period in periods
+            ],
+            extended_horizon=False,
+            low_confidence_reasons=[],
+            provenance=[
+                EconomicProvenance(
+                    source_class="mrst_truth",
+                    source_id=prediction.scenario_id,
+                    notes=(
+                        "Offline full-physics confirmation; no surrogate "
+                        "trajectory uncertainty applied."
+                    ),
+                    metadata={
+                        "inventory_accounting": prediction.inventory.method,
+                        "inventory_caveat": prediction.inventory.caveat,
+                    },
+                )
+            ],
+        )
     co2_error = (
         defaults["extended_horizon_co2_mass_error_fraction"]
         if prediction.confidence.extended_horizon

@@ -79,6 +79,10 @@ interface FieldState {
    * this session only and is deliberately absent from FieldSetupMemo.
    */
   reservoirRuntime: ReservoirImportResponse | null;
+  /** Optional well-specific geology assignment; absent wells use the primary model. */
+  reservoirAssignments: Record<string, ReservoirRef>;
+  /** Session-only payloads paired with reservoirAssignments. */
+  reservoirRuntimes: Record<string, ReservoirImportResponse>;
   roads: RoadsRef | null;
   /** Simplified runtime map layers; deliberately excluded from memos. */
   roadLayers: RoadLayers | null;
@@ -94,6 +98,8 @@ interface FieldState {
     placement: FieldPlacement,
     overviewData?: TerrainData | null,
     reservoirRuntime?: ReservoirImportResponse | null,
+    reservoirAssignments?: Record<string, ReservoirRef>,
+    reservoirRuntimes?: Record<string, ReservoirImportResponse>,
   ) => void;
   setRoads: (roads: RoadsRef | null, layers: RoadLayers | null) => void;
   moveField: (center_lat: number, center_lon: number) => void;
@@ -121,6 +127,8 @@ const EMPTY_STATE = {
   overviewData: null,
   reservoir: null,
   reservoirRuntime: null,
+  reservoirAssignments: {},
+  reservoirRuntimes: {},
   roads: null,
   roadLayers: null,
   placement: null,
@@ -199,12 +207,16 @@ export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
       placement,
       overviewData = null,
       reservoirRuntime = null,
+      reservoirAssignments = { W01: reservoir },
+      reservoirRuntimes = reservoirRuntime ? { W01: reservoirRuntime } : {},
     ) =>
       set({
         terrain,
         overviewData,
         reservoir,
         reservoirRuntime,
+        reservoirAssignments,
+        reservoirRuntimes,
         roads: null,
         roadLayers: null,
         placement,
@@ -265,11 +277,21 @@ export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
     },
 
     removeWell: (id) =>
-      set((state) => ({
-        wells: state.wells.filter(
-          (well) => well.id !== id || well.kind === "native",
-        ),
-      })),
+      set((state) => {
+        const removed = state.wells.find(
+          (well) => well.id === id && well.kind !== "native",
+        );
+        if (!removed) return {};
+        const reservoirAssignments = { ...state.reservoirAssignments };
+        const reservoirRuntimes = { ...state.reservoirRuntimes };
+        delete reservoirAssignments[id];
+        delete reservoirRuntimes[id];
+        return {
+          wells: state.wells.filter((well) => well.id !== id),
+          reservoirAssignments,
+          reservoirRuntimes,
+        };
+      }),
 
     addSource: (source) => {
       const id = nextId(
@@ -318,6 +340,19 @@ export const useFieldStore: UseBoundStore<StoreApi<FieldState>> =
         // Runtime geology and launch pads are never serialized into a portable
         // result summary; memo hydration relinks them by id and hash.
         reservoirRuntime: null,
+        reservoirAssignments: Object.fromEntries(
+          Object.entries(setup.reservoir_assignments ?? { W01: setup.reservoir }).map(
+            ([wellId, reference]) => [
+              wellId,
+              {
+                ...reference,
+                well_ij: [...reference.well_ij],
+                covered_fingerprints: [...reference.covered_fingerprints],
+              },
+            ],
+          ),
+        ),
+        reservoirRuntimes: {},
         roads: setup.roads ? { ...setup.roads } : null,
         roadLayers: null,
         placement: { ...setup.placement },

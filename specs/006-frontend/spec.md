@@ -91,8 +91,15 @@ All screening data comes from Feature 005 contracts. Canonical paper data comes 
 - `GET /paper/results/{bundle_id}/reservoirs/{case_id}`.
 
 Backend additions are limited to typed `detailed_reservoirs`, paper bundle/index
-contracts, read-only routes, and the guarded static build mount. No physical or
-economic calculation is duplicated in TypeScript.
+contracts, hash-addressed reservoir/road/spatial-artifact import routes, read-only
+routes, and the guarded static build mount. No physical or economic calculation is
+duplicated in TypeScript.
+
+An editable study may assign distinct compact MRST-derived models and launch-pad
+banks to contiguous well IDs W01-W20. Static field inspection follows the selected
+well before screening. Detailed dynamics remain bounded to the declared top-K; memo
+v4 stores those fields in a separate gzip-compressed artifact and verifies its SHA-256
+when reopening the memo.
 
 The offline study uses Figure 3's declared median validation case, `case_0016`: real
 MRST-derived static geology and warm history with a frozen-checkpoint screen result.
@@ -120,6 +127,11 @@ unavailable; there is no synthetic substitution.
 - [x] Pointer/keyboard split panes with reset and collapse/restore.
 - [x] APECX Paper Results study with honest ready/blocked/unavailable states.
 - [x] 2D failure fallback and no browser storage.
+- [x] Offline Earth boot, terrain footprints, earth/basin/field navigation, and
+  camera-tracked compass.
+- [x] Hash-addressed OSM import, batched context layers, per-candidate road-following
+  trucking routes, and visible distance provenance.
+- [x] W01-W20 reservoir catalog import plus memo-v4 top-K playback persistence.
 - [ ] Load and rehearse the immutable submitted paper bundle after scientific freeze.
 
 The current Feature 007 `working` bundle is partial and unfrozen, with scenario count

@@ -11,14 +11,17 @@ import {
   getTerrainWindow,
   importRoads,
   importReservoir,
+  importReservoirCatalog,
   importTerrain,
   listTerrains,
   type RoadLayers,
   type RegisteredTerrain,
   type RoadsImportResponse,
   type ReservoirImportResponse,
+  type ReservoirCatalogImportResponse,
 } from "../api/client";
 import { DEFAULT_OPERATIONAL_GRID } from "../compose/defaults";
+import { comboFingerprint, scheduleCombos } from "../compose/coverage";
 import {
   studySchedulePlan,
   type StudySchedulePlan,
@@ -38,6 +41,7 @@ import {
 } from "../state/study.store";
 import { applyWellsCsvRows, parseWellsCsv } from "./wellsCsv";
 import { scientificDisplayText } from "../ui/presentation";
+import { parseReservoirCatalog } from "./reservoirCatalog";
 
 const IMPORT_TERRAIN = "__import__";
 
@@ -131,6 +135,27 @@ export function launchPadCoveragePreview(
   }
 }
 
+export function commonCatalogGridCoverage(
+  catalog: ReservoirCatalogImportResponse,
+): { covered: number; total: number } {
+  const runtimes = Object.values(catalog.reservoirs);
+  const common = runtimes.slice(1).reduce<Set<string>>(
+    (left, runtime) => new Set(
+      [...left].filter((fingerprint) =>
+        runtime.launchpads.covered_fingerprints.includes(fingerprint),
+      ),
+    ),
+    new Set(runtimes[0]?.launchpads.covered_fingerprints ?? []),
+  );
+  const fingerprints = scheduleCombos(DEFAULT_OPERATIONAL_GRID).map((schedule) =>
+    comboFingerprint(schedule, 45),
+  );
+  return {
+    covered: fingerprints.filter((fingerprint) => common.has(fingerprint)).length,
+    total: fingerprints.length,
+  };
+}
+
 export function NewStudyDialog({ onDone }: { onDone: () => void }) {
   const createNewStudy = useActionsStore((state) => state.actions.createNewStudy);
   const current = useStudyStore((state) => state.study);
@@ -166,6 +191,10 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
   const [reservoirImportResult, setReservoirImportResult] =
     useState<ReservoirImportResponse | null>(null);
   const [reservoirImportKey, setReservoirImportKey] = useState<string | null>(null);
+  const [catalogJson, setCatalogJson] = useState("");
+  const [catalogImportResult, setCatalogImportResult] =
+    useState<ReservoirCatalogImportResponse | null>(null);
+  const [catalogImportKey, setCatalogImportKey] = useState<string | null>(null);
 
   const [roadPath, setRoadPath] = useState("");
   const [roadsImporting, setRoadsImporting] = useState(false);
@@ -187,6 +216,7 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
   const pending =
     terrainImporting || reservoirImporting || roadsImporting || submitting;
   const currentReservoirKey = `${modelPath.trim()}\n${bankPath.trim()}`;
+  const currentCatalogKey = catalogJson.trim();
   const currentRoadsKey = `${roadPath.trim()}\n${terrainSelection}`;
 
   const suggestedMemo = useMemo(() => {
@@ -288,6 +318,27 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
   }
 
   async function loadReservoir(): Promise<ReservoirImportResponse | null> {
+    if (catalogJson.trim()) {
+      setReservoirImporting(true);
+      setReservoirError(null);
+      try {
+        const entries = parseReservoirCatalog(catalogJson);
+        const catalog = await importReservoirCatalog(entries);
+        const primary = catalog.reservoirs.W01;
+        if (!primary) throw new Error("Reservoir catalog must include W01.");
+        if (!mounted.current) return null;
+        setCatalogImportResult(catalog);
+        setCatalogImportKey(currentCatalogKey);
+        setReservoirImportResult(primary);
+        setReservoirImportKey(null);
+        return primary;
+      } catch (error) {
+        if (mounted.current) setReservoirError(messageFrom(error));
+        return null;
+      } finally {
+        if (mounted.current) setReservoirImporting(false);
+      }
+    }
     const path = modelPath.trim();
     if (!path) {
       setReservoirError("Enter the backend-visible path to an MRST .mat model.");
@@ -301,6 +352,8 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
       if (!mounted.current) return null;
       setReservoirImportResult(imported);
       setReservoirImportKey(key);
+      setCatalogImportResult(null);
+      setCatalogImportKey(null);
       return imported;
     } catch (error) {
       if (mounted.current) setReservoirError(messageFrom(error));
@@ -314,6 +367,20 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
     setReservoirImportResult(null);
     setReservoirImportKey(null);
     setReservoirError(null);
+    setCatalogImportResult(null);
+    setCatalogImportKey(null);
+  }
+
+  async function readCatalogFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setReservoirError(null);
+    try {
+      setCatalogJson(await file.text());
+      invalidateReservoirImport();
+    } catch {
+      setReservoirError("The selected reservoir catalog could not be read.");
+    }
   }
 
   function invalidateRoadsImport() {
@@ -391,8 +458,8 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
       setFormError("Field / reservoir name is required.");
       return;
     }
-    if (!modelPath.trim()) {
-      setFormError("Reservoir model path is required.");
+    if (!modelPath.trim() && !catalogJson.trim()) {
+      setFormError("A reservoir model path or per-well catalog is required.");
       return;
     }
     const terrainRecord = terrains.find(
@@ -404,10 +471,19 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
     }
 
     let csvRows: ReturnType<typeof parseWellsCsv> = [];
+    let catalogEntries: ReturnType<typeof parseReservoirCatalog> | null = null;
     try {
       if (wellsCsv.trim()) csvRows = parseWellsCsv(wellsCsv);
+      if (catalogJson.trim()) catalogEntries = parseReservoirCatalog(catalogJson);
     } catch (error) {
-      setWellsError(messageFrom(error));
+      if (catalogJson.trim()) setReservoirError(messageFrom(error));
+      else setWellsError(messageFrom(error));
+      return;
+    }
+    if (catalogEntries && csvRows.filter((row) => row.id.toUpperCase() !== "W01").length !== catalogEntries.length - 1) {
+      setWellsError(
+        `The ${catalogEntries.length}-entry reservoir catalog requires ${catalogEntries.length - 1} placed wells in the CSV.`,
+      );
       return;
     }
 
@@ -434,10 +510,17 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
               512,
             );
       if (!mounted.current) return;
-      const importedReservoir =
-        reservoirImportResult && reservoirImportKey === currentReservoirKey
+      const importedCatalog = catalogEntries
+        ? catalogImportResult && catalogImportKey === currentCatalogKey
+          ? catalogImportResult
+          : await importReservoirCatalog(catalogEntries)
+        : null;
+      const importedReservoir = importedCatalog
+        ? importedCatalog.reservoirs.W01
+        : reservoirImportResult && reservoirImportKey === currentReservoirKey
           ? reservoirImportResult
           : await importReservoir(modelPath.trim(), bankPath.trim() || null);
+      if (!importedReservoir) throw new Error("The reservoir catalog has no W01 entry.");
       if (!mounted.current) return;
       const cachedRoads =
         roadsImportResult &&
@@ -473,6 +556,15 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
         },
         overview,
         importedReservoir,
+        importedCatalog
+          ? Object.fromEntries(
+              Object.entries(importedCatalog.reservoirs).map(([wellId, runtime]) => [
+                wellId,
+                reservoirRefFromImport(runtime),
+              ]),
+            )
+          : { W01: reservoirRefFromImport(importedReservoir) },
+        importedCatalog?.reservoirs ?? { W01: importedReservoir },
       );
       field.setRoads(
         importedRoads?.roads ?? null,
@@ -499,8 +591,8 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
   return (
     <form className="dialog-form" onSubmit={submit}>
       <p className="dialog-intro">
-        Register terrain and one reservoir model, place the field, then build a
-        screening study from explicit engineering inputs.
+        Register terrain and either one reservoir model or a per-well catalog,
+        place the field, then build a screening study from explicit inputs.
       </p>
 
       <div className="dialog-grid">
@@ -575,13 +667,12 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
               placeholder="C:\\path\\to\\reservoir.mat"
               disabled={pending}
               aria-label="Reservoir model path"
-              required
             />
             <button
               type="button"
               className="btn"
               onClick={() => void loadReservoir()}
-              disabled={pending || !modelPath.trim()}
+              disabled={pending || (!modelPath.trim() && !catalogJson.trim())}
             >
               {reservoirImporting ? "Inspecting…" : "Inspect model"}
             </button>
@@ -602,6 +693,30 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
             Without a bank, screening is limited to the model&apos;s native schedule.
           </small>
         </label>
+        <details className="dialog-field dialog-field-wide">
+          <summary>Per-well reservoir catalog (optional)</summary>
+          <p>
+            Assign distinct derived MRST models to contiguous well ids W01-W20.
+            Catalog mode overrides the single model fields above.
+          </p>
+          <input
+            type="file"
+            accept=".json,application/json"
+            onChange={(event) => void readCatalogFile(event)}
+            disabled={pending}
+            aria-label="Reservoir catalog file"
+          />
+          <textarea
+            rows={4}
+            value={catalogJson}
+            onChange={(event) => {
+              setCatalogJson(event.target.value);
+              invalidateReservoirImport();
+            }}
+            placeholder={'{"entries":[{"well_id":"W01","model_path":"C:\\\\models\\\\case.reservoir.npz"}]}' }
+            aria-label="Reservoir catalog JSON"
+          />
+        </details>
         <div className="dialog-field dialog-field-wide">
           <span>Road network (.osm.pbf)</span>
           <div className="dialog-inline">
@@ -637,7 +752,13 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
           <p className="dialog-error dialog-field-wide">{reservoirError}</p>
         ) : null}
         <div className="dialog-status dialog-field-wide" aria-live="polite">
-          {coveragePreview?.plan ? (
+          {catalogImportResult ? (
+            <>
+              <strong>{catalogImportResult.count}</strong> per-well models loaded. {" "}
+              <strong>{commonCatalogGridCoverage(catalogImportResult).covered} of {commonCatalogGridCoverage(catalogImportResult).total}</strong>{" "}
+              grid schedules are covered by every model.
+            </>
+          ) : coveragePreview?.plan ? (
             <>
               <strong>
                 {coveragePreview.plan.coverage.covered.toLocaleString()} of{" "}
@@ -790,7 +911,7 @@ export function NewStudyDialog({ onDone }: { onDone: () => void }) {
             pending ||
             runActive ||
             !name.trim() ||
-            !modelPath.trim() ||
+            (!modelPath.trim() && !catalogJson.trim()) ||
             terrainSelection === IMPORT_TERRAIN ||
             !createNewStudy
           }

@@ -10,6 +10,10 @@
 
 **Spec:** `docs/superpowers/specs/2026-07-18-earth-view-osm-routing-design.md`
 
+**Execution status (2026-07-19):** implemented and verified in the current worktree.
+The historical task checkboxes below preserve the original Claude-authored plan; the
+completion record at the end is the execution source of truth.
+
 ## Global Constraints
 
 - Fully offline: no runtime tile servers; globe assets are bundled same-origin static files; map context and routing come only from user-imported files (spec §2).
@@ -1313,6 +1317,27 @@ export function latLonToVec3(lat: number, lon: number, radius: number): [number,
 - [ ] **Step 5: Commit** — `git add -A && git commit -m "docs: import store notes and trucking provenance display"`
 
 ---
+
+## Execution completion record (2026-07-19)
+
+- Tasks 1-3: camera-backed compass, reservoir reload route, memo-v4 W01-W20 relink,
+  SHA checks, and restored spatial playback are complete.
+- Tasks 4-6: official Java PBF imported; cache schema 4 compact CSR replaces the
+  memory-prohibitive NetworkX materialization; route API, exact per-candidate legs,
+  estimates, and provenance are complete. The fixed production 70 km constant is
+  absent.
+- Tasks 7-9: road field wiring, context layers, routed trucking previews, offline
+  Earth assets, footprints, and earth/basin/field navigation are complete.
+- Task 10: import-store documentation, browser QA, 187 backend tests, 176 frontend
+  tests, TypeScript, production build, and Feature 007 bundle build/verification pass.
+- Real QA evidence: memo v4 with 20 distinct model IDs and 20 distinct banks; ten
+  archived plume/reservoir pairs; 20 road-preview legs with 1,658-2,909 points in the
+  saved result; W01/W02 playback; and a five-entry MRST export with
+  `development_selection_claimed=false`.
+- The full 200/3,240 paper banks and scientific A/B/C results remain explicitly
+  `NOT_RUN`/blocked. The completed 20-run bank is workflow evidence only.
+- No task-by-task commits were created because the repository already contained
+  unrelated user changes and no commit was requested.
 
 ## Self-Review Notes
 

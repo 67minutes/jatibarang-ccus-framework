@@ -211,6 +211,28 @@ Promotion requires:
   three-run benchmark and both preset-bank exports were not launched.
 - No `submitted` or `full_3240` bundle exists. No A/B/C paper number is promoted.
 
+## Implementation record: 2026-07-18
+
+- Arm C now has a deterministic 40-assignment correlation-bracket design: 20
+  seeded bijective well-to-realization assignments for the independent limit and
+  20 shared-realization sweeps for the correlated limit. The working bundle
+  carries the 800-row well-level assignment table.
+- The Feature 005 orchestrator exposes a cache-only downstream resolve path. It
+  validates complete prediction-cache coverage, makes zero surrogate calls, and
+  still executes route/network selection, facility sizing, and two-pass
+  economics. The Feature 007 adapter runs it once per assignment and projects
+  the declared carbon-price cells without recomputing rollouts.
+- The working bundle declares `resolve_grouping=assignment_x_carbon_price`,
+  `rollout_policy=reuse_the_same_3240_cached_rollouts`, and
+  `named_well_single_assignment_claim=false`. Build and hash verification pass
+  for present artifacts.
+- These are orchestration and experiment-design results, not promoted Arm C
+  numbers. The full 3,240-case cache and `arm_c_screening.json` remain missing,
+  so Arm C is still scientifically `NOT_RUN` and the bundle remains blocked.
+- A separate 20-well, one-common-schedule MRST workflow bank is permitted only
+  as end-to-end UI evidence. It cannot satisfy the 200/3,240 paper bank gate or
+  be used as an A/B/C result.
+
 The feature is not done until a 200- or 3,240-scenario bundle is scientifically ready,
 all eight figures are ready, the locked A/B/C confirmations exist, and an immutable
 submission bundle passes verification.

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import gzip
 import hashlib
+import json
 import math
 from pathlib import Path
 from time import perf_counter
@@ -11,7 +13,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..imports.launchpads import LaunchpadBankError, load_launchpad_bank
 from ..imports.mrst import MrstImportError, load_mrst_reservoir
@@ -19,7 +21,13 @@ from ..imports.roads import RoadsImportError, RoadsRegistry
 from ..imports.store import ImportStore
 from ..imports.terrain import Heightmap, TerrainImportError, TerrainRegistry
 from ..screening.progress import RunBusyError, sse_encode
-from ..screening.schemas import HealthResponse, PresetInfo, ScreenRequest, ScreenResult
+from ..screening.schemas import (
+    HealthResponse,
+    PresetInfo,
+    ReservoirVisualization,
+    ScreenRequest,
+    ScreenResult,
+)
 
 from ..surrogate.metadata import public_metadata
 from ..surrogate.postprocessing import build_prediction_result
@@ -98,9 +106,51 @@ class ReservoirImportRequest(BaseModel):
     bank_path: str | None = None
 
 
+class ReservoirCatalogEntry(ReservoirImportRequest):
+    well_id: str = Field(min_length=1)
+
+
+class ReservoirCatalogImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    entries: list[ReservoirCatalogEntry] = Field(min_length=1, max_length=20)
+
+    @model_validator(mode="after")
+    def _unique_wells(self) -> "ReservoirCatalogImportRequest":
+        well_ids = [entry.well_id for entry in self.entries]
+        if len(well_ids) != len(set(well_ids)):
+            raise ValueError("reservoir catalog well IDs must be unique")
+        return self
+
+
 class RoadsImportRequest(BaseModel):
     path: str
     terrain_id: str
+
+
+class SpatialResultArchive(BaseModel):
+    """The cell-scale portion of one result, persisted beside imported inputs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    request_fingerprint: str = Field(min_length=64, max_length=64)
+    detailed_predictions: dict[str, PredictionResult] = Field(min_length=1)
+    detailed_reservoirs: dict[str, ReservoirVisualization] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _aligned_scenarios(self) -> "SpatialResultArchive":
+        prediction_ids = set(self.detailed_predictions)
+        reservoir_ids = set(self.detailed_reservoirs)
+        if prediction_ids != reservoir_ids:
+            raise ValueError("spatial prediction and reservoir scenario IDs must match")
+        for scenario_id in sorted(prediction_ids):
+            prediction = self.detailed_predictions[scenario_id]
+            reservoir = self.detailed_reservoirs[scenario_id]
+            if prediction.scenario_id != scenario_id or reservoir.scenario_id != scenario_id:
+                raise ValueError("spatial archive keys must match embedded scenario IDs")
+            if prediction.fields is None:
+                raise ValueError("spatial archives require detailed prediction fields")
+        return self
 
 
 def _reservoir_payload(
@@ -166,6 +216,35 @@ def create_app(
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    def store_reservoir(payload: ReservoirImportRequest) -> dict[str, Any]:
+        try:
+            model_path = Path(payload.model_path)
+            load_mrst_reservoir(model_path)
+        except MrstImportError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        stored = artifacts.put(model_path)
+        bank_id = bank_sha = None
+        bank_path = None
+        if payload.bank_path:
+            try:
+                bank_path = Path(payload.bank_path)
+                load_launchpad_bank(bank_path)
+            except LaunchpadBankError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            stored_bank = artifacts.put(bank_path)
+            bank_id, bank_sha = stored_bank.artifact_id, stored_bank.sha256
+            stored_bank_path = stored_bank.path
+        else:
+            stored_bank_path = None
+        return _reservoir_payload(
+            stored.path,
+            stored.artifact_id,
+            stored.sha256,
+            stored_bank_path,
+            bank_id,
+            bank_sha,
+        )
 
     @application.exception_handler(RequestValidationError)
     async def request_validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -408,30 +487,30 @@ def create_app(
     )
     def reservoir_import(payload: ReservoirImportRequest, request: Request) -> dict[str, Any]:
         _require_local_client(request)
-        try:
-            model_path = Path(payload.model_path)
-            imported = load_mrst_reservoir(model_path)
-        except MrstImportError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        stored = artifacts.put(model_path)
-        bank_id = bank_sha = None
-        bank_path = None
-        if payload.bank_path:
-            try:
-                bank_path = Path(payload.bank_path)
-                load_launchpad_bank(bank_path)
-            except LaunchpadBankError as exc:
-                raise HTTPException(status_code=422, detail=str(exc)) from exc
-            stored_bank = artifacts.put(bank_path)
-            bank_id, bank_sha = stored_bank.artifact_id, stored_bank.sha256
-        return _reservoir_payload(
-            stored.path,
-            stored.artifact_id,
-            stored.sha256,
-            stored_bank.path if payload.bank_path else None,
-            bank_id,
-            bank_sha,
-        )
+        return store_reservoir(payload)
+
+    @application.post(
+        "/reservoir/import-batch",
+        summary="Import a well-keyed catalog of derived MRST reservoir models",
+        responses={
+            200: {"description": "Well-keyed typed reservoir payloads"},
+            422: {"description": "Catalog, model, or bank is unreadable"},
+        },
+    )
+    def reservoir_import_batch(
+        payload: ReservoirCatalogImportRequest,
+        request: Request,
+    ) -> dict[str, Any]:
+        _require_local_client(request)
+        reservoirs: dict[str, dict[str, Any]] = {}
+        for entry in payload.entries:
+            reservoirs[entry.well_id] = store_reservoir(
+                ReservoirImportRequest(
+                    model_path=entry.model_path,
+                    bank_path=entry.bank_path,
+                )
+            )
+        return {"reservoirs": reservoirs, "count": len(reservoirs)}
 
     @application.get(
         "/reservoir/{model_id}",
@@ -463,6 +542,60 @@ def create_app(
             )
         except (MrstImportError, LaunchpadBankError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @application.post(
+        "/screening/spatial",
+        summary="Persist detailed screening fields for a portable study memo",
+        responses={200: {"description": "Hash-addressed spatial-result reference"}},
+    )
+    def screening_spatial_put(
+        payload: SpatialResultArchive,
+        request: Request,
+    ) -> dict[str, Any]:
+        _require_local_client(request)
+        encoded = json.dumps(
+            payload.model_dump(mode="json"),
+            separators=(",", ":"),
+            sort_keys=True,
+            allow_nan=False,
+        ).encode("utf-8")
+        compressed = gzip.compress(encoded, compresslevel=6, mtime=0)
+        stored = artifacts.put_bytes("screening-spatial.json.gz", compressed)
+        return {
+            "artifact_id": stored.artifact_id,
+            "sha256": stored.sha256,
+            "request_fingerprint": payload.request_fingerprint,
+            "scenario_count": len(payload.detailed_predictions),
+            "compressed_bytes": len(compressed),
+        }
+
+    @application.get(
+        "/screening/spatial/{artifact_id}",
+        summary="Re-link detailed screening fields from the artifact store",
+        responses={
+            200: {"description": "Verified spatial-result archive"},
+            404: {"description": "Spatial-result artifact is missing"},
+            422: {"description": "Stored spatial-result artifact is invalid"},
+        },
+    )
+    def screening_spatial_get(artifact_id: str) -> dict[str, Any]:
+        try:
+            path = artifacts.resolve(artifact_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        compressed = path.read_bytes()
+        digest = hashlib.sha256(compressed).hexdigest().upper()
+        if digest[:16].lower() != artifact_id.lower():
+            raise HTTPException(status_code=422, detail="spatial-result artifact ID mismatch")
+        try:
+            payload = SpatialResultArchive.model_validate_json(gzip.decompress(compressed))
+        except (OSError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail="stored spatial-result artifact is invalid") from exc
+        return {
+            "artifact_id": artifact_id.lower(),
+            "sha256": digest,
+            "payload": payload.model_dump(mode="json"),
+        }
 
     @application.post(
         "/roads/import",

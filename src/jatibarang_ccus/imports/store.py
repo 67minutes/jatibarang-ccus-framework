@@ -21,13 +21,34 @@ class ImportStore:
 
     def put(self, source: Path) -> StoredArtifact:
         source = Path(source)
-        digest = hashlib.sha256(source.read_bytes()).hexdigest().upper()
+        return self.put_bytes(source.name, source.read_bytes(), source=source)
+
+    def put_bytes(
+        self,
+        name: str,
+        payload: bytes,
+        *,
+        source: Path | None = None,
+    ) -> StoredArtifact:
+        """Store generated artifact bytes under the same content-addressed contract.
+
+        Imported study inputs use :meth:`put`; generated, compact companions such
+        as a memo's spatial-result archive have no source file and use this method.
+        The basename restriction prevents callers from escaping the digest folder.
+        """
+
+        if not name or Path(name).name != name:
+            raise ValueError("artifact name must be a non-empty basename")
+        digest = hashlib.sha256(payload).hexdigest().upper()
         artifact_id = digest[:16].lower()
         target_dir = self.root / artifact_id
-        target = target_dir / source.name
+        target = target_dir / name
         if not target.exists():
             target_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
+            if source is None:
+                target.write_bytes(payload)
+            else:
+                shutil.copy2(source, target)
         return StoredArtifact(artifact_id=artifact_id, sha256=digest, path=target)
 
     def resolve(self, artifact_id: str) -> Path:

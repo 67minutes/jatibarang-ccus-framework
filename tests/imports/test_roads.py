@@ -8,6 +8,7 @@ import pytest
 from jatibarang_ccus.imports.roads import (
     RoadsImportError,
     RoadsRegistry,
+    compact_layer_payload,
     haversine_km,
 )
 
@@ -64,6 +65,15 @@ def write_pbf(path: Path) -> None:
             id=4,
             nodes=[9, 10],
             tags={"waterway": "river"},
+        )
+    )
+    # A clipped way must split at the out-of-bounds node instead of creating
+    # an artificial straight edge between its two in-bounds endpoints.
+    writer.add_way(
+        osmium.osm.mutable.Way(
+            id=5,
+            nodes=[1, 4, 3],
+            tags={"highway": "secondary"},
         )
     )
     writer.close()
@@ -124,3 +134,17 @@ def test_rejects_non_pbf(tmp_path: Path) -> None:
     bogus.write_bytes(b"not a pbf")
     with pytest.raises(RoadsImportError):
         RoadsRegistry(tmp_path / "imports").imports(bogus, EXTENT)
+
+
+def test_layer_compaction_is_bounded_and_deterministic() -> None:
+    roads = [
+        {"class": road_class, "points": [[-6.5, 107.0], [-6.4, 107.1 + index]]}
+        for road_class in ("major", "minor")
+        for index in range(5)
+    ]
+    payload = {"roads": roads, "coastline": [], "places": []}
+    first = compact_layer_payload(payload, limits={"major": 2, "minor": 3})
+    second = compact_layer_payload(payload, limits={"major": 2, "minor": 3})
+    assert first == second
+    assert [road["class"] for road in first["roads"]].count("major") == 2
+    assert [road["class"] for road in first["roads"]].count("minor") == 3

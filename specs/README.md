@@ -35,17 +35,23 @@ and sends raw pipeline/facility/trucking ownership through Feature 004. Focused 
 complete regression suites pass. The fixed MRST-derived demo/full preset payloads are
 not yet materialized, so the saved preset-promotion evidence is honestly `BLOCKED`
 without a fabricated result. Feature 007 still owns A/B/C execution and paper-facing
-scientific promotion.
+scientific promotion. A cache-only path now supports Feature 007 downstream
+assignment re-solves while explicitly recording zero surrogate calls.
 
 Feature 006 (`006-frontend`) is implemented as a Vite/React screening workbench over
 the typed APIs. It includes the complete compose/run/explore workflow, a real-case
 offline result, a physically proportioned 64 x 64 x 1 reservoir renderer, independent
 scene layers, accessible split panes, and an APECX Paper Results study. It disables
-unavailable fields and never substitutes an unrelated plume or relabeled scalar.
+unavailable fields and never substitutes an unrelated plume or relabeled scalar. The
+workbench now boots at an offline Earth globe, imports OSM routing/context, accepts a
+distinct derived MRST reservoir catalog for W01-W20, and preserves retained top-K
+dynamic fields through memo-v4 spatial archives.
 
 Feature 007 (`007-paper-figures`) has a deterministic canonical-bundle builder,
 verifier, freeze guard, read-only API, exact Arm B design, reservoir comparison
-payload, and one script per Figure 1-8. The current `working` bundle verifies its
+payload, 20 independent plus 20 correlated Arm C field assignments, cache-only
+assignment x carbon-price orchestration, and one script per Figure 1-8. The current
+`working` bundle verifies its
 present hashes but remains partial and unfrozen: scenario count zero, mechanical
 `BLOCKED`, scientific `NOT_RUN`. Figures 1, 2, 3, and 6 are ready; Figures 4, 5, 7,
 and 8 and all locked A/B/C results remain blocked. No submitted/full bundle exists.

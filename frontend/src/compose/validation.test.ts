@@ -97,4 +97,31 @@ describe("validateDraft", () => {
     d.candidates = [d.candidates[0], d.candidates[0]];
     expect(validateDraft(d).valid).toBe(false);
   });
+
+  it("accepts engineer-controlled oil, lifting-cost, and discount assumptions", () => {
+    const d = baseDraft();
+    d.economic_assumptions = {
+      oil_price_usd_per_bbl: 120,
+      oil_price_max_usd_per_bbl: 500,
+      lifting_cost_usd_per_bbl: 22,
+      discount_rate: 0.08,
+    };
+
+    expect(validateDraft(d).valid).toBe(true);
+  });
+
+  it("rejects economic assumptions outside their declared bounds", () => {
+    const d = baseDraft();
+    d.economic_assumptions = {
+      oil_price_usd_per_bbl: 501,
+      oil_price_max_usd_per_bbl: 500,
+      lifting_cost_usd_per_bbl: -1,
+      discount_rate: 1.01,
+    };
+
+    const fields = validateDraft(d).errors.map((error) => error.field);
+    expect(fields).toContain("economic_assumptions.oil_price_usd_per_bbl");
+    expect(fields).toContain("economic_assumptions.lifting_cost_usd_per_bbl");
+    expect(fields).toContain("economic_assumptions.discount_rate");
+  });
 });

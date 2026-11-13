@@ -135,6 +135,36 @@ export function validateDraft(draft: InlineScreenRequest | null): ValidationRepo
     errors.push({ field: "annual_co2_budget_tonnes", message: "Annual CO₂ budget must be positive." });
   }
 
+  const economic = draft.economic_assumptions;
+  if ("oil_price_usd_per_bbl" in economic) {
+    const oilPrice = Number(economic.oil_price_usd_per_bbl);
+    const oilPriceMax = Number(economic.oil_price_max_usd_per_bbl ?? 500);
+    if (!Number.isFinite(oilPrice) || oilPrice < 0 || oilPrice > oilPriceMax) {
+      errors.push({
+        field: "economic_assumptions.oil_price_usd_per_bbl",
+        message: `Oil price must be between 0 and ${oilPriceMax} USD/bbl.`,
+      });
+    }
+  }
+  if ("lifting_cost_usd_per_bbl" in economic) {
+    const liftingCost = Number(economic.lifting_cost_usd_per_bbl);
+    if (!Number.isFinite(liftingCost) || liftingCost < 0) {
+      errors.push({
+        field: "economic_assumptions.lifting_cost_usd_per_bbl",
+        message: "Lifting cost must be non-negative.",
+      });
+    }
+  }
+  if ("discount_rate" in economic) {
+    const discountRate = Number(economic.discount_rate);
+    if (!Number.isFinite(discountRate) || discountRate < 0 || discountRate > 1) {
+      errors.push({
+        field: "economic_assumptions.discount_rate",
+        message: "Discount rate must be between 0% and 100%.",
+      });
+    }
+  }
+
   // Trained-range warnings (amber).
   if (hasGrid) {
     const grid = draft.operational_grid as OperationalGrid;

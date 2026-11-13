@@ -1,4 +1,9 @@
-import { getReservoir, getRoadLayers, getTerrainWindow } from "../api/client";
+import {
+  getReservoir,
+  getRoadLayers,
+  getSpatialResult,
+  getTerrainWindow,
+} from "../api/client";
 import { useFieldStore } from "../state/field.store";
 import { useUiStore } from "../state/ui.store";
 import { isLegacyMemo, isStudyMemo, type StudyMemo } from "./studyMemo";
@@ -54,6 +59,7 @@ export async function hydrateMemoFieldSetup(memo: StudyMemo): Promise<void> {
 
   ui.dismissBanner("memo-legacy");
   ui.dismissBanner("roads-relink");
+  ui.dismissBanner("memo-spatial-relink");
   if (!memo.field_setup) return;
 
   field.hydrate(memo.field_setup);
@@ -78,25 +84,80 @@ export async function hydrateMemoFieldSetup(memo: StudyMemo): Promise<void> {
   }
 
   try {
-    const runtime = await getReservoir(
-      memo.field_setup.reservoir.model_id,
-      memo.field_setup.reservoir.bank_id,
-    );
+    const assignments =
+      memo.field_setup.reservoir_assignments ?? {
+        W01: memo.field_setup.reservoir,
+      };
+    const runtimes: Record<string, Awaited<ReturnType<typeof getReservoir>>> = {};
+    for (const [wellId, reference] of Object.entries(assignments).sort(
+      ([left], [right]) => left.localeCompare(right),
+    )) {
+      const runtime = await getReservoir(reference.model_id, reference.bank_id);
+      const verified =
+        runtime.sha256 === reference.sha256 &&
+        (!reference.bank_sha256 ||
+          runtime.launchpads.bank_sha256 === reference.bank_sha256);
+      if (!verified) {
+        throw new Error(`reservoir relink hash mismatch for ${wellId}`);
+      }
+      runtimes[wellId] = runtime;
+    }
     const active = useFieldStore.getState().reservoir;
-    const stillOpen =
-      active?.model_id === memo.field_setup.reservoir.model_id;
-    const verified =
-      runtime.sha256 === memo.field_setup.reservoir.sha256 &&
-      (!memo.field_setup.reservoir.bank_sha256 ||
-        runtime.launchpads.bank_sha256 ===
-          memo.field_setup.reservoir.bank_sha256);
-    if (stillOpen && verified) {
-      useFieldStore.setState({ reservoirRuntime: runtime });
+    const stillOpen = active?.model_id === memo.field_setup.reservoir.model_id;
+    const primaryRuntime = Object.values(runtimes).find(
+      (runtime) => runtime.model_id === memo.field_setup?.reservoir.model_id,
+    );
+    if (stillOpen && primaryRuntime) {
+      useFieldStore.setState({
+        reservoirRuntime: primaryRuntime,
+        reservoirRuntimes: runtimes,
+      });
       ui.dismissBanner("memo-reservoir-relink");
     }
   } catch {
     // The artifact may have been removed from data/imports. Keep the memo open;
     // the workbench banner explains how to restore screening capability.
+  }
+
+  if (memo.spatial_result) {
+    try {
+      const archive = await getSpatialResult(memo.spatial_result.artifact_id);
+      const stillOpen =
+        useFieldStore.getState().reservoir?.model_id ===
+        memo.field_setup.reservoir.model_id;
+      const verified =
+        archive.sha256 === memo.spatial_result.sha256 &&
+        archive.payload.request_fingerprint === memo.fingerprint &&
+        memo.spatial_result.request_fingerprint === memo.fingerprint;
+      if (!verified) {
+        throw new Error("spatial-result archive hash or fingerprint mismatch");
+      }
+      if (stillOpen) {
+        memo.result = {
+          ...memo.result,
+          detailed_predictions: archive.payload.detailed_predictions,
+          detailed_reservoirs: archive.payload.detailed_reservoirs,
+        };
+      }
+    } catch {
+      ui.pushBanner({
+        id: "memo-spatial-relink",
+        severity: "info",
+        message:
+          "Detailed reservoir frames for this study could not be re-linked. Aggregate results remain available; re-run screening to restore plume playback.",
+      });
+    }
+  } else if (
+    Object.values(memo.result.detailed_predictions ?? {}).some(
+      (prediction) => prediction.fields == null,
+    )
+  ) {
+    ui.pushBanner({
+      id: "memo-spatial-relink",
+      severity: "info",
+      message:
+        "This older study memo has no spatial-result archive. Aggregate results remain available; re-run screening and save again to preserve plume playback.",
+    });
   }
 
   if (memo.field_setup.roads) {

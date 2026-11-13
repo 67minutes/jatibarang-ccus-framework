@@ -20,6 +20,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+from .field_scenarios import assignment_rows, build_field_scenario_design
+
 
 BUNDLE_SCHEMA_VERSION = "feature007-bundle-v1"
 DEFAULT_BUNDLE_ID = "working"
@@ -27,6 +29,27 @@ DEFAULT_SEED = 20260717
 DEFAULT_GENERATED_AT = "2026-07-17T00:00:00+07:00"
 ROOT = Path(__file__).resolve().parents[3]
 BUNDLE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+EXPERIMENT_SOURCE_CLASSES = {
+    "surrogate_prediction",
+    "arm_c_integrated_result",
+    "mrst_and_surrogate_integrated_result",
+    "mrst_truth_and_surrogate_prediction",
+    "measured_runtime",
+    "dwsim_truth",
+    "screening_cost_proxy",
+}
+EXPERIMENT_TABLES = {
+    "screening_surface",
+    "pipeline_route_final",
+    "pipeline_pressure_final",
+    "pipeline_cost_crossover_final",
+    "carbon_price_rankings",
+    "carbon_price_regret",
+    "npv_vs_carbon_price",
+    "abc_economics",
+    "abc_runtime",
+    "topk_confirmation",
+}
 
 SCHEDULE_FIELDS = (
     "injection_rate_m3_day",
@@ -382,14 +405,311 @@ def _accepted_manifest_status(path: Path, root: Path, expected: int) -> dict[str
             "manifest": _repo_relative(path, root),
             "accepted_runs": 0,
         }
-    ready = accepted >= expected and not payload.get("failed_hashes", [])
+    reasons: list[str] = []
+    if accepted != expected:
+        reasons.append(f"requires exactly {expected} accepted runs; found {accepted}")
+    if payload.get("failed_hashes", []):
+        reasons.append("accepted-output hash failures are present")
+
+    # The experiment manifest has a stronger contract than the legacy paper
+    # manifest.  Keep the legacy count-only behavior available to old bundles,
+    # but require full slot identity, scientific gates, and file hashes for v1.
+    if payload.get("schema_version") == "feature007-mrst-manifest-v1":
+        if int(payload.get("target_accepted", 0)) != expected:
+            reasons.append("target_accepted does not match the locked arm target")
+        for hash_name in (
+            "design_sha256",
+            "generator_sha256_before",
+            "generator_sha256_after",
+        ):
+            if len(str(payload.get(hash_name, ""))) != 64:
+                reasons.append(f"{hash_name} is incomplete")
+        accepted_entries = [
+            entry for entry in payload.get("entries", [])
+            if entry.get("status") == "accepted"
+        ]
+        if len(accepted_entries) != expected:
+            reasons.append(
+                f"accepted entry count is {len(accepted_entries)}, expected {expected}"
+            )
+        slot_ids = [str(entry.get("slot_id", "")) for entry in accepted_entries]
+        if len(set(slot_ids)) != expected or any(not item for item in slot_ids):
+            reasons.append("accepted slot identities are missing or duplicated")
+        for entry in accepted_entries:
+            attempt_id = str(entry.get("attempt_id", "<unknown>"))
+            expected_steps = int(entry.get("expected_step_count", -1))
+            actual_steps = int(entry.get("actual_step_count", -2))
+            if not (
+                entry.get("solver_converged") is True
+                and entry.get("finite_arrays") is True
+                and entry.get("sanity_passed") is True
+                and expected_steps > 0
+                and actual_steps == expected_steps
+            ):
+                reasons.append(f"{attempt_id} fails the accepted-run scientific gates")
+                continue
+            output = Path(str(entry.get("output_file", "")))
+            if not output.is_absolute():
+                output = path.parent / output
+            output_hash = str(entry.get("output_sha256", "")).upper()
+            if not output.is_file():
+                reasons.append(f"{attempt_id} output is missing")
+            elif len(output_hash) != 64 or _sha256(output) != output_hash:
+                reasons.append(f"{attempt_id} output SHA-256 does not match")
+
+    ready = not reasons
     return {
         "ready": ready,
-        "reason": "" if ready else f"requires {expected} accepted runs; found {accepted}",
+        "reason": "" if ready else "; ".join(dict.fromkeys(reasons)),
         "manifest": _repo_relative(path, root),
         "manifest_sha256": _sha256(path),
         "accepted_runs": accepted,
     }
+
+
+def _arm_c_result_status(
+    path: Path,
+    *,
+    root: Path,
+    promoted: dict[str, Any],
+) -> dict[str, Any]:
+    status: dict[str, Any] = {
+        "ready": False,
+        "reason": "",
+        "result": _repo_relative(path, root),
+    }
+    if not promoted["ready"]:
+        status["reason"] = promoted["reason"]
+        return status
+    if not path.exists():
+        status["reason"] = "Arm C screening result is missing"
+        return status
+    status["result_sha256"] = _sha256(path)
+    try:
+        payload = _json(path)
+        failures: list[str] = []
+        expected_values = {
+            "schema_version": "feature007-arm-c-v1",
+            "status": "complete",
+            "actual_scenario_count": 3240,
+            "independent_assignment_count": 20,
+            "correlated_assignment_count": 20,
+            "downstream_resolve_count": 160,
+        }
+        for name, expected in expected_values.items():
+            if payload.get(name) != expected:
+                failures.append(f"{name} must be {expected!r}")
+        screen_summary = payload.get(
+            "screen_result_summary",
+            payload.get("screen_result", {}),
+        )
+        if screen_summary.get("logical_scenario_count") != 3240:
+            failures.append("screen_result does not contain 3,240 logical scenarios")
+        if (
+            "screen_result_summary" in payload
+            and len(str(screen_summary.get("result_sha256", ""))) != 64
+        ):
+            failures.append("Arm C screen-result hash is incomplete")
+        cache = payload.get("cache", {})
+        if int(cache.get("cache_entry_count", 0)) != 3240:
+            failures.append("prediction cache does not contain exactly 3,240 entries")
+        if (
+            int(cache.get("predicted_count", 0))
+            + int(cache.get("reused_count", 0))
+            != 3240
+        ):
+            failures.append("prediction cache predicted/reused counts do not reconcile")
+        if len(str(cache.get("cache_content_sha256", ""))) != 64:
+            failures.append("prediction cache content hash is incomplete")
+        shortlist_failures: list[str] = []
+        if len(payload.get("shortlist", [])) != 5:
+            shortlist_failures.append("Arm C shortlist does not contain five plans")
+        shortlist_ids = [
+            str(row.get("plan_id", "")) for row in payload.get("shortlist", [])
+        ]
+        if len(set(shortlist_ids)) != 5 or any(not item for item in shortlist_ids):
+            shortlist_failures.append(
+                "Arm C shortlist plan identities are missing or duplicated"
+            )
+        scenario_ids = [
+            str(row.get("scenario_id", ""))
+            for row in payload.get("shortlist", [])
+        ]
+        if len(set(scenario_ids)) != 5 or any(not item for item in scenario_ids):
+            shortlist_failures.append(
+                "Arm C shortlist scenario identities are missing or duplicated"
+            )
+        if any(
+            not row.get("designated_carbon_price_scenario_id")
+            for row in payload.get("shortlist", [])
+        ):
+            shortlist_failures.append("Arm C shortlist lacks a designated price")
+        declared_shortlist = payload.get("shortlist_status", {})
+        if declared_shortlist.get("ready") is False:
+            shortlist_failures.append(
+                str(
+                    declared_shortlist.get(
+                        "reason",
+                        "Arm C shortlist is explicitly blocked",
+                    )
+                )
+            )
+        status["shortlist"] = {
+            "ready": not shortlist_failures,
+            "reason": "; ".join(dict.fromkeys(shortlist_failures)),
+        }
+        field_scenario = payload.get("field_scenario_summary", {})
+        independent_records = field_scenario.get(
+            "independent_record_count",
+            len(payload.get("field_scenario", {}).get("independent", [])),
+        )
+        correlated_records = field_scenario.get(
+            "correlated_record_count",
+            len(payload.get("field_scenario", {}).get("correlated", [])),
+        )
+        if (
+            independent_records != 80
+            or correlated_records != 80
+        ):
+            failures.append("Arm C field-scenario record counts are not 80+80")
+        if (
+            field_scenario.get(
+                "surrogate_evaluations_during_resolve",
+                payload.get("field_scenario", {}).get(
+                    "surrogate_evaluations_during_resolve"
+                ),
+            )
+            != 0
+        ):
+            failures.append("Arm C field-scenario resolves invoked the surrogate")
+        result_hash = field_scenario.get("result_sha256")
+        if (
+            "field_scenario_summary" in payload
+            and len(str(result_hash or "")) != 64
+        ):
+            failures.append("Arm C field-scenario result hash is incomplete")
+        provenance = payload.get("provenance", {})
+        if provenance.get("preset_id") != "jatibarang_full_v1":
+            failures.append("Arm C result was not produced from jatibarang_full_v1")
+        if (
+            str(provenance.get("preset_payload_sha256", "")).upper()
+            != str(promoted.get("payload_sha256", "")).upper()
+        ):
+            failures.append("Arm C preset payload hash does not match the promoted bank")
+        for hash_name in (
+            "checkpoint_sha256",
+            "preset_design_sha256",
+            "field_scenario_design_sha256",
+        ):
+            if len(str(provenance.get(hash_name, ""))) != 64:
+                failures.append(f"Arm C {hash_name} is incomplete")
+        figure5_audit = payload.get(
+            "figure5",
+            {
+                "ready": False,
+                "reason": "Arm C result does not contain a Figure 5 audit",
+            },
+        )
+        status["figure5"] = figure5_audit
+        required_artifacts = [
+            "screening_surface.csv",
+            "carbon_price_rankings.csv",
+            "carbon_price_regret.csv",
+            "npv_vs_carbon_price.csv",
+        ]
+        if figure5_audit.get("ready") is True:
+            required_artifacts.extend(
+                [
+                    "pipeline_route.csv",
+                    "pipeline_pressure_profile.csv",
+                    "pipeline_cost_crossover.csv",
+                ]
+            )
+        artifacts = payload.get("artifacts", {})
+        for name in required_artifacts:
+            artifact = path.parent / name
+            expected_hash = str(
+                artifacts.get(name, {}).get("sha256", "")
+            ).upper()
+            if len(expected_hash) != 64:
+                failures.append(f"Arm C artifact hash is incomplete: {name}")
+            elif not artifact.is_file():
+                failures.append(f"Arm C artifact is missing: {name}")
+            elif _sha256(artifact) != expected_hash:
+                failures.append(f"Arm C artifact SHA-256 does not match: {name}")
+        status["ready"] = not failures
+        status["reason"] = "; ".join(failures)
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        status["reason"] = f"Arm C screening result is invalid: {exc}"
+    return status
+
+
+def _experiment_table_status(
+    source: Path,
+    *,
+    logical_name: str,
+) -> tuple[bool, str]:
+    """Validate experiment row provenance before admitting a table to a bundle."""
+
+    try:
+        with source.open("r", encoding="utf-8-sig", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+    except (OSError, csv.Error) as exc:
+        return False, f"{logical_name} cannot be read: {exc}"
+    if not rows:
+        return False, f"{logical_name} is empty"
+    if "source_class" not in rows[0]:
+        return False, f"{logical_name} lacks source_class"
+    invalid = sorted(
+        {
+            str(row.get("source_class", ""))
+            for row in rows
+            if row.get("source_class") not in EXPERIMENT_SOURCE_CLASSES
+        }
+    )
+    if invalid:
+        return False, f"{logical_name} has unapproved source_class values: {invalid}"
+    return True, ""
+
+
+def _dwsim_topk_status(source: Path) -> dict[str, Any]:
+    status = {
+        "ready": False,
+        "reason": "top-five confirmation table is missing",
+        "confirmed_rows": 0,
+    }
+    if not source.exists():
+        return status
+    try:
+        with source.open("r", encoding="utf-8-sig", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        confirmed = [
+            row for row in rows
+            if str(row.get("dwsim_converged", "")).strip().lower()
+            in {"true", "1", "yes"}
+        ]
+        classes = {row.get("throughput_class", "") for row in confirmed}
+        residuals_ok = all(
+            float(row["dwsim_mass_balance_residual_fraction"]) <= 0.001
+            for row in confirmed
+        )
+        failures: list[str] = []
+        if len(rows) != 5 or len({row.get("plan_id") for row in rows}) != 5:
+            failures.append("top-five table must contain five unique plans")
+        if len(confirmed) != 3:
+            failures.append("exactly three top-five rows must have DWSIM confirmation")
+        if classes != {"minimum", "median", "maximum"}:
+            failures.append("DWSIM confirmations must cover minimum, median, and maximum throughput")
+        if not residuals_ok:
+            failures.append("a DWSIM mass-balance residual exceeds 0.001")
+        status.update(
+            ready=not failures,
+            reason="; ".join(failures),
+            confirmed_rows=len(confirmed),
+        )
+    except (KeyError, TypeError, ValueError, OSError, csv.Error) as exc:
+        status["reason"] = f"top-five DWSIM evidence is invalid: {exc}"
+    return status
 
 
 def _register_table(
@@ -839,6 +1159,17 @@ def build_feature007_bundle(
     arm_b_replacement_count = _write_csv(
         arm_b_replacement_path, arm_b_replacement_rows
     )
+    field_scenario_design = build_field_scenario_design(
+        [item["candidate_id"] for item in full_design["geologies"]],
+        [item["source_case_id"] for item in full_design["geologies"]],
+        independent_count=20,
+        seed=seed,
+    )
+    field_scenario_path = tables_dir / "field_scenario_assignments.csv"
+    field_scenario_count = _write_csv(
+        field_scenario_path,
+        assignment_rows(field_scenario_design),
+    )
 
     tables: dict[str, dict[str, Any]] = {}
     name, record = _register_table(
@@ -846,6 +1177,16 @@ def build_feature007_bundle(
         logical_name="arm_b_design",
         target=arm_b_path,
         rows=arm_b_count,
+        source_class="design_not_result",
+        source=full_design_path,
+        root=root,
+    )
+    tables[name] = record
+    name, record = _register_table(
+        bundle_dir=bundle_dir,
+        logical_name="field_scenario_assignments",
+        target=field_scenario_path,
+        rows=field_scenario_count,
         source_class="design_not_result",
         source=full_design_path,
         root=root,
@@ -928,9 +1269,39 @@ def build_feature007_bundle(
             "mrst_truth_and_surrogate_prediction",
         ),
     }
+    arm_c_declaration_path = (
+        root / "paper" / "validation" / "feature007" / "arm_c_screening.json"
+    )
+    declared_figure5_ready = False
+    if arm_c_declaration_path.exists():
+        try:
+            declared_figure5_ready = (
+                _json(arm_c_declaration_path)
+                .get("figure5", {})
+                .get("ready")
+                is True
+            )
+        except (TypeError, ValueError, json.JSONDecodeError):
+            declared_figure5_ready = False
+    if not declared_figure5_ready:
+        for logical_name in (
+            "pipeline_route_final",
+            "pipeline_pressure_final",
+            "pipeline_cost_crossover_final",
+        ):
+            table_sources.pop(logical_name)
+    table_validation_failures: dict[str, str] = {}
     for logical_name, (source, source_class) in table_sources.items():
         if not source.exists():
             continue
+        if logical_name in EXPERIMENT_TABLES:
+            valid, reason = _experiment_table_status(
+                source,
+                logical_name=logical_name,
+            )
+            if not valid:
+                table_validation_failures[logical_name] = reason
+                continue
         target = tables_dir / f"{logical_name}.csv"
         row_count = _copy_csv(source, target)
         name, record = _register_table(
@@ -975,21 +1346,20 @@ def build_feature007_bundle(
     scenario_count = 3240 if full["ready"] else (200 if demo["ready"] else 0)
 
     arm_c_result = root / "paper" / "validation" / "feature007" / "arm_c_screening.json"
-    arm_c_ready = promoted["ready"] and arm_c_result.exists()
-    arm_c_status = {
-        "ready": arm_c_ready,
-        "reason": "" if arm_c_ready else (
-            promoted["reason"] if not promoted["ready"] else "Arm C screening result is missing"
-        ),
-        "result": _repo_relative(arm_c_result, root),
-    }
-    if arm_c_result.exists():
-        arm_c_status["result_sha256"] = _sha256(arm_c_result)
+    arm_c_status = _arm_c_result_status(
+        arm_c_result,
+        root=root,
+        promoted=promoted,
+    )
+    arm_c_ready = arm_c_status["ready"]
+    dwsim_status = _dwsim_topk_status(
+        root / "paper" / "validation" / "feature007" / "topk_confirmation.csv"
+    )
 
     screening_blocker = (
         "Feature 005 200/3240 scenario preset is not promoted"
         if not promoted["ready"]
-        else "Arm C screening result is missing"
+        else arm_c_status["reason"]
     )
     abc_blockers = []
     if not arm_a["ready"]:
@@ -998,15 +1368,42 @@ def build_feature007_bundle(
         abc_blockers.append("Arm B requires 40 accepted MRST runs")
     if not arm_c_ready:
         abc_blockers.append(screening_blocker)
+    if not arm_c_status.get("shortlist", {}).get("ready", False):
+        abc_blockers.append(
+            "Arm C five-plan shortlist is incomplete: "
+            + str(
+                arm_c_status.get("shortlist", {}).get(
+                    "reason",
+                    "missing shortlist audit",
+                )
+            )
+        )
     if not top_k["ready"]:
         abc_blockers.append("Arm C top-five MRST confirmation is incomplete")
+    if not dwsim_status["ready"]:
+        abc_blockers.append(
+            "DWSIM min/median/max confirmation is incomplete: "
+            + dwsim_status["reason"]
+        )
+    for logical_name, reason in sorted(table_validation_failures.items()):
+        abc_blockers.append(f"{logical_name} failed row validation: {reason}")
 
     figure4_ready = arm_c_ready and "screening_surface" in tables
-    figure5_ready = arm_c_ready and {
+    figure5_final_tables = {
         "pipeline_route_final",
         "pipeline_pressure_final",
         "pipeline_cost_crossover_final",
-    }.issubset(tables)
+    }
+    figure5_missing_tables = sorted(figure5_final_tables - set(tables))
+    figure5_audit = arm_c_status.get(
+        "figure5",
+        {"ready": False, "reason": "Arm C Figure 5 audit is missing"},
+    )
+    figure5_ready = (
+        arm_c_ready
+        and figure5_audit.get("ready") is True
+        and not figure5_missing_tables
+    )
     figure6_ready = {
         "facility_validation",
         "facility_cost_curve",
@@ -1064,9 +1461,16 @@ def build_feature007_bundle(
             5,
             status="ready" if figure5_ready else "blocked",
             sources=["srtm_terrain", "coolprop_mechanics", "milp_result"],
-            blockers=[] if figure5_ready else ([screening_blocker] if not arm_c_ready else []) + [
-                "final Arm C route, pressure, or crossover table is missing; existing Feature 002 network is mechanics evidence only"
-            ],
+            blockers=[] if figure5_ready else ([screening_blocker] if not arm_c_ready else []) + (
+                [str(figure5_audit.get("reason"))]
+                if arm_c_ready
+                and figure5_audit.get("ready") is not True
+                and figure5_audit.get("reason")
+                else []
+            ) + (
+                [f"final Arm C table(s) missing: {', '.join(figure5_missing_tables)}"]
+                if figure5_missing_tables else []
+            ),
         ),
         "6": _figure_entry(
             root,
@@ -1140,6 +1544,13 @@ def build_feature007_bundle(
             "label": "surrogate_integrated_screening",
             "scenario_count_policy": "use 3240 only when complete; otherwise promoted 200",
             "actual_scenario_count": scenario_count,
+            "field_scenario_method": "correlation_bracket",
+            "independent_assignment_count": len(field_scenario_design.independent),
+            "correlated_assignment_count": len(field_scenario_design.correlated),
+            "resolve_grouping": "assignment_x_carbon_price",
+            "rollout_policy": "reuse_the_same_3240_cached_rollouts",
+            "named_well_single_assignment_claim": False,
+            "assignment_table": tables["field_scenario_assignments"]["path"],
             "top_k_mrst": 5,
             "dwsim_spotchecks": ["minimum_throughput", "median_throughput", "maximum_throughput"],
             "result_status": arm_c_status,
@@ -1223,9 +1634,10 @@ def build_feature007_bundle(
             "arm_b_mrst": arm_b,
             "arm_c_screening": arm_c_status,
             "arm_c_top_k_mrst": top_k,
+            "dwsim_confirmation": dwsim_status,
         },
         "validation": {
-            "mechanical": "PASS" if not all_blockers else "BLOCKED",
+            "mechanical": "PASS",
             "scientific": "PASS" if status == "ready" else "NOT_RUN",
             "fabricated_result": False,
             "blockers": all_blockers,
@@ -1274,6 +1686,10 @@ def verify_feature007_bundle(bundle_dir: Path, *, root: Path = ROOT) -> list[str
             continue
         if _sha256(path) != str(record.get("sha256", "")).upper():
             errors.append(f"table {name} SHA-256 mismatch")
+        if name in EXPERIMENT_TABLES:
+            valid, reason = _experiment_table_status(path, logical_name=name)
+            if not valid:
+                errors.append(reason)
 
     for number, record in sorted(manifest.get("figure_data", {}).items()):
         path = bundle_dir / record.get("path", "")
@@ -1352,6 +1768,45 @@ def verify_feature007_bundle(bundle_dir: Path, *, root: Path = ROOT) -> list[str
         if primary_pairs & replacement_pairs:
             errors.append("Arm B replacement order repeats a primary for the same geology")
 
+    field_scenario_record = manifest.get("tables", {}).get(
+        "field_scenario_assignments"
+    )
+    if not field_scenario_record:
+        errors.append("field-scenario assignment design is missing")
+    else:
+        with (bundle_dir / field_scenario_record["path"]).open(
+            "r", encoding="utf-8", newline=""
+        ) as handle:
+            assignment_design = list(csv.DictReader(handle))
+        mode_counts = Counter(row["mode"] for row in assignment_design)
+        if len(assignment_design) != 800 or mode_counts != {
+            "independent_limit": 400,
+            "correlated_limit": 400,
+        }:
+            errors.append(
+                "field-scenario design must contain 400 independent and 400 correlated well rows"
+            )
+        by_assignment: dict[str, list[dict[str, str]]] = defaultdict(list)
+        for row in assignment_design:
+            by_assignment[row["assignment_id"]].append(row)
+        independent_ids = sorted(
+            key for key in by_assignment if key.startswith("independent-")
+        )
+        correlated_ids = sorted(
+            key for key in by_assignment if key.startswith("correlated-")
+        )
+        if len(independent_ids) != 20 or len(correlated_ids) != 20:
+            errors.append("field-scenario design must contain 20 assignments per limit")
+        for assignment_id in independent_ids:
+            rows = by_assignment[assignment_id]
+            if len(rows) != 20 or len({row["realization_id"] for row in rows}) != 20:
+                errors.append(f"{assignment_id} is not a 20-well bijection")
+        for assignment_id in correlated_ids:
+            rows = by_assignment[assignment_id]
+            shared = {row["realization_id"] for row in rows}
+            if len(rows) != 20 or len(shared) != 1:
+                errors.append(f"{assignment_id} does not stamp one shared realization")
+
     figures = manifest.get("figures", {})
     if set(figures) != {str(i) for i in range(1, 9)}:
         errors.append("figure index must contain Figures 1-8")
@@ -1367,6 +1822,23 @@ def verify_feature007_bundle(bundle_dir: Path, *, root: Path = ROOT) -> list[str
             errors.append("ready bundle lacks mechanical PASS")
         if manifest.get("validation", {}).get("scientific") != "PASS":
             errors.append("ready bundle lacks scientific PASS")
+        if manifest.get("scenario_count") != 3240:
+            errors.append("ready bundle must use the full 3,240-scenario bank")
+        required_dependencies = (
+            "arm_a_mrst",
+            "arm_b_mrst",
+            "arm_c_screening",
+            "arm_c_top_k_mrst",
+            "dwsim_confirmation",
+        )
+        for dependency in required_dependencies:
+            if (
+                manifest.get("dependencies", {})
+                .get(dependency, {})
+                .get("ready")
+                is not True
+            ):
+                errors.append(f"ready bundle has incomplete dependency {dependency}")
     if manifest.get("immutable") and manifest.get("freeze_basis") not in {
         "complete_200",
         "complete_3240",

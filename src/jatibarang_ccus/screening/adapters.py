@@ -22,6 +22,11 @@ STANDARD_PRESSURE_BAR = 1.01325
 STANDARD_TEMPERATURE_C = 15.0
 
 
+def prediction_source_class(prediction: PredictionResult) -> str:
+    value = str(prediction.provenance.get("source_class", "surrogate_prediction"))
+    return "mrst_truth" if value in {"mrst", "mrst_truth"} else "surrogate_prediction"
+
+
 def discounted_supply_cost(annual_cashflows: Iterable, discount_rate: float) -> float:
     return float(
         sum(
@@ -59,7 +64,7 @@ def pipeline_demand_from_prediction(
         pre_logistics_value_usd=pre_logistics_value_usd,
         influence_radius_m=max(prediction.plume.influence_radius_m, 1e-6),
         provenance={
-            "source_class": "surrogate_prediction",
+            "source_class": prediction_source_class(prediction),
             "scenario_id": prediction.scenario_id,
             "annualization": "maximum_calendar_year_injection",
             "peak_sizing_basis": "standard_state_schedule_injection_rate",
@@ -121,9 +126,13 @@ def facility_well_from_prediction(
         recycle_recovery_fraction=float(facility.get("recycle_recovery_fraction", 0.95)),
         provenance=[
             FacilityProvenance(
-                source_class="surrogate_prediction",
+                source_class=prediction_source_class(prediction),
                 source_id=prediction.scenario_id,
-                notes="Real Feature 001 production and injection load adapted by Feature 005.",
+                notes=(
+                    "Offline MRST truth adapted through the shared Feature 005 facility path."
+                    if prediction_source_class(prediction) == "mrst_truth"
+                    else "Real Feature 001 production and injection load adapted by Feature 005."
+                ),
                 metadata={"produced_co2_fraction_source": "explicit_screening_assumption"},
             )
         ],

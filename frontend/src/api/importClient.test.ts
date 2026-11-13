@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  archiveSpatialResult,
   getRoadLayers,
   getReservoir,
+  getSpatialResult,
   getTerrainWindow,
   importReservoir,
+  importReservoirCatalog,
   importRoads,
   importTerrain,
   listTerrains,
@@ -145,6 +148,74 @@ describe("import client", () => {
     expect(result.model_id).toBe("m1");
     const [url] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("/reservoir/m1?bank_id=b1");
+  });
+
+  it("imports a well-keyed reservoir catalog", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ reservoirs: {}, count: 2 })),
+      ),
+    );
+    const entries = [
+      { well_id: "W01", model_path: "C:/derived/W01.npz" },
+      {
+        well_id: "W02",
+        model_path: "C:/derived/W02.npz",
+        bank_path: "C:/derived/W02.launchpads.npz",
+      },
+    ];
+
+    await expect(importReservoirCatalog(entries)).resolves.toMatchObject({
+      count: 2,
+    });
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("/reservoir/import-batch");
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ entries });
+  });
+
+  it("archives and restores detailed spatial screening fields", async () => {
+    const result = {
+      request_fingerprint: "A".repeat(64),
+      detailed_predictions: { scenario: { scenario_id: "scenario" } },
+      detailed_reservoirs: { scenario: { scenario_id: "scenario" } },
+    } as never;
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              artifact_id: "archive-1",
+              sha256: "B".repeat(64),
+              request_fingerprint: "A".repeat(64),
+              scenario_count: 1,
+              compressed_bytes: 100,
+            }),
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              artifact_id: "archive-1",
+              sha256: "B".repeat(64),
+              payload: result,
+            }),
+          ),
+        ),
+    );
+
+    await archiveSpatialResult(result);
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual(result);
+
+    await expect(getSpatialResult("archive/1")).resolves.toMatchObject({
+      artifact_id: "archive-1",
+    });
+    expect(vi.mocked(fetch).mock.calls[1][0]).toBe(
+      "/screening/spatial/archive%2F1",
+    );
   });
 
   it("imports a road network for a registered terrain", async () => {

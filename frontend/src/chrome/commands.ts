@@ -123,6 +123,14 @@ export const commands: Command[] = [
     isEnabled: () => Boolean(getActions().exportRankingCsv && getActions().hasActiveResult?.()),
   },
   {
+    id: "file.exportMrstResimulation",
+    label: "Export MRST Re-simulation Plan JSON",
+    run: () => getActions().exportMrstResimulationPlan?.(),
+    isEnabled: () => Boolean(
+      getActions().exportMrstResimulationPlan && getActions().hasActiveResult?.(),
+    ),
+  },
+  {
     id: "file.exportSnapshot",
     label: "Export Scene Snapshot PNG",
     run: () => getActions().exportSnapshot?.(),
@@ -385,6 +393,7 @@ export const menus: Menu[] = [
         label: "Export",
         items: [
           { kind: "command", commandId: "file.exportRanking" },
+          { kind: "command", commandId: "file.exportMrstResimulation" },
           { kind: "command", commandId: "file.exportSnapshot" },
           { kind: "command", commandId: "file.exportMemo" },
         ],

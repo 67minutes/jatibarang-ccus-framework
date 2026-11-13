@@ -37,6 +37,7 @@ export function Composer() {
   const setCarbonPrices = useComposeStore((s) => s.setCarbonPrices);
   const setCostCase = useComposeStore((s) => s.setCostCase);
   const setSupply = useComposeStore((s) => s.setSupplyScenarios);
+  const setEconomicAssumption = useComposeStore((s) => s.setEconomicAssumption);
   const setBudget = useComposeStore((s) => s.setAnnualBudget);
   const setProjectLife = useComposeStore((s) => s.setProjectLife);
   const setFiscal = useComposeStore((s) => s.setSelectionFiscalCase);
@@ -83,6 +84,10 @@ export function Composer() {
   const fiscal = readFiscalCases(draft);
   const supply = draft.supply_scenarios ?? SUPPLY;
   const grid = draft.operational_grid ?? null;
+  const economic = draft.economic_assumptions;
+  const oilPrice = Number(economic.oil_price_usd_per_bbl ?? 0);
+  const liftingCost = Number(economic.lifting_cost_usd_per_bbl ?? 0);
+  const discountRatePercent = Number(economic.discount_rate ?? 0) * 100;
 
   return (
     <div className="composer">
@@ -129,6 +134,53 @@ export function Composer() {
                 <option key={f.case_id} value={f.case_id}>{f.case_id} ({f.mode})</option>
               ))}
             </select>
+          </label>
+          <label className="compose-row">
+            <span>Oil price (USD/bbl)</span>
+            <input
+              type="number"
+              value={oilPrice}
+              min={0}
+              max={Number(economic.oil_price_max_usd_per_bbl ?? 500)}
+              step={1}
+              onChange={(e) =>
+                setEconomicAssumption(
+                  "oil_price_usd_per_bbl",
+                  Number(e.target.value),
+                )
+              }
+            />
+          </label>
+          <label className="compose-row">
+            <span>Lifting cost (USD/bbl)</span>
+            <input
+              type="number"
+              value={liftingCost}
+              min={0}
+              step={1}
+              onChange={(e) =>
+                setEconomicAssumption(
+                  "lifting_cost_usd_per_bbl",
+                  Number(e.target.value),
+                )
+              }
+            />
+          </label>
+          <label className="compose-row">
+            <span>Discount rate (%)</span>
+            <input
+              type="number"
+              value={discountRatePercent}
+              min={0}
+              max={100}
+              step={0.5}
+              onChange={(e) =>
+                setEconomicAssumption(
+                  "discount_rate",
+                  Number(e.target.value) / 100,
+                )
+              }
+            />
           </label>
         </section>
 
