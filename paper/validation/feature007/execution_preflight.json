@@ -31,5 +31,36 @@
     "demo_200": "NOT_LAUNCHED",
     "full_3240": "NOT_LAUNCHED",
     "reason": "Preflight selected zero safe workers. No MRST shard or partial scenario result was created."
+  },
+  "post_preflight_execution": {
+    "captured_at": "2026-07-18T23:59:00+07:00",
+    "timing_benchmark": {
+      "status": "COMPLETED",
+      "completed_runs": 3,
+      "elapsed_seconds": 502.8629392,
+      "manifest_path": "C:/Users/mauli/Documents/boreyes2026/exports_feature005_full_benchmark/manifest.json",
+      "manifest_sha256": "502031ECF652A94FE35F3FB914F231881F845E0A845C04A2140564BD2B103927",
+      "raw_training_corpus_copied": false,
+      "paper_bank_ready": false
+    },
+    "workflow_smoke": {
+      "status": "COMPLETED",
+      "purpose": "one-common-schedule W01-W20 workbench and relink validation; non-paper evidence",
+      "completed_runs": 20,
+      "unique_candidates": 20,
+      "elapsed_seconds": 3264.4545564,
+      "schedule_fingerprint": "A6DB6A445F5D8D416C69C7D5A2128818744D3E154E2FC638A981D55EC1897844",
+      "manifest_path": "C:/Users/mauli/Documents/boreyes2026/exports_feature005_workflow_smoke/manifest.json",
+      "manifest_sha256": "4FA5429375A577E823C05023833DA6847811248BA3975AA961A8AA19A57DB0C2",
+      "runtime_catalog_path": "data/screening_presets/jatibarang_full_v1/runtime/reservoir_catalog.workflow.json",
+      "runtime_catalog_sha256": "7E6A6C7DA0F41566915FB1D6CD7FC8C8F8E28FE71E881544B73E3180B688E779",
+      "raw_training_corpus_copied": false,
+      "paper_bank_ready": false
+    },
+    "paper_launch": {
+      "demo_200": "NOT_LAUNCHED",
+      "full_3240": "NOT_LAUNCHED",
+      "scientific_status": "NOT_RUN"
+    }
   }
 }

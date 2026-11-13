@@ -151,15 +151,23 @@ def glyph_plume(cx, cy):
 
 
 def glyph_route(cx, cy):
-    """Terrain patch with an A* route and booster nodes."""
+    """Terrain patch showing the per-well mode choice: a solid A*-routed
+    pipeline trunk and a dashed road-trucking leg, the two supply modes the
+    MILP selects between per well."""
     ax.add_patch(Rectangle((cx - 9, cy - 2.2), 18, 4.4, fc="#EDEAE3",
                            ec=GRAY_EDGE, lw=0.7, zorder=5))
+    # Solid pipeline trunk with booster/well nodes.
     xs = [cx - 8, cx - 4.5, cx - 1, cx + 3, cx + 8]
     ys = [cy - 1.2, cy + 0.6, cy - 0.5, cy + 1.2, cy + 0.2]
     ax.plot(xs, ys, color=INK, lw=1.1, zorder=6)
     for x, y in [(xs[0], ys[0]), (xs[2], ys[2]), (xs[4], ys[4])]:
         ax.add_patch(Circle((x, y), 0.55, fc=GOLD_EDGE, ec="white", lw=0.5,
                             zorder=7))
+    # Dashed road-trucking leg to an off-trunk well (the other mode).
+    ax.plot([xs[2], cx + 1.5], [ys[2], cy - 1.7], color=SUB_INK, lw=0.9,
+            ls=(0, (2.2, 1.6)), zorder=6)
+    ax.add_patch(Rectangle((cx + 1.0, cy - 2.2), 1.4, 1.0, fc="white",
+                           ec=SUB_INK, lw=0.7, zorder=7))
 
 
 def glyph_skid(cx, cy):
@@ -235,12 +243,12 @@ for i, c in enumerate(PURPLE_RAMP):
 txt(x0 + 2 + chip_w / 2, chip_y - 2.0, "IDX", size=F_LBL, color=SUB_INK)
 txt(x1 - 2 - chip_w / 2, chip_y - 2.0, "JCM", size=F_LBL, color=SUB_INK)
 
-# Module 2 — logistics MILP (bottom-right, stacked per price)
+# Module 2 — logistics mode-choice MILP (bottom-right, stacked per price)
 x0, x1 = COL["C"]
 box(x0, x1, yb0, yb1, GOLD_EDGE, GOLD_FILL, shadow=True)
 badge(x0, yb1, "2")
 txt((x0 + x1) / 2, yb1 - 3.2, "Logistics MILP", size=F_TITLE, weight="bold")
-txt((x0 + x1) / 2, yb1 - 8.0, "A* terrain routes · CBC\none MILP per price",
+txt((x0 + x1) / 2, yb1 - 8.0, "pipe vs. truck\nA* routes · CBC",
     size=F_SUB, color=SUB_INK)
 glyph_route((x0 + x1) / 2, yb0 + 4.0)
 

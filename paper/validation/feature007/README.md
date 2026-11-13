@@ -15,13 +15,23 @@ Figures 4, 5, 7, and 8 remain blocked. The real `case_0016` MRST/surrogate reser
 comparison is registered in the working bundle; it does not constitute the A/B/C
 experiment.
 
-The MRST preflight yielded zero safe workers under the locked RAM formula, so no
-three-run benchmark or 200/3,240 bank export was launched. There is no immutable
-`submitted` or `full_3240` bundle.
+The earlier RAM preflight blocked the launch at that snapshot. A later bounded
+three-run MRST timing benchmark completed, but no 200/3,240 paper bank export has
+been launched or imported. A separate 20-well, one-common-schedule MRST workflow
+smoke is non-paper UI evidence and does not change the paper gate. There is no
+immutable `submitted` or `full_3240` bundle.
+
+Arm C orchestration is now implemented mechanically: 20 independent-limit plus 20
+correlated-limit assignments, one cache-only downstream run per assignment, and
+assignment x carbon-price result projection with zero surrogate calls. The working
+bundle contains the 800-row assignment table. `arm_c_screening.json` is still absent,
+so this implementation PASS is not a scientific result.
 
 The measured CPU, core count, memory snapshot, concurrency gates, and no-launch
 decision are recorded in `execution_preflight.json`; the Feature 007 bundle hashes
-that file as an input.
+that file as an input. Its additive post-preflight section records the later 3/3
+timing benchmark and 20/20 workflow smoke with their manifest hashes while retaining
+`NOT_LAUNCHED` for both paper banks.
 
 ## Expected real outputs
 

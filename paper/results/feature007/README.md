@@ -8,7 +8,7 @@ interactive paper-results frontend.
   gates, the 200- or 3,240-scenario preset gate, and the A/B/C confirmation
   gates pass. An existing immutable target is never overwritten.
 
-## Current state: 2026-07-17
+## Current state: 2026-07-18
 
 `working` passes its deterministic hash verifier but remains **partial and
 unfrozen**. Its manifest reports `scenario_count=0`, mechanical status `BLOCKED`,
@@ -24,14 +24,22 @@ its current linked dynamic comparison field is gas saturation. No paper result i
 synthesized to fill a missing dependency.
 
 The deterministic Arm B design exists with 40 primary rows over 20 geologies and a
-3,200-row replacement order, but accepted Arm A/B/C result counts are zero. The MRST
-preflight yielded zero safe workers under the locked RAM-reserve formula, so the
-three-run benchmark and the 200/3,240 bank exports were not launched. There is no
-`submitted/` or `full_3240/` bundle.
+3,200-row replacement order. Arm C now also carries 20 independent-limit and 20
+correlated-limit field assignments (800 auditable well-level rows), plus a cache-only
+Feature 005 adapter that performs zero surrogate calls during downstream re-solves.
+The design groups work by assignment x carbon price and never promotes one named-well
+assignment as a paper claim.
+
+Accepted Arm A/B/C result counts remain zero. The three-run MRST timing benchmark is
+now complete, but neither the 200- nor 3,240-scenario paper bank has been launched or
+imported. The separate one-schedule, 20-well workflow smoke is explicitly non-paper
+evidence. There is no `submitted/` or `full_3240/` bundle.
 
 The exact CPU, physical-core count, total/available RAM snapshot, concurrency gates,
 and no-launch decision are hash-referenced from
-`paper/validation/feature007/execution_preflight.json` into each rebuilt bundle.
+`paper/validation/feature007/execution_preflight.json` into each rebuilt bundle. The
+same input now also hash-records the later bounded 3/3 timing benchmark and 20/20
+one-schedule workflow smoke; neither is treated as a paper-bank launch.
 
 ## Build and verify
 

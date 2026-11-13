@@ -52,7 +52,7 @@ def generate() -> None:
             "text.color": INK,
         }
     )
-    fig, axes = plt.subplots(1, 2, figsize=(6.3, 3.05), gridspec_kw={"wspace": 0.34})
+    fig, axes = plt.subplots(1, 2, figsize=(6.3, 3.05), gridspec_kw={"wspace": 0.62})
     panels = [
         (axes[0], oil, "incremental oil (m$^3$)", "viridis"),
         (axes[1], retention, "CO$_2$ retention fraction", "YlGnBu"),
@@ -80,10 +80,13 @@ def generate() -> None:
         cb.set_label(label)
         # Arm A is a schedule reference, not a claimed result at a fabricated geology.
         ax.axhline(9000, color=GOLD, lw=1.2, ls="--")
-        ax.text(0.98, 0.04, "Arm A rate", transform=ax.transAxes, ha="right", color=GOLD)
+        # Sit the label just above the dashed line at the left, in the empty band
+        # between rows, clear of both the scattered points and the panel-(a) inset.
+        ax.text(0.02, 9120, "Arm A rate", transform=ax.get_yaxis_transform(),
+                ha="left", va="bottom", color=GOLD)
         _style(ax)
 
-    inset = axes[0].inset_axes([0.08, 0.58, 0.36, 0.30])
+    inset = axes[0].inset_axes([0.44, 0.56, 0.32, 0.27])
     for cycle in sorted(set(cycles)):
         mask = cycles == cycle
         inset.scatter(cycle, np.median(oil[mask]), color=TEAL, s=22)
@@ -102,7 +105,7 @@ def generate() -> None:
         fontsize=8.4,
         color=SUB_INK,
     )
-    fig.subplots_adjust(left=0.09, right=0.96, top=0.89, bottom=0.23)
+    fig.subplots_adjust(left=0.125, right=0.94, top=0.89, bottom=0.23)
     fig.savefig(OUT_DIR / "fig04_screening_surface.pdf")
     fig.savefig(OUT_DIR / "fig04_screening_surface.png", dpi=300)
     plt.close(fig)
