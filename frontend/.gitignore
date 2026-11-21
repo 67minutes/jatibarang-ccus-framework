@@ -6,3 +6,5 @@ playwright-report/
 test-results/
 # Generated from the OpenAPI contract at build time.
 src/api/types.gen.ts
+# Demo study memos served by ?study=<name> (large, machine-local).
+public/studies/

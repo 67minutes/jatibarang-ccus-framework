@@ -15,7 +15,8 @@ import {
   exportRankingCsv,
   exportStudyMemo,
 } from "../memo/export";
-import { pickStudyMemo } from "../memo/import";
+import { fetchStudyMemo, pickStudyMemo } from "../memo/import";
+import type { StudyMemo } from "../memo/studyMemo";
 import { carbonPriceAxis } from "../results/priceScrubber";
 import { useStudyStore } from "../state/study.store";
 import { exportViewportSnapshot } from "../viewport/snapshot";
@@ -168,6 +169,7 @@ function clearPreparationBanners(): void {
 export function useWorkbench(): void {
   const abortRef = useRef<AbortController | null>(null);
   const watchdogRef = useRef<number | null>(null);
+  const autoOpenedRef = useRef(false);
 
   // Register the action surface once; blank boot performs no study-data load.
   useEffect(() => {
@@ -284,6 +286,70 @@ export function useWorkbench(): void {
       abortRef.current?.abort();
     }
 
+    async function openStudyFrom(load: () => Promise<StudyMemo | null>) {
+      try {
+        const memo = await load();
+        if (memo) {
+          useComposeStore.setState({ draft: null, past: [], future: [] });
+          useLedgerStore.getState().importMemo(memo);
+          if (memo.study) useStudyStore.getState().load(memo.study);
+          if (
+            !isLegacyMemo(memo) &&
+            memo.request_payload_mode !== "artifact_referenced" &&
+            memo.request.mode === "inline"
+          ) {
+            useComposeStore.getState().loadBase({
+              ...memo.request,
+              run_id: null,
+            });
+          } else if (
+            !isLegacyMemo(memo) &&
+            memo.request_payload_mode === "artifact_referenced" &&
+            memo.request.mode === "inline" &&
+            memo.field_setup &&
+            useFieldStore.getState().reservoirRuntime
+          ) {
+            const field = currentFieldSetup();
+            const imported = useFieldStore.getState().reservoirRuntime;
+            if (field && imported) {
+              useComposeStore.getState().loadBase(
+                buildStudyRequest({
+                  field,
+                  imported,
+                  importedByWell: useFieldStore.getState().reservoirRuntimes,
+                  base: memo.request,
+                  scheduleMode: "covered",
+                }),
+              );
+            }
+          }
+          const ui = useUiStore.getState();
+          ui.dismissBanner("memo-reservoir-relink");
+          if (
+            memo.field_setup &&
+            memo.request_payload_mode === "artifact_referenced" &&
+            useFieldStore.getState().reservoirRuntime == null
+          ) {
+            ui.pushBanner({
+              id: "memo-reservoir-relink",
+              severity: "info",
+              message:
+                "The imported reservoir files for this study could not be found in data/imports. Re-import the model via New Study to screen again.",
+            });
+          }
+          const axis = carbonPriceAxis(memo.result);
+          if (axis.length > 0) useSelectionStore.getState().setCarbonPrice(axis[0].scenarioId);
+          useWorkspaceStore.getState().setActiveTab("ranking");
+        }
+      } catch (err) {
+        useUiStore.getState().pushBanner({
+          id: "open-failed",
+          severity: "danger",
+          message: err instanceof Error ? err.message : "Failed to open study memo.",
+        });
+      }
+    }
+
     // Register the full action surface for the command registry.
     useActionsStore.getState().register({
       screen,
@@ -360,69 +426,7 @@ export function useWorkbench(): void {
         }
         useUiStore.getState().dismissBanner("new-study-run-active");
       },
-      openStudy: async () => {
-        try {
-          const memo = await pickStudyMemo();
-          if (memo) {
-            useComposeStore.setState({ draft: null, past: [], future: [] });
-            useLedgerStore.getState().importMemo(memo);
-            if (memo.study) useStudyStore.getState().load(memo.study);
-            if (
-              !isLegacyMemo(memo) &&
-              memo.request_payload_mode !== "artifact_referenced" &&
-              memo.request.mode === "inline"
-            ) {
-              useComposeStore.getState().loadBase({
-                ...memo.request,
-                run_id: null,
-              });
-            } else if (
-              !isLegacyMemo(memo) &&
-              memo.request_payload_mode === "artifact_referenced" &&
-              memo.request.mode === "inline" &&
-              memo.field_setup &&
-              useFieldStore.getState().reservoirRuntime
-            ) {
-              const field = currentFieldSetup();
-              const imported = useFieldStore.getState().reservoirRuntime;
-              if (field && imported) {
-                useComposeStore.getState().loadBase(
-                  buildStudyRequest({
-                    field,
-                    imported,
-                    importedByWell: useFieldStore.getState().reservoirRuntimes,
-                    base: memo.request,
-                    scheduleMode: "covered",
-                  }),
-                );
-              }
-            }
-            const ui = useUiStore.getState();
-            ui.dismissBanner("memo-reservoir-relink");
-            if (
-              memo.field_setup &&
-              memo.request_payload_mode === "artifact_referenced" &&
-              useFieldStore.getState().reservoirRuntime == null
-            ) {
-              ui.pushBanner({
-                id: "memo-reservoir-relink",
-                severity: "info",
-                message:
-                  "The imported reservoir files for this study could not be found in data/imports. Re-import the model via New Study to screen again.",
-              });
-            }
-            const axis = carbonPriceAxis(memo.result);
-            if (axis.length > 0) useSelectionStore.getState().setCarbonPrice(axis[0].scenarioId);
-            useWorkspaceStore.getState().setActiveTab("ranking");
-          }
-        } catch (err) {
-          useUiStore.getState().pushBanner({
-            id: "open-failed",
-            severity: "danger",
-            message: err instanceof Error ? err.message : "Failed to open study memo.",
-          });
-        }
-      },
+      openStudy: () => openStudyFrom(pickStudyMemo),
       saveStudy: async () => {
         const entry = useLedgerStore.getState().activeEntry();
         if (entry && entry.requestPayloadMode !== "artifact_referenced") {
@@ -484,6 +488,14 @@ export function useWorkbench(): void {
       canUndo: () => useComposeStore.getState().canUndo(),
       canRedo: () => useComposeStore.getState().canRedo(),
     });
+
+    // Demo link: ?study=<name> opens frontend/public/studies/<name>.study.json
+    // at startup, without the OS file dialog. Runs once per page load.
+    const studyParam = new URLSearchParams(window.location.search).get("study");
+    if (studyParam && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      void openStudyFrom(() => fetchStudyMemo(studyParam));
+    }
 
     return () => clearWatchdog();
   }, []);

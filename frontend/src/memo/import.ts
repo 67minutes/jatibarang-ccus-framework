@@ -9,29 +9,46 @@ import { useUiStore } from "../state/ui.store";
 import { isLegacyMemo, isStudyMemo, type StudyMemo } from "./studyMemo";
 
 /**
- * Load a study memo from a file the user picks. Prefers the File System Access
- * API, falling back to a hidden file input.
+ * Load a study memo from a file the user picks with the browser's classic
+ * file chooser (see pickFile for why not the File System Access API).
  */
-
-interface FsWindow {
-  showOpenFilePicker?: (options: unknown) => Promise<Array<{ getFile: () => Promise<File> }>>;
-}
 
 export async function pickStudyMemo(): Promise<StudyMemo | null> {
   const file = await pickFile();
-  if (!file) return null;
-  const text = await file.text();
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error("Selected file is not valid JSON.");
+  if (!file) {
+    console.info("[open-study] picker cancelled");
+    return null;
   }
-  if (!isStudyMemo(parsed)) {
-    throw new Error("Selected file is not a compatible study memo.");
+  return openStudyMemoFile(file);
+}
+
+/**
+ * Load a study memo served next to the app (frontend/public/studies/), so a
+ * demo machine can open a study from a link without the OS file dialog:
+ * http://127.0.0.1:5173/?study=geopetra-demo
+ */
+export async function fetchStudyMemo(name: string): Promise<StudyMemo> {
+  const safe = name.replace(/[^A-Za-z0-9._-]/g, "");
+  const fileName = safe.endsWith(".json") ? safe : `${safe}.study.json`;
+  console.info(`[open-study] fetching studies/${fileName}`);
+  const response = await fetch(`/studies/${fileName}`);
+  // The dev server and the FastAPI static mount answer unknown paths with the
+  // app's index.html, so an HTML response also means "no such study".
+  if (!response.ok || (response.headers.get("content-type") ?? "").includes("text/html")) {
+    throw new Error(
+      `Study "${fileName}" was not found in frontend/public/studies (HTTP ${response.status}).`,
+    );
   }
-  // Re-linking terrain, reservoirs and the spatial archive takes several
-  // seconds for a field study; say so, or the open looks like it did nothing.
+  const blob = await response.blob();
+  return openStudyMemoFile(new File([blob], fileName));
+}
+
+/** Validate a memo file and re-link its field setup. */
+export async function openStudyMemoFile(file: File): Promise<StudyMemo> {
+  console.info(`[open-study] picked ${file.name} (${file.size} bytes)`);
+  // Reading a large memo and re-linking terrain, reservoirs and the spatial
+  // archive takes several seconds; say so at once, or the open looks like it
+  // did nothing.
   const ui = useUiStore.getState();
   ui.dismissBanner("open-failed");
   ui.pushBanner({
@@ -40,11 +57,34 @@ export async function pickStudyMemo(): Promise<StudyMemo | null> {
     message: `Opening ${file.name}… re-linking terrain, reservoirs and results.`,
   });
   try {
+    let text: string;
+    try {
+      text = await file.text();
+    } catch (err) {
+      throw new Error(
+        `Could not read ${file.name}${err instanceof Error ? ` (${err.message})` : ""}. ` +
+          "Copy the file to a local folder such as Documents and open it from there.",
+      );
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new Error("Selected file is not valid JSON.");
+    }
+    if (!isStudyMemo(parsed)) {
+      throw new Error("Selected file is not a compatible study memo.");
+    }
+    console.info("[open-study] memo valid; re-linking field setup");
     await hydrateMemoFieldSetup(parsed);
+    console.info("[open-study] field setup re-linked");
+    return parsed;
+  } catch (err) {
+    console.error("[open-study] failed", err);
+    throw err;
   } finally {
     useUiStore.getState().dismissBanner("memo-opening");
   }
-  return parsed;
 }
 
 /**
@@ -205,25 +245,23 @@ export async function hydrateMemoFieldSetup(memo: StudyMemo): Promise<void> {
 }
 
 async function pickFile(): Promise<File | null> {
-  const fsWindow = window as unknown as FsWindow;
-  if (fsWindow.showOpenFilePicker) {
-    try {
-      const [handle] = await fsWindow.showOpenFilePicker({
-        types: [{ description: "Study memo", accept: { "application/json": [".json"] } }],
-        multiple: false,
-      });
-      return await handle.getFile();
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return null;
-      // Fall through to input fallback.
-    }
-  }
+  // Use the classic file input, not showOpenFilePicker. On some Windows
+  // machines the File System Access picker silently rejects a file clicked in
+  // the dialog (it reports AbortError, indistinguishable from Cancel), while
+  // the classic chooser opens the same file. Opening only needs to read the
+  // file once, so the file handle the newer API provides is not needed.
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "application/json,.json";
-    input.onchange = () => resolve(input.files?.[0] ?? null);
-    input.oncancel = () => resolve(null);
+    input.accept = ".json,application/json";
+    input.style.display = "none";
+    const finish = (file: File | null) => {
+      input.remove();
+      resolve(file);
+    };
+    input.addEventListener("change", () => finish(input.files?.[0] ?? null), { once: true });
+    input.addEventListener("cancel", () => finish(null), { once: true });
+    document.body.appendChild(input);
     input.click();
   });
 }
